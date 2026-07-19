@@ -1,0 +1,64 @@
+# odds-tool caddy edge (Phase 2 Task 2).
+# Only cloudflared (tunnel_net) and Compose-internal clients ever reach this.
+# Public HTTPS terminates at Cloudflare; this listener is plain HTTP :80
+# inside private networks. No host ports are published.
+
+{
+	admin off
+}
+
+:80 {
+	root * /srv
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		X-Frame-Options "DENY"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		-Server
+	}
+
+	# `handle` blocks are mutually exclusive and evaluated in written order,
+	# so the SPA fallback rewrite can never swallow API or internal paths.
+
+	# Phase 1 final-report §3: /internal/* must never be exposed at the edge.
+	# The readiness endpoint stays reachable only inside the Compose
+	# networks (direct api:8787 access).
+	handle /internal/* {
+		respond 404
+	}
+
+	handle /api/v1/* {
+		reverse_proxy api:8787
+	}
+
+	# Fail closed on the rest of the API namespace: legacy /api/* paths
+	# (e.g. /api/backtest, /api/hdc-live, /api/import/*) must 404, never
+	# fall through to the SPA shell (Phase 1 probe-table parity).
+	handle /api/* {
+		respond 404
+	}
+
+	# Legacy public paths from the pre-API era. The PWA never references
+	# them (src/App.test.tsx asserts this), so deny at the edge.
+	handle /hkjc-odds.json {
+		respond 404
+	}
+
+	handle /health {
+		respond 404
+	}
+
+	# SPA fallback: real files win, everything else serves the app shell.
+	handle {
+		# sw.js / registerSW.js must never be cached by any intermediary
+		# (Cloudflare caches .js by default — a stale SW here served the
+		# previous app bundle after the 2026-07-19 league deploy).
+		@pwaSw path /sw.js /registerSW.js
+		header @pwaSw Cache-Control "no-cache, must-revalidate"
+		try_files {path} /index.html
+		file_server
+	}
+}

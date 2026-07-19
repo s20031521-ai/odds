@@ -1,0 +1,193 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {
+  bucket,
+  buildBacktest,
+  buildHealth,
+  flattenLiveCache,
+  groupSummary,
+  mergeResults,
+  mergeSnapshots,
+  oddsScoreRows,
+  selectBacktestResults,
+  summarize,
+} from "./backtest.mjs";
+import { liveOddsIdentity, resultIdentity, snapshotIdentity } from "./identity.mjs";
+import { classifySnapshot } from "../../shared/snapshot-policy.mjs";
+
+const NOW = Date.parse("2026-07-11T12:00:00Z");
+const TOTALS = "大細波";
+const HANDICAP = "亞洲讓球";
+const CORNERS = "角球";
+
+function validSnapshot(overrides = {}) {
+  const snapshot = {
+    odds: 2,
+    chance: 0.55,
+    savedAt: "2026-07-11T05:00:00Z",
+    commenceTime: "2026-07-11T06:00:00Z",
+    modelVersion: "self-test-v1",
+    ...overrides,
+  };
+  if (!Number.isFinite(Date.parse(snapshot.savedAt))) snapshot.savedAt = "2026-07-11T05:00:00Z";
+  if (!Number.isFinite(Date.parse(snapshot.commenceTime))) snapshot.commenceTime = "2026-07-11T06:00:00Z";
+  if (!Number.isFinite(snapshot.odds) || snapshot.odds <= 1) snapshot.odds = 2;
+  if (!Number.isFinite(snapshot.chance)) snapshot.chance = 0.55;
+  if (!snapshot.modelVersion) snapshot.modelVersion = "self-test-v1";
+  return snapshot;
+}
+
+test("preserves quarter-line settlement and push denominators", () => {
+  const snapshots = [
+    { matchId: "win", market: TOTALS, prediction: "大", line: 2.25 },
+    { matchId: "half-win", market: TOTALS, prediction: "大", line: 2.75 },
+    { matchId: "push", market: TOTALS, prediction: "大", line: 3 },
+    { matchId: "half-loss", market: TOTALS, prediction: "大", line: 3.25 },
+    { matchId: "loss", market: TOTALS, prediction: "大", line: 3.25 },
+  ].map(validSnapshot);
+  const response = buildBacktest(snapshots, [
+    { matchId: "win", market: TOTALS, actual: "3 球" },
+    { matchId: "half-win", market: TOTALS, actual: "3 球" },
+    { matchId: "push", market: TOTALS, actual: "3 球" },
+    { matchId: "half-loss", market: TOTALS, actual: "3 球" },
+    { matchId: "loss", market: TOTALS, actual: "2 球" },
+  ], NOW);
+
+  assert.deepEqual(response.rows.map((row) => row.settlement), ["win", "half-win", "push", "half-loss", "loss"]);
+  assert.equal(response.summary.hitRate, 3 / 6);
+});
+
+test("preserves every inline-self-test Asian handicap and corner settlement branch", () => {
+  const response = buildBacktest([
+    { matchId: "corner-half-win", market: CORNERS, prediction: "大角", line: 9.75 },
+    { matchId: "corner-half-loss", market: CORNERS, prediction: "大角", line: 9.25 },
+    { matchId: "hdc-half-win", market: HANDICAP, prediction: "主", line: -0.75 },
+    { matchId: "hdc-half-loss", market: HANDICAP, prediction: "主", line: -0.25 },
+    { matchId: "hdc-push", market: HANDICAP, prediction: "主", line: -1 },
+    { matchId: "hdc-away", market: HANDICAP, prediction: "客", line: -0.25 },
+  ].map(validSnapshot), [
+    { matchId: "corner-half-win", market: CORNERS, actual: "10 角球" },
+    { matchId: "corner-half-loss", market: CORNERS, actual: "9 角球" },
+    { matchId: "hdc-half-win", market: HANDICAP, actual: "2-1" },
+    { matchId: "hdc-half-loss", market: HANDICAP, actual: "1-1" },
+    { matchId: "hdc-push", market: HANDICAP, actual: "2-1" },
+    { matchId: "hdc-away", market: HANDICAP, actual: "1-1" },
+  ], NOW);
+
+  assert.deepEqual(response.rows.map((row) => row.settlement), ["half-win", "half-loss", "half-win", "half-loss", "push", "half-win"]);
+});
+
+test("preserves handicap settlement, distinct-match readiness, and valid snapshot classification", () => {
+  const snapshots = [
+    { matchId: "hdc", market: HANDICAP, prediction: "主", line: -0.75 },
+    { matchId: "upcoming", market: TOTALS, prediction: "細", line: 2.5, commenceTime: "2026-07-11T13:00:00Z", modelVersion: "totals-loo-v1" },
+    { matchId: "overdue", market: TOTALS, prediction: "大", line: 2.5, commenceTime: "2026-07-11T06:00:00Z", modelVersion: "totals-loo-v1" },
+    { matchId: "overdue", market: TOTALS, prediction: "大", line: 3, commenceTime: "2026-07-11T06:00:00Z", modelVersion: "totals-loo-v1" },
+  ].map(validSnapshot);
+  snapshots.push(
+    { ...validSnapshot({ matchId: "invalid", market: TOTALS, prediction: "大", line: 2.5 }), commenceTime: undefined },
+    { ...validSnapshot({ matchId: "legacy", market: TOTALS, prediction: "大", line: 2.5 }), modelVersion: undefined },
+  );
+  const response = buildBacktest(snapshots, [
+    { matchId: "hdc", market: HANDICAP, actual: "2-1" },
+    { matchId: "invalid", market: TOTALS, actual: "3 球" },
+    { matchId: "legacy", market: TOTALS, actual: "3 球" },
+  ], NOW);
+  const readiness = response.readiness.find((row) => row.market === TOTALS && row.modelVersion === "totals-loo-v1");
+
+  assert.equal(response.rows[0].settlement, "half-win");
+  assert.deepEqual({ snapshots: readiness.snapshots, matches: readiness.matches, pendingMatches: readiness.pendingMatches, upcoming: readiness.upcoming, overdue: readiness.overdue, upcomingMatches: readiness.upcomingMatches, overdueMatches: readiness.overdueMatches }, { snapshots: 3, matches: 2, pendingMatches: 2, upcoming: 1, overdue: 2, upcomingMatches: 1, overdueMatches: 1 });
+  assert.equal(response.snapshotQuality.validCurrent, 4);
+  assert.equal(response.snapshotQuality.legacy, 1);
+  assert.equal(response.snapshotQuality.invalid, 1);
+  assert.equal(response.rows.filter((row) => row.snapshotStatus === "valid-current").length, 1);
+});
+
+test("freezes versioned identities and result-source priority", () => {
+  const duplicate = validSnapshot({ matchId: "same", market: TOTALS, prediction: "大", line: 2.5, modelVersion: "totals-v1" });
+  const merged = mergeSnapshots([], [duplicate, { ...duplicate, odds: 9 }]);
+
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].odds, duplicate.odds);
+  assert.equal(snapshotIdentity(duplicate), "same|大細波|2.5|totals-v1");
+  assert.equal(snapshotIdentity({ matchId: "same", market: TOTALS, modelVersion: "totals-v1" }), "same|大細波||totals-v1");
+  assert.equal(snapshotIdentity({ matchId: "same", market: TOTALS, line: 2.5 }), "same|大細波|2.5|legacy-v0");
+  assert.equal(resultIdentity({ matchId: "same", market: TOTALS }), "same|大細波");
+  assert.equal(liveOddsIdentity({ id: "odds-1" }), "odds-1");
+  assert.equal(liveOddsIdentity({ matchId: "same", market: TOTALS }), "same-大細波");
+  assert.equal(mergeResults([{ matchId: "m", market: HANDICAP, actual: "1-0" }], [{ matchId: "m", market: HANDICAP, actual: "2-0" }])[0].actual, "2-0");
+  assert.equal(selectBacktestResults([{ matchId: "live" }], [{ matchId: "archive" }])[0].matchId, "archive");
+});
+
+test("keeps live cache, score conversion, and health shapes", () => {
+  const live = flattenLiveCache({ soccer_test: { h2hEntries: [{ id: "h2h" }], handicapEntries: [{ id: "hdc" }], totalEntries: [{ id: "totals" }], cornerEntries: [{ id: "corners" }] } });
+  const scores = oddsScoreRows([{ id: "odds-1", completed: true, commence_time: "2026-07-11T00:00:00Z", home_team: "A", away_team: "B", scores: [{ name: "A", score: "2" }, { name: "B", score: "1" }] }]);
+  const health = buildHealth({ collector: "2026-07-11T11:40:00Z", hkjc: "2026-07-11T11:50:00Z" }, NOW);
+
+  assert.deepEqual(live, { h2hEntries: [{ id: "h2h" }], handicapEntries: [{ id: "hdc" }], totalEntries: [{ id: "totals" }], cornerEntries: [{ id: "corners" }] });
+  assert.equal(scores[1].actual, "3 球");
+  assert.equal(scores[1].market, TOTALS);
+  assert.deepEqual({ ok: health.ok, dataFresh: health.dataFresh, staleSources: health.staleSources }, { ok: true, dataFresh: true, staleSources: [] });
+  const stale = buildHealth({ collector: "2026-07-11T10:00:00Z" }, NOW);
+  assert.deepEqual({ ok: stale.ok, dataFresh: stale.dataFresh, staleSources: stale.staleSources, collectorStale: stale.sources.collector.stale, hkjcStale: stale.sources.hkjc.stale }, { ok: true, dataFresh: false, staleSources: ["collector", "hkjc"], collectorStale: true, hkjcStale: true });
+});
+
+test("freezes representative selection order, profit, ROI, and chance buckets", () => {
+  const rows = [
+    { matchId: "distinct", market: TOTALS, modelVersion: "totals-v1", prediction: "細", settlement: "loss", hit: false, odds: 2, edge: 0.04, savedAt: "2026-07-09T01:00:00Z", line: 2.5, chance: 0.44 },
+    { matchId: "distinct", market: TOTALS, modelVersion: "totals-v1", prediction: "大", settlement: "win", hit: true, odds: 2, edge: 0.08, savedAt: "2026-07-09T02:00:00Z", line: 3, chance: 0.81 },
+  ];
+  const summary = summarize(rows.slice(0, 2));
+  const grouped = groupSummary(rows.slice(0, 2), (row) => row.market);
+  const buckets = groupSummary(rows.slice(0, 2), (row) => bucket(row.chance));
+
+  assert.deepEqual(summary, { finished: 1, hit: 1, miss: 0, push: 0, hitRate: 1, priced: 1, profit: 1, roi: 1, yield: 1 });
+  assert.deepEqual(grouped[TOTALS], summary);
+  assert.deepEqual(Object.keys(buckets), ["80-85%"]);
+  assert.deepEqual(buckets["80-85%"], summary);
+});
+
+test("freezes equal-edge representative tie-breakers through summary outputs", () => {
+  const common = { matchId: "tie", market: TOTALS, modelVersion: "totals-v1", edge: 0.08 };
+  const bySavedAt = summarize([
+    { ...common, settlement: "win", hit: true, odds: 3, savedAt: "2026-07-09T01:00:00Z", line: 3 },
+    { ...common, settlement: "loss", hit: false, odds: 2, savedAt: "2026-07-09T02:00:00Z", line: 2.5 },
+  ]);
+  const byLine = summarize([
+    { ...common, settlement: "loss", hit: false, odds: 2, savedAt: "2026-07-09T01:00:00Z", line: 2.5 },
+    { ...common, settlement: "win", hit: true, odds: 3, savedAt: "2026-07-09T01:00:00Z", line: 3 },
+  ]);
+  const byInsertionOrder = summarize([
+    { ...common, settlement: "loss", hit: false, odds: 2, savedAt: "2026-07-09T01:00:00Z", line: 2.5 },
+    { ...common, settlement: "win", hit: true, odds: 3, savedAt: "2026-07-09T01:00:00Z", line: 2.5 },
+  ]);
+
+  assert.deepEqual(bySavedAt, { finished: 1, hit: 1, miss: 0, push: 0, hitRate: 1, priced: 1, profit: 2, roi: 2, yield: 2 });
+  assert.deepEqual(byLine, { finished: 1, hit: 0, miss: 1, push: 0, hitRate: 0, priced: 1, profit: -1, roi: -1, yield: -1 });
+  assert.deepEqual(byInsertionOrder, { finished: 1, hit: 0, miss: 1, push: 0, hitRate: 0, priced: 1, profit: -1, roi: -1, yield: -1 });
+});
+
+test("freezes detailed current, legacy, and invalid snapshot classification reasons", () => {
+  const valid = validSnapshot({ matchId: "quality-valid", market: TOTALS, prediction: "大", line: 2.5, edge: 0.04, modelVersion: "totals-loo-v1", source: "test" });
+  const cases = [
+    [{ ...valid, matchId: "" }, "invalid", "missing-match-id"],
+    [{ ...valid, market: "" }, "invalid", "missing-market"],
+    [{ ...valid, prediction: "" }, "invalid", "invalid-prediction"],
+    [{ ...valid, savedAt: "" }, "invalid", "missing-saved-at"],
+    [{ ...valid, modelVersion: undefined }, "legacy", "legacy-model"],
+    [{ ...valid, commenceTime: undefined }, "invalid", "missing-commence-time"],
+    [{ ...valid, savedAt: "not-a-date" }, "invalid", "invalid-saved-at"],
+    [{ ...valid, commenceTime: "not-a-date" }, "invalid", "invalid-commence-time"],
+    [{ ...valid, savedAt: valid.commenceTime }, "invalid", "post-kickoff"],
+    [{ ...valid, odds: 1 }, "invalid", "invalid-odds"],
+    [{ ...valid, chance: 2 }, "invalid", "invalid-chance"],
+    [{ ...valid, edge: Number.NaN }, "invalid", "invalid-edge"],
+    [{ ...valid, line: undefined }, "invalid", "missing-line"],
+    [{ ...valid, line: 2.3 }, "invalid", "invalid-line"],
+  ];
+
+  assert.deepEqual(cases.map(([snapshot, status, reason]) => {
+    const actual = classifySnapshot(snapshot);
+    return [actual.status, actual.reason, status, reason];
+  }), cases.map(([, status, reason]) => [status, reason, status, reason]));
+});

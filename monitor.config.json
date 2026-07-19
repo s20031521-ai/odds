@@ -1,0 +1,21 @@
+{
+  "sportKey": "soccer_fifa_world_cup",
+  "regions": "uk",
+  "markets": "totals",
+  "oddsFormat": "decimal",
+  "pollSeconds": 120,
+  "cooldownMinutes": 10,
+  "inboxDir": "../../odds-alerts/inbox",
+  "watchlist": [
+    {
+      "id": "por-spain-under-2-5",
+      "homeTeam": "Portugal",
+      "awayTeam": "Spain",
+      "market": "totals",
+      "side": "Under",
+      "point": 2.5,
+      "operator": ">=",
+      "targetPrice": 1.9
+    }
+  ]
+}

@@ -1,0 +1,200 @@
+name: odds-tool
+
+# Phase 2 Task 1: postgres. Task 2: api + caddy edge (D2-A trusted proxy).
+# Task 6: cloudflared tunnel (only path in from the internet).
+# collector / backup are added by later tasks.
+# Networks: db_net is internal-only; no service may publish host ports.
+
+networks:
+  tunnel_net:
+    driver: bridge
+  app_net:
+    driver: bridge
+  db_net:
+    driver: bridge
+    internal: true
+
+volumes:
+  pgdata:
+
+secrets:
+  pg_postgres_password:
+    file: ./secrets/pg_postgres_password
+  pg_app_password:
+    file: ./secrets/pg_app_password
+  pg_migration_password:
+    file: ./secrets/pg_migration_password
+  session_secret:
+    file: ./secrets/session_secret
+  odds_api_key:
+    file: ./secrets/odds_api_key
+  api_football_key:
+    file: ./secrets/api_football_key
+
+services:
+  postgres:
+    image: postgres:18-bookworm@sha256:1961f96e6029a02c3812d7cb329a3b03a3ac2bb067058dec17b0f5596aca9296
+    restart: unless-stopped
+    networks:
+      - db_net
+    volumes:
+      - pgdata:/var/lib/postgresql
+    secrets:
+      - source: pg_postgres_password
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: pg_app_password
+        uid: "999"
+        gid: "999"
+        mode: 0400
+      - source: pg_migration_password
+        uid: "999"
+        gid: "999"
+        mode: 0400
+    environment:
+      POSTGRES_DB: odds
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_postgres_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d odds"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/api.Dockerfile
+    restart: unless-stopped
+    networks:
+      - app_net
+      - db_net
+    secrets:
+      - source: pg_app_password
+        uid: "1000"
+        gid: "1000"
+        mode: 0400
+      - source: session_secret
+        uid: "1000"
+        gid: "1000"
+        mode: 0400
+    environment:
+      PUBLIC_ORIGIN: https://odds.ballballchu.com.hk
+      NODE_ENV: production
+      # Migrations run via the one-shot migration job (odds_migration role),
+      # never in the long-running api container.
+      RUN_MIGRATIONS: "false"
+      # D2-A: trust X-Forwarded-For only from the Docker bridge pool.
+      # Docker assigns user-defined bridge subnets (incl. app_net) from
+      # 172.16.0.0/12; only containers attached to app_net can open a TCP
+      # connection to api (no published ports), so any peer in this pool is
+      # already our own Compose edge (caddy). Spoofed headers from anywhere
+      # else are impossible to deliver.
+      TRUSTED_PROXY_CIDRS: 172.16.0.0/12
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # node:24-bookworm-slim has no curl/wget; use the built-in fetch.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/internal/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  caddy:
+    build:
+      context: ..
+      dockerfile: deploy/web.Dockerfile
+    restart: unless-stopped
+    networks:
+      - tunnel_net
+      - app_net
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      # caddy:2-alpine ships busybox wget.
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1/"]
+      interval: 15s
+      timeout: 3s
+      retries: 8
+    mem_limit: 128m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Task 6: the ONLY inbound path from the internet. cloudflared dials out
+  # to Cloudflare edge (no host ports, no inbound firewall rules); public
+  # HTTPS terminates at Cloudflare and rides the tunnel to caddy:80.
+  # TUNNEL_TOKEN comes from a root-only env_file (not a Compose secret —
+  # cloudflared only accepts the token via env or CLI flag).
+  cloudflared:
+    image: cloudflare/cloudflared:latest@sha256:188bb03589a32affed3cf4d0590565ffe67b78866e6b5582574afab2b705bafe
+    restart: unless-stopped
+    networks:
+      - tunnel_net
+    env_file:
+      - /opt/odds-tool/secrets/cloudflared.env
+    command: tunnel --no-autoupdate run
+    depends_on:
+      caddy:
+        condition: service_healthy
+    mem_limit: 128m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Task 6 Step 4: paid collector (explicit owner approval 2026-07-19).
+  # Reuses the api image (same code + prod deps) with the collector
+  # entrypoint: composes env from secrets as root, drops to uid 1000, then
+  # supervises one hdc-collector cycle every 5 min + hkjc-import every 3rd
+  # cycle. State-driven: idle cycles make zero provider calls; paid quota is
+  # guarded in hdc-collector (50-credit reserve + provider cooldown).
+  collector:
+    image: odds-tool-api:latest
+    restart: unless-stopped
+    networks:
+      - app_net
+      - db_net
+    secrets:
+      - source: pg_app_password
+        uid: "1000"
+        gid: "1000"
+        mode: 0400
+      - source: odds_api_key
+        uid: "1000"
+        gid: "1000"
+        mode: 0400
+      - source: api_football_key
+        uid: "1000"
+        gid: "1000"
+        mode: 0400
+    entrypoint: ["/usr/local/bin/collector-entrypoint.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    mem_limit: 256m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

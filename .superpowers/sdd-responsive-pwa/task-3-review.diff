@@ -1,0 +1,1073 @@
+﻿Task 3 manual review package (no Git repository)
+
+
+===== .superpowers\sdd-responsive-pwa\task-3-base\src\App.tsx -> src\App.tsx =====
+
+warning: in the working copy of '.superpowers\sdd-responsive-pwa\task-3-base\src\App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src\App.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/.superpowers\\sdd-responsive-pwa\\task-3-base\\src\\App.tsx" "b/src\\App.tsx"
+index 37d7ee5..45760e8 100644
+--- "a/.superpowers\\sdd-responsive-pwa\\task-3-base\\src\\App.tsx"
++++ "b/src\\App.tsx"
+@@ -3,7 +3,6 @@ import { AlertTriangle, Calculator, CalendarDays, Loader2 } from "lucide-react";
+ import {
+   analyzeEntries,
+   filterLegacySampleEntries,
+-  hasCompleteOdds,
+   sortFixturesByBestEdge,
+   upcomingFixtures,
+   type AnalysisRow,
+@@ -20,6 +19,11 @@ import { calibrationBuckets, clearBacktestResponseState, cornerPickLabel, curren
+ import { fixtureIdFromHash, pageFromHash } from "./route";
+ import { postPredictionSnapshots, savePredictionSnapshots, type PredictionSnapshot } from "./predictionSnapshots";
+ import { bestH2hPick } from "./picks";
++import { AppShell } from "./components/AppShell";
++import { buildBuyCandidates } from "./buyCandidates";
++import { BUY_EDGE_THRESHOLD, selectBuyOpportunities } from "./buyOpportunities";
++import { BuyDashboard } from "./pages/BuyDashboard";
++import { AllFixtures } from "./pages/AllFixtures";
+ 
+ 
+ type ApiStatus =
+@@ -83,8 +87,6 @@ type ModelReadiness = {
+ };
+ 
+ const HDC_REFRESH_MS = 3 * 60 * 1000;
+-const UI_BUILD = "ui-2026.07.12.10";
+-
+ const initialEntries: ManualEntry[] = [];
+ 
+ 
+@@ -98,6 +100,8 @@ function App() {
+   const [snapshotQuality, setSnapshotQuality] = useState<SnapshotQuality | null>(null);
+   const [historyError, setHistoryError] = useState("");
+   const [dataWarning, setDataWarning] = useState("");
++  const [dataFresh, setDataFresh] = useState(true);
++  const [generatedAt, setGeneratedAt] = useState(() => new Date().toISOString());
+   const [historyLoading, setHistoryLoading] = useState(() => pageFromHash(window.location.hash) === "history");
+   const [historyView, setHistoryView] = useState<"comparable" | "all">("comparable");
+   const [historyMarket, setHistoryMarket] = useState<HistoryMarket>("主客和");
+@@ -134,6 +138,18 @@ function App() {
+     pickLabel: cornerPickLabel(card.pickLabel, card.bookmakerCount),
+   })), [cornerEntries, settings.edgeThreshold]);
+   const handicapCards = useMemo(() => buildHandicapCards(handicapEntries, settings.edgeThreshold), [handicapEntries, settings.edgeThreshold]);
++  const buyCandidates = useMemo(() => buildBuyCandidates({
++    fixtures,
++    h2hRows: rows,
++    totalCards,
++    cornerCards,
++    handicapCards,
++  }), [fixtures, rows, totalCards, cornerCards, handicapCards]);
++  const buyOpportunities = useMemo(() => selectBuyOpportunities(buyCandidates, {
++    now: Date.now(),
++    edgeThreshold: BUY_EDGE_THRESHOLD,
++    dataFresh,
++  }), [buyCandidates, dataFresh]);
+   const totalCardGroups = useMemo(() => groupMarketCards(totalCards), [totalCards]);
+   const cornerCardGroups = useMemo(() => groupMarketCards(cornerCards), [cornerCards]);
+   const visibleResultEntries = useMemo(() => excludeLegacyRows(resultEntries), [resultEntries]);
+@@ -154,8 +170,6 @@ function App() {
+   const qualityWarning = snapshotQuality ? snapshotQualityMessage(snapshotQuality) : null;
+   const selectedPerformance = marketSummaries.find((item) => item.market === analysisMarket)?.summary ?? null;
+   const selectedReadiness = excludeLegacyRows(readiness.filter((item) => item.market === analysisMarket));
+-  const completeEntries = entries.filter((entry) => hasCompleteOdds(entry.odds)).length;
+-  const valueCount = rows.filter((row) => row.riskLabel === "可能有 value").length;
+   const selectedFixture = fixtures.find((fixture) => fixture.matchId === fixtureId) ?? null;
+   const selectedRows = selectedFixture ? rows.filter((row) => row.matchId === selectedFixture.matchId) : [];
+ 
+@@ -176,7 +190,7 @@ function App() {
+ 
+ 
+   useEffect(() => {
+-    if (page === "dashboard" && !hkjcAutoLoadStarted.current) {
++    if ((page === "dashboard" || page === "fixtures") && !hkjcAutoLoadStarted.current) {
+       hkjcAutoLoadStarted.current = true;
+       void loadHkjcOdds();
+     }
+@@ -187,7 +201,7 @@ function App() {
+   }, [page]);
+ 
+   useEffect(() => {
+-    if (page !== "dashboard" || !["h2h", "handicap", "totals", "corners"].includes(analysisTab)) return;
++    if ((page !== "dashboard" && page !== "fixtures") || !["h2h", "handicap", "totals", "corners"].includes(analysisTab)) return;
+     void refreshHdcOdds();
+     void refreshDataHealth();
+     const timer = window.setInterval(() => {
+@@ -238,6 +252,7 @@ function App() {
+       setHandicapEntries((current) => mergeById(current, Array.isArray(payload.handicapEntries) ? payload.handicapEntries : []));
+       setTotalEntries((current) => mergeById(current, Array.isArray(payload.totalEntries) ? payload.totalEntries : []));
+       setCornerEntries((current) => mergeById(current, Array.isArray(payload.cornerEntries) ? payload.cornerEntries : []));
++      setGeneratedAt(new Date().toISOString());
+     } catch (error) {
+       setApiStatus({ type: "error", message: error instanceof Error ? error.message : "HDC 即時更新失敗。" });
+     } finally {
+@@ -252,8 +267,10 @@ function App() {
+       if (!response.ok || !body || typeof body.dataFresh !== "boolean" || !Array.isArray(body.staleSources)) {
+         throw new Error("invalid health response");
+       }
++      setDataFresh(body.dataFresh);
+       setDataWarning(dataHealthWarning(body) ?? "");
+     } catch {
++      setDataFresh(false);
+       setDataWarning("無法檢查資料新鮮度；畫面資料可能唔係最新。");
+     }
+   }
+@@ -276,6 +293,7 @@ function App() {
+       setCornerEntries((current) => mergeById(current, cornerEntries));
+       setHandicapEntries((current) => mergeById(current.filter((entry) => entry.bookmaker !== "HKJC"), hkjcHandicapEntries));
+       setResultEntries((current) => mergeById(current, resultEntries));
++      setGeneratedAt(new Date().toISOString());
+       setApiStatus({ type: "success", message: `已載入 ${body.entries.length} 組馬會主客和、${totalEntries.length} 組大細波、${cornerEntries.length} 組角球、${hkjcHandicapEntries.length} 組亞洲讓球、${resultEntries.length} 條完場對比。` });
+     } catch (error) {
+       setApiStatus({ type: "error", message: error instanceof Error ? error.message : "載入馬會資料時出錯。" });
+@@ -283,38 +301,26 @@ function App() {
+   }
+ 
+   return (
+-    <main className="app-shell">
+-      <section className="topbar">
+-        <div>
+-          <p className="eyebrow">Football odds <span className="build-marker">{UI_BUILD}</span></p>
+-          <h1>{page === "dashboard" ? selectedFixture ? `${selectedFixture.homeTeam} vs ${selectedFixture.awayTeam}` : "賽事 Dashboard" : page === "history" ? "完場對比" : "模型表現分析"}</h1>
+-          <nav className="page-tabs" aria-label="主要分頁">
+-            <a aria-current={page === "dashboard" ? "page" : undefined} className={page === "dashboard" ? "active" : ""} href="#/dashboard">Dashboard</a>
+-            <a aria-current={page === "history" ? "page" : undefined} className={page === "history" ? "active" : ""} href="#/history">完場對比</a>
+-            <a aria-current={page === "analysis" ? "page" : undefined} className={page === "analysis" ? "active" : ""} href="#/analysis">模型分析</a>
+-          </nav>
+-        </div>
+-        {page === "dashboard" ? <div className="status-strip">
+-          <Stat label="即將賽事" value={fixtures.length.toString()} />
+-          <Stat label="有效賠率" value={completeEntries.toString()} />
+-          <Stat label="可能 value" value={valueCount.toString()} />
+-        </div> : null}
+-      </section>
+-
+-      {page === "dashboard" && dataWarning ? (
+-        <div className="sample-warning" role="alert"><AlertTriangle size={17} />{dataWarning}</div>
+-      ) : null}
+-
+-      {page === "dashboard" ? (
+-        <nav className="market-tabs" aria-label="Dashboard 分析類型">
++    <AppShell route={page} dataWarning={page === "dashboard" || page === "fixtures" ? dataWarning : undefined}>
++      <AllFixtures
++        active={page === "fixtures"}
++        marketNavigation={(
++        <nav className="market-tabs" aria-label="全部賽事市場">
+           <button aria-pressed={analysisTab === "h2h"} className={analysisTab === "h2h" ? "active" : ""} onClick={() => setAnalysisTab("h2h")} type="button">主客和</button>
+           <button aria-pressed={analysisTab === "totals"} className={analysisTab === "totals" ? "active" : ""} onClick={() => setAnalysisTab("totals")} type="button">大細波</button>
+           <button aria-pressed={analysisTab === "corners"} className={analysisTab === "corners" ? "active" : ""} onClick={() => setAnalysisTab("corners")} type="button">角球</button>
+           <button aria-pressed={analysisTab === "handicap"} className={analysisTab === "handicap" ? "active" : ""} onClick={() => setAnalysisTab("handicap")} type="button">亞洲讓球</button>
+         </nav>
++        )}
++        content={(
++        <>
++      {page === "dashboard" ? (
++        <BuyDashboard opportunities={buyOpportunities} generatedAt={generatedAt} dataFresh={dataFresh} />
+       ) : null}
++      {page === "history" ? <h1 className="page-heading">完場對比</h1> : null}
++      {page === "analysis" ? <h1 className="page-heading">模型表現分析</h1> : null}
+ 
+-      {page === "dashboard" && analysisTab === "h2h" ? (
++      {page === "fixtures" && analysisTab === "h2h" ? (
+       <section className="dashboard-section">
+         <Panel title="即將賽事" icon={<CalendarDays size={18} />}>
+           {dashboardFixtures.length === 0 ? (
+@@ -331,7 +337,7 @@ function App() {
+                       const isSelected = selectedFixture?.matchId === fixture.matchId;
+                       return (
+                         <div className={isSelected ? "fixture-card-wrap expanded" : "fixture-card-wrap"} key={fixture.matchId}>
+-                          <a className={fixture.matchId.startsWith("hkjc-") ? "fixture-card hkjc-card" : "fixture-card"} href={`#/dashboard/${encodeURIComponent(fixture.matchId)}`}>
++                          <a className={fixture.matchId.startsWith("hkjc-") ? "fixture-card hkjc-card" : "fixture-card"} href={`#/fixtures/${encodeURIComponent(fixture.matchId)}`}>
+                             <span className="fixture-time">{formatDate(fixture.commenceTime)}</span>
+                             <strong>{fixture.homeTeam} vs {fixture.awayTeam}</strong>
+                             <div className="fixture-meta">
+@@ -439,7 +445,7 @@ function App() {
+       </section>
+       ) : null}
+ 
+-      {page === "dashboard" && analysisTab === "totals" ? (
++      {page === "fixtures" && analysisTab === "totals" ? (
+       <section className="totals-section">
+         <Panel title="大細波賠率" icon={<Calculator size={18} />}>
+           {totalCardGroups.length === 0 ? (
+@@ -453,7 +459,7 @@ function App() {
+       </section>
+       ) : null}
+ 
+-      {page === "dashboard" && analysisTab === "corners" ? (
++      {page === "fixtures" && analysisTab === "corners" ? (
+       <section className="corners-section">
+         <Panel title="角球賠率" icon={<Calculator size={18} />}>
+           {cornerCardGroups.length === 0 ? (
+@@ -467,7 +473,7 @@ function App() {
+       </section>
+       ) : null}
+ 
+-      {page === "dashboard" && analysisTab === "handicap" ? (
++      {page === "fixtures" && analysisTab === "handicap" ? (
+       <section className="totals-section">
+         <Panel title="HDC 亞洲讓球" icon={<Calculator size={18} />}>
+           {handicapCards.length === 0 ? (
+@@ -542,7 +548,10 @@ function App() {
+         </Panel>
+       </section>
+       ) : null}
+-    </main>
++        </>
++        )}
++      />
++    </AppShell>
+   );
+ }
+ 
+
+===== .superpowers\sdd-responsive-pwa\task-3-base\src\route.ts -> src\route.ts =====
+
+warning: in the working copy of '.superpowers\sdd-responsive-pwa\task-3-base\src\route.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src\route.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/.superpowers\\sdd-responsive-pwa\\task-3-base\\src\\route.ts" "b/src\\route.ts"
+index 091913e..3eccd27 100644
+--- "a/.superpowers\\sdd-responsive-pwa\\task-3-base\\src\\route.ts"
++++ "b/src\\route.ts"
+@@ -2,14 +2,14 @@ export type Page = "dashboard" | "fixtures" | "analysis" | "history";
+ 
+ export function pageFromHash(hash: string): Page {
+   const value = cleanHash(hash);
+-  if (value === "fixtures") return "fixtures";
++  if (value === "fixtures" || value.startsWith("fixtures/") || value.startsWith("dashboard/")) return "fixtures";
+   if (value.startsWith("analysis")) return "analysis";
+   if (value.startsWith("history")) return "history";
+   return "dashboard";
+ }
+ 
+ export function fixtureIdFromHash(hash: string): string | null {
+-  const [, id] = cleanHash(hash).match(/^dashboard\/(.+)$/) ?? [];
++  const [, id] = cleanHash(hash).match(/^(?:fixtures|dashboard)\/(.+)$/) ?? [];
+   return id ? decodeURIComponent(id) : null;
+ }
+ 
+
+===== .superpowers\sdd-responsive-pwa\task-3-base\src\route.test.ts.baseline -> src\route.test.ts =====
+
+warning: in the working copy of '.superpowers\sdd-responsive-pwa\task-3-base\src\route.test.ts.baseline', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src\route.test.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/.superpowers\\sdd-responsive-pwa\\task-3-base\\src\\route.test.ts.baseline" "b/src\\route.test.ts"
+index 6f898f3..a86afbf 100644
+--- "a/.superpowers\\sdd-responsive-pwa\\task-3-base\\src\\route.test.ts.baseline"
++++ "b/src\\route.test.ts"
+@@ -15,7 +15,14 @@ describe("hash route", () => {
+ 
+   it("extracts fixture id from dashboard detail hash", () => {
+     expect(fixtureIdFromHash("#/dashboard/game%201")).toBe("game 1");
++    expect(fixtureIdFromHash("#/fixtures/game%202")).toBe("game 2");
+     expect(fixtureIdFromHash("#/dashboard")).toBeNull();
+     expect(fixtureIdFromHash("#/analysis")).toBeNull();
+   });
++
++  it("opens fixtures detail and legacy dashboard detail under the fixtures page", () => {
++    expect(pageFromHash("#/fixtures/game-1")).toBe("fixtures");
++    expect(pageFromHash("#/dashboard/game-1")).toBe("fixtures");
++    expect(pageFromHash("#/dashboard")).toBe("dashboard");
++  });
+ });
+
+===== .superpowers\sdd-responsive-pwa\task-3-base\src\buyOpportunities.ts -> src\buyOpportunities.ts =====
+
+warning: in the working copy of '.superpowers\sdd-responsive-pwa\task-3-base\src\buyOpportunities.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src\buyOpportunities.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/.superpowers\\sdd-responsive-pwa\\task-3-base\\src\\buyOpportunities.ts" "b/src\\buyOpportunities.ts"
+index 9495518..f6092c9 100644
+--- "a/.superpowers\\sdd-responsive-pwa\\task-3-base\\src\\buyOpportunities.ts"
++++ "b/src\\buyOpportunities.ts"
+@@ -36,23 +36,25 @@ export function selectBuyOpportunities(
+ ): BuyOpportunity[] {
+   if (!options.dataFresh) return [];
+ 
+-  const grouped = new Map<string, { candidate: BuyCandidate; picks: BuyPick[] }>();
++  const grouped = new Map<string, { candidate: BuyCandidate; picks: Map<string, BuyPick> }>();
+ 
+   for (const candidate of candidates) {
+     if (!isValidCandidate(candidate, options.now, options.edgeThreshold)) continue;
+ 
+     const group = grouped.get(candidate.matchId);
+     const pick = toPick(candidate);
++    const key = pickKey(pick);
+     if (group) {
+-      group.picks.push(pick);
++      const current = group.picks.get(key);
++      if (!current || comparePicks(pick, current) < 0) group.picks.set(key, pick);
+     } else {
+-      grouped.set(candidate.matchId, { candidate, picks: [pick] });
++      grouped.set(candidate.matchId, { candidate, picks: new Map([[key, pick]]) });
+     }
+   }
+ 
+   return [...grouped.values()]
+     .map(({ candidate, picks }) => {
+-      const [primary, ...alternatives] = picks.sort(comparePicks);
++      const [primary, ...alternatives] = [...picks.values()].sort(comparePicks);
+       return {
+         matchId: candidate.matchId,
+         homeTeam: candidate.homeTeam,
+@@ -68,6 +70,10 @@ export function selectBuyOpportunities(
+       || compareText(left.matchId, right.matchId));
+ }
+ 
++function pickKey(pick: BuyPick): string {
++  return `${pick.market}\u0000${pick.line === undefined ? "" : pick.line}`;
++}
++
+ function isValidCandidate(
+   candidate: BuyCandidate,
+   now: number,
+
+===== .superpowers\sdd-responsive-pwa\task-3-base\src\buyOpportunities.test.ts.baseline -> src\buyOpportunities.test.ts =====
+
+warning: in the working copy of '.superpowers\sdd-responsive-pwa\task-3-base\src\buyOpportunities.test.ts.baseline', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src\buyOpportunities.test.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/.superpowers\\sdd-responsive-pwa\\task-3-base\\src\\buyOpportunities.test.ts.baseline" "b/src\\buyOpportunities.test.ts"
+index 584270c..a540d75 100644
+--- "a/.superpowers\\sdd-responsive-pwa\\task-3-base\\src\\buyOpportunities.test.ts.baseline"
++++ "b/src\\buyOpportunities.test.ts"
+@@ -76,8 +76,6 @@ describe("selectBuyOpportunities", () => {
+       bookmaker,
+     }))).toEqual([
+       { market: "主客和", line: undefined, selection: "主", bookmaker: "Alpha" },
+-      { market: "主客和", line: undefined, selection: "主", bookmaker: "Zulu" },
+-      { market: "主客和", line: undefined, selection: "客", bookmaker: "Alpha" },
+       { market: "大細波", line: 2.5, selection: "細", bookmaker: "Book" },
+       { market: "大細波", line: 3.5, selection: "大", bookmaker: "Book" },
+       { market: "大細波", line: undefined, selection: "細", bookmaker: "Book" },
+@@ -96,6 +94,23 @@ describe("selectBuyOpportunities", () => {
+     expect(result.map((opportunity) => opportunity.matchId)).toEqual(["early", "a", "b", "later"]);
+   });
+ 
++  it("deduplicates each market and line within a match using the deterministic best pick", () => {
++    const result = select([
++      candidate({ market: "大細波", line: 2.5, selection: "細", bookmaker: "Zulu", edge: 0.05 }),
++      candidate({ market: "大細波", line: 2.5, selection: "大", bookmaker: "Beta", edge: 0.06 }),
++      candidate({ market: "大細波", line: 2.5, selection: "大", bookmaker: "Alpha", edge: 0.06 }),
++      candidate({ market: "大細波", line: 3.5, selection: "細", bookmaker: "Zulu", edge: 0.04 }),
++      candidate({ market: "主客和", selection: "客隊", bookmaker: "Zulu", edge: 0.05 }),
++      candidate({ market: "主客和", selection: "主隊", bookmaker: "Alpha", edge: 0.05 }),
++    ]);
++
++    expect([result[0].primary, ...result[0].alternatives]).toEqual([
++      expect.objectContaining({ market: "大細波", line: 2.5, selection: "大", bookmaker: "Alpha", edge: 0.06 }),
++      expect.objectContaining({ market: "主客和", selection: "主隊", bookmaker: "Alpha", edge: 0.05 }),
++      expect.objectContaining({ market: "大細波", line: 3.5, selection: "細", bookmaker: "Zulu", edge: 0.04 }),
++    ]);
++  });
++
+   it("excludes malformed candidates without throwing", () => {
+     const invalidRows: BuyCandidate[] = [
+       candidate({ matchId: "" }),
+
+===== .superpowers\sdd-responsive-pwa\task-3-base\src\main.tsx -> src\main.tsx =====
+
+warning: in the working copy of '.superpowers\sdd-responsive-pwa\task-3-base\src\main.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src\main.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/.superpowers\\sdd-responsive-pwa\\task-3-base\\src\\main.tsx" "b/src\\main.tsx"
+index f3978bb..9f0441e 100644
+--- "a/.superpowers\\sdd-responsive-pwa\\task-3-base\\src\\main.tsx"
++++ "b/src\\main.tsx"
+@@ -4,6 +4,7 @@ import App from "./App";
+ import "./styles/tokens.css";
+ import "./styles/layout.css";
+ import "./styles.css";
++import "./styles/dashboard.css";
+ 
+ createRoot(document.getElementById("root")!).render(
+   <StrictMode>
+
+===== NUL -> src\buyCandidates.ts =====
+
+warning: in the working copy of 'src\buyCandidates.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/src\\buyCandidates.ts" "b/src\\buyCandidates.ts"
+new file mode 100644
+index 0000000..93f8d84
+--- /dev/null
++++ "b/src\\buyCandidates.ts"
+@@ -0,0 +1,82 @@
++import type { BuyCandidate } from "./buyOpportunities";
++
++type FixtureInput = {
++  matchId: string;
++  homeTeam: string;
++  awayTeam: string;
++  commenceTime: string;
++};
++
++type H2hRowInput = {
++  matchId: string;
++  outcomeLabel: string;
++  bookmaker: string;
++  odds: number;
++  fairProbability: number;
++  edge: number;
++};
++
++type MarketCardInput = FixtureInput & {
++  line: number;
++  bestSide: string | null;
++  bestOdds: number;
++  bestChance: number;
++  bestEdge: number;
++  bestBookmaker: string;
++};
++
++type HandicapCardInput = Omit<MarketCardInput, "bestSide"> & { bestSide: string };
++
++export function buildBuyCandidates(input: {
++  fixtures: FixtureInput[];
++  h2hRows: H2hRowInput[];
++  totalCards: MarketCardInput[];
++  cornerCards: MarketCardInput[];
++  handicapCards: HandicapCardInput[];
++}): BuyCandidate[] {
++  const fixtures = new Map(input.fixtures.map((fixture) => [fixture.matchId, fixture]));
++  const h2h = input.h2hRows.flatMap((row): BuyCandidate[] => {
++    const fixture = fixtures.get(row.matchId);
++    if (!fixture) return [];
++    return [{
++      ...fixture,
++      market: "主客和",
++      selection: row.outcomeLabel,
++      bookmaker: row.bookmaker,
++      odds: row.odds,
++      chance: row.fairProbability,
++      edge: row.edge,
++    }];
++  });
++
++  return [
++    ...h2h,
++    ...input.totalCards.map((card) => fromMarketCard(card, "大細波", card.bestSide ?? "")),
++    ...input.cornerCards.map((card) => fromMarketCard(
++      card,
++      "角球",
++      card.bestSide === "大" ? "大角" : card.bestSide === "細" ? "細角" : "",
++    )),
++    ...input.handicapCards.map((card) => fromMarketCard(card, "亞洲讓球", card.bestSide)),
++  ];
++}
++
++function fromMarketCard(
++  card: MarketCardInput,
++  market: BuyCandidate["market"],
++  selection: string,
++): BuyCandidate {
++  return {
++    matchId: card.matchId,
++    homeTeam: card.homeTeam,
++    awayTeam: card.awayTeam,
++    commenceTime: card.commenceTime,
++    market,
++    selection,
++    line: card.line,
++    odds: card.bestOdds,
++    chance: card.bestChance,
++    edge: card.bestEdge,
++    bookmaker: card.bestBookmaker,
++  };
++}
+
+===== NUL -> src\buyCandidates.test.ts =====
+
+warning: in the working copy of 'src\buyCandidates.test.ts', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/src\\buyCandidates.test.ts" "b/src\\buyCandidates.test.ts"
+new file mode 100644
+index 0000000..a258235
+--- /dev/null
++++ "b/src\\buyCandidates.test.ts"
+@@ -0,0 +1,78 @@
++import { describe, expect, it } from "vitest";
++import { buildBuyCandidates } from "./buyCandidates";
++
++const fixture = {
++  matchId: "match-1",
++  homeTeam: "Home",
++  awayTeam: "Away",
++  commenceTime: "2026-07-17T12:00:00Z",
++};
++
++describe("buildBuyCandidates", () => {
++  it("maps H2H fields by joining fixture data", () => {
++    const result = buildBuyCandidates({
++      fixtures: [fixture],
++      h2hRows: [{
++        matchId: fixture.matchId,
++        outcomeLabel: "主隊",
++        bookmaker: "H2H Book",
++        odds: 2.1,
++        fairProbability: 0.52,
++        edge: 0.092,
++      }],
++      totalCards: [],
++      cornerCards: [],
++      handicapCards: [],
++    });
++
++    expect(result).toEqual([{
++      ...fixture,
++      market: "主客和",
++      selection: "主隊",
++      bookmaker: "H2H Book",
++      odds: 2.1,
++      chance: 0.52,
++      edge: 0.092,
++    }]);
++  });
++
++  it("maps numeric market-card fields without reading localized pick labels", () => {
++    const shared = {
++      ...fixture,
++      line: 2.5,
++      bestOdds: 2.06,
++      bestChance: 0.53,
++      bestEdge: 0.0918,
++      bestBookmaker: "Numbers Book",
++      pickLabel: "故意錯誤、不得解析",
++    };
++
++    const result = buildBuyCandidates({
++      fixtures: [fixture],
++      h2hRows: [],
++      totalCards: [{ ...shared, bestSide: "大" }],
++      cornerCards: [{ ...shared, line: 9.5, bestSide: "細" }],
++      handicapCards: [{ ...shared, line: -0.5, bestSide: "客" }],
++    });
++
++    expect(result).toEqual([
++      expect.objectContaining({ market: "大細波", selection: "大", line: 2.5, odds: 2.06, chance: 0.53, edge: 0.0918, bookmaker: "Numbers Book" }),
++      expect.objectContaining({ market: "角球", selection: "細角", line: 9.5 }),
++      expect.objectContaining({ market: "亞洲讓球", selection: "客", line: -0.5 }),
++    ]);
++    expect(result.map((candidate) => candidate.selection)).not.toContain("故意錯誤、不得解析");
++  });
++
++  it("keeps numeric rows for fail-closed selector validation and skips H2H rows without fixtures", () => {
++    const result = buildBuyCandidates({
++      fixtures: [],
++      h2hRows: [{ matchId: "missing", outcomeLabel: "主隊", bookmaker: "Book", odds: 2, fairProbability: 0.5, edge: 0 }],
++      totalCards: [{ ...fixture, line: Number.NaN, bestSide: null, bestOdds: 0, bestChance: 0, bestEdge: Number.NEGATIVE_INFINITY, bestBookmaker: "Book" }],
++      cornerCards: [],
++      handicapCards: [],
++    });
++
++    expect(result).toHaveLength(1);
++    expect(result[0]).toMatchObject({ market: "大細波", selection: "", line: Number.NaN });
++  });
++});
+
+===== NUL -> src\pages\BuyDashboard.tsx =====
+
+warning: in the working copy of 'src\pages\BuyDashboard.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/src\\pages\\BuyDashboard.tsx" "b/src\\pages\\BuyDashboard.tsx"
+new file mode 100644
+index 0000000..fa276f9
+--- /dev/null
++++ "b/src\\pages\\BuyDashboard.tsx"
+@@ -0,0 +1,137 @@
++import { useState } from "react";
++import type { BuyMarket, BuyOpportunity, BuyPick } from "../buyOpportunities";
++
++const MARKET_FILTERS = ["全部市場", "主客和", "大細波", "角球", "亞洲讓球"] as const;
++type MarketFilter = (typeof MARKET_FILTERS)[number];
++
++export function filterOpportunitiesByMarket(
++  opportunities: BuyOpportunity[],
++  market: MarketFilter,
++): BuyOpportunity[] {
++  if (market === "全部市場") return opportunities.slice();
++  return opportunities.filter((opportunity) =>
++    [opportunity.primary, ...opportunity.alternatives].some((pick) => pick.market === market));
++}
++
++export function BuyDashboard(props: {
++  opportunities: BuyOpportunity[];
++  generatedAt: string;
++  dataFresh: boolean;
++}): React.ReactElement {
++  const [market, setMarket] = useState<MarketFilter>("全部市場");
++  const activeOpportunities = props.dataFresh ? props.opportunities : [];
++  const visibleOpportunities = filterOpportunitiesByMarket(activeOpportunities, market);
++  const picks = activeOpportunities.flatMap((opportunity) => [opportunity.primary, ...opportunity.alternatives]);
++  const averageEdge = picks.length ? picks.reduce((sum, pick) => sum + pick.edge, 0) / picks.length : 0;
++  const nextKickoff = activeOpportunities.reduce<string | null>((next, opportunity) => {
++    if (!next || Date.parse(opportunity.commenceTime) < Date.parse(next)) return opportunity.commenceTime;
++    return next;
++  }, null);
++
++  return (
++    <section className="buy-dashboard" aria-labelledby="buy-dashboard-title">
++      <header className="buy-dashboard__header">
++        <div>
++          <p className="eyebrow">Football odds</p>
++          <h1 id="buy-dashboard-title">值得買 Dashboard</h1>
++        </div>
++        <p className="buy-dashboard__sync">同步時間 <time dateTime={props.generatedAt}>{props.generatedAt}</time></p>
++      </header>
++
++      <div className="buy-dashboard__kpis" aria-label="值得買摘要">
++        <Kpi label="值得買賽事" value={activeOpportunities.length.toString()} />
++        <Kpi label="合資格買盤" value={picks.length.toString()} />
++        <Kpi label="平均 Edge" value={formatPercent(averageEdge)} />
++        <Kpi label="下一場開賽" value={nextKickoff ? formatDate(nextKickoff) : "—"} />
++      </div>
++
++      <div className="buy-dashboard__filters" aria-label="市場篩選">
++        {MARKET_FILTERS.map((label) => (
++          <button
++            aria-pressed={market === label}
++            key={label}
++            onClick={() => setMarket(label)}
++            type="button"
++          >
++            {label}
++          </button>
++        ))}
++      </div>
++
++      {!props.dataFresh ? (
++        <div className="buy-dashboard__empty" role="status">資料未更新，暫停顯示買盤。</div>
++      ) : activeOpportunities.length === 0 ? (
++        <div className="buy-dashboard__empty">
++          <p>暫時未有賽事達到 3% Edge。</p>
++          <a href="#/fixtures">查看全部賽事</a>
++        </div>
++      ) : (
++        <div className="buy-dashboard__grid">
++          {visibleOpportunities.map((opportunity) => (
++            <article className="dashboard-card" key={opportunity.matchId}>
++              <a className="dashboard-card__link" href={`#/fixtures/${encodeURIComponent(opportunity.matchId)}`}>
++                <time dateTime={opportunity.commenceTime}>{formatDate(opportunity.commenceTime)}</time>
++                <h2>{opportunity.homeTeam} <span>vs</span> {opportunity.awayTeam}</h2>
++                <PickDetails pick={opportunity.primary} />
++              </a>
++              {opportunity.alternatives.length ? (
++                <div className="dashboard-card__alternatives" aria-label="其他合資格買盤">
++                  {opportunity.alternatives.map((pick) => (
++                    <span className="dashboard-card__alternative" key={pickKey(pick)}>
++                      {pick.market} · {formatSelection(pick)} · {formatPercent(pick.edge)}
++                    </span>
++                  ))}
++                </div>
++              ) : null}
++            </article>
++          ))}
++        </div>
++      )}
++    </section>
++  );
++}
++
++function Kpi(props: { label: string; value: string }) {
++  return <div className="buy-dashboard__kpi"><span>{props.label}</span><strong>{props.value}</strong></div>;
++}
++
++function PickDetails({ pick }: { pick: BuyPick }) {
++  return (
++    <div className="dashboard-card__pick">
++      <strong>{pick.market} · {formatSelection(pick)}</strong>
++      <dl>
++        <div><dt>莊家</dt><dd>{pick.bookmaker}</dd></div>
++        <div><dt>賠率</dt><dd>{formatOdds(pick.odds)}</dd></div>
++        <div><dt>機會率</dt><dd>{formatPercent(pick.chance)}</dd></div>
++        <div><dt>Edge</dt><dd>{formatPercent(pick.edge)}</dd></div>
++      </dl>
++    </div>
++  );
++}
++
++function formatSelection(pick: BuyPick): string {
++  return pick.line === undefined ? pick.selection : `${pick.selection} ${formatLine(pick.line)}`;
++}
++
++function formatLine(line: number): string {
++  return `${line > 0 ? "+" : ""}${Number.isInteger(line) ? line.toFixed(1) : line}`;
++}
++
++function formatOdds(value: number): string {
++  return Number.isFinite(value) ? value.toFixed(2) : "—";
++}
++
++function formatPercent(value: number): string {
++  return Number.isFinite(value) ? `${(value * 100).toFixed(2)}%` : "—";
++}
++
++function formatDate(value: string): string {
++  const date = new Date(value);
++  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
++}
++
++function pickKey(pick: BuyPick): string {
++  return `${pick.market}|${pick.line ?? ""}|${pick.selection}|${pick.bookmaker}`;
++}
++
++export type { BuyMarket };
+
+===== NUL -> src\pages\BuyDashboard.test.tsx =====
+
+warning: in the working copy of 'src\pages\BuyDashboard.test.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/src\\pages\\BuyDashboard.test.tsx" "b/src\\pages\\BuyDashboard.test.tsx"
+new file mode 100644
+index 0000000..eea07fa
+--- /dev/null
++++ "b/src\\pages\\BuyDashboard.test.tsx"
+@@ -0,0 +1,81 @@
++import { renderToStaticMarkup } from "react-dom/server";
++import { describe, expect, it } from "vitest";
++import type { BuyOpportunity } from "../buyOpportunities";
++import { BuyDashboard, filterOpportunitiesByMarket } from "./BuyDashboard";
++
++const opportunities: BuyOpportunity[] = [
++  {
++    matchId: "match-1",
++    homeTeam: "Home",
++    awayTeam: "Away",
++    commenceTime: "2026-07-17T12:00:00Z",
++    primary: { market: "主客和", selection: "主隊", odds: 2.1, chance: 0.52, edge: 0.092, bookmaker: "Alpha" },
++    alternatives: [
++      { market: "大細波", selection: "大", line: 2.5, odds: 2, chance: 0.54, edge: 0.08, bookmaker: "Beta" },
++    ],
++  },
++  {
++    matchId: "match-2",
++    homeTeam: "Second Home",
++    awayTeam: "Second Away",
++    commenceTime: "2026-07-18T12:00:00Z",
++    primary: { market: "角球", selection: "細角", line: 9.5, odds: 1.95, chance: 0.55, edge: 0.0725, bookmaker: "Gamma" },
++    alternatives: [],
++  },
++];
++
++describe("BuyDashboard", () => {
++  it("renders populated KPIs, one article per match and compact alternatives", () => {
++    const markup = renderToStaticMarkup(<BuyDashboard opportunities={opportunities} generatedAt="2026-07-16T12:34:00Z" dataFresh />);
++
++    expect(markup).toContain("值得買 Dashboard");
++    expect(markup).toContain("2026-07-16T12:34:00Z");
++    expect(markup.match(/<article/g) ?? []).toHaveLength(2);
++    expect(markup).toContain("值得買賽事");
++    expect(markup).toMatch(/值得買賽事[\s\S]*?>2</);
++    expect(markup).toMatch(/合資格買盤[\s\S]*?>3</);
++    expect(markup).toMatch(/平均 Edge[\s\S]*?>8\.15%</);
++    expect(markup).toContain("下一場開賽");
++    expect(markup).toContain("Home");
++    expect(markup).toContain("Alpha");
++    expect(markup).toContain("2.10");
++    expect(markup).toContain("52.00%");
++    expect(markup).toContain("9.20%");
++    expect(markup).toContain("dashboard-card__alternative");
++    expect(markup).toContain('href="#/fixtures/match-1"');
++  });
++
++  it("renders the exact fresh-empty copy and all-fixtures link", () => {
++    const markup = renderToStaticMarkup(<BuyDashboard opportunities={[]} generatedAt="now" dataFresh />);
++
++    expect(markup).toContain("暫時未有賽事達到 3% Edge。");
++    expect(markup).toContain('href="#/fixtures"');
++    expect(markup).toContain("查看全部賽事");
++  });
++
++  it("renders the stale copy and no active opportunity articles", () => {
++    const markup = renderToStaticMarkup(<BuyDashboard opportunities={opportunities} generatedAt="now" dataFresh={false} />);
++
++    expect(markup).toContain("資料未更新，暫停顯示買盤。");
++    expect(markup).not.toContain("<article");
++  });
++
++  it("filters matches purely by contained market without changing their primary picks", () => {
++    const before = structuredClone(opportunities);
++    const filtered = filterOpportunitiesByMarket(opportunities, "大細波");
++
++    expect(filtered).toHaveLength(1);
++    expect(filtered[0]).toBe(opportunities[0]);
++    expect(filtered[0].primary.market).toBe("主客和");
++    expect(opportunities).toEqual(before);
++  });
++
++  it("renders all exact market filter labels with all markets selected by default", () => {
++    const markup = renderToStaticMarkup(<BuyDashboard opportunities={opportunities} generatedAt="now" dataFresh />);
++
++    for (const label of ["全部市場", "主客和", "大細波", "角球", "亞洲讓球"]) {
++      expect(markup).toContain(`>${label}</button>`);
++    }
++    expect(markup).toMatch(/aria-pressed="true"[^>]*>全部市場<\/button>/);
++  });
++});
+
+===== NUL -> src\pages\AllFixtures.tsx =====
+
+warning: in the working copy of 'src\pages\AllFixtures.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/src\\pages\\AllFixtures.tsx" "b/src\\pages\\AllFixtures.tsx"
+new file mode 100644
+index 0000000..6d966cf
+--- /dev/null
++++ "b/src\\pages\\AllFixtures.tsx"
+@@ -0,0 +1,20 @@
++import type { ReactNode } from "react";
++
++export function AllFixtures(props: {
++  active?: boolean;
++  marketNavigation: ReactNode;
++  content: ReactNode;
++}): React.ReactElement {
++  if (props.active === false) return <>{props.content}</>;
++
++  return (
++    <section className="all-fixtures" aria-labelledby="all-fixtures-title">
++      <header className="all-fixtures__header">
++        <h1 id="all-fixtures-title">全部賽事</h1>
++        <p>查看所有即將開賽賽事及市場分析。</p>
++      </header>
++      {props.marketNavigation}
++      <div className="all-fixtures__content">{props.content}</div>
++    </section>
++  );
++}
+
+===== NUL -> src\pages\AllFixtures.test.tsx =====
+
+warning: in the working copy of 'src\pages\AllFixtures.test.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/src\\pages\\AllFixtures.test.tsx" "b/src\\pages\\AllFixtures.test.tsx"
+new file mode 100644
+index 0000000..b2ff268
+--- /dev/null
++++ "b/src\\pages\\AllFixtures.test.tsx"
+@@ -0,0 +1,20 @@
++import { renderToStaticMarkup } from "react-dom/server";
++import { describe, expect, it } from "vitest";
++import { AllFixtures } from "./AllFixtures";
++
++describe("AllFixtures", () => {
++  it("provides the all-fixtures heading and semantic wrapper around passed existing content", () => {
++    const markup = renderToStaticMarkup(
++      <AllFixtures
++        marketNavigation={<nav aria-label="市場選擇">原有市場 tabs</nav>}
++        content={<section data-existing-content>完整市場內容</section>}
++      />,
++    );
++
++    expect(markup).toMatch(/^<section/);
++    expect(markup).toContain("全部賽事");
++    expect(markup).toContain("查看所有即將開賽賽事及市場分析。");
++    expect(markup).toContain("原有市場 tabs");
++    expect(markup).toContain("完整市場內容");
++  });
++});
+
+===== NUL -> src\styles\dashboard.css =====
+
+warning: in the working copy of 'src\styles\dashboard.css', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/src\\styles\\dashboard.css" "b/src\\styles\\dashboard.css"
+new file mode 100644
+index 0000000..3cf5a9c
+--- /dev/null
++++ "b/src\\styles\\dashboard.css"
+@@ -0,0 +1,169 @@
++.buy-dashboard,
++.all-fixtures {
++  display: grid;
++  gap: 20px;
++}
++
++.buy-dashboard__header,
++.all-fixtures__header {
++  display: flex;
++  align-items: end;
++  justify-content: space-between;
++  gap: 16px;
++}
++
++.buy-dashboard__header h1,
++.all-fixtures__header h1 {
++  margin: 0;
++}
++
++.buy-dashboard__sync,
++.all-fixtures__header p,
++.dashboard-card time {
++  color: var(--color-muted);
++}
++
++.buy-dashboard__kpis {
++  display: grid;
++  grid-template-columns: repeat(4, minmax(0, 1fr));
++  gap: 12px;
++}
++
++.buy-dashboard__kpi,
++.dashboard-card,
++.buy-dashboard__empty {
++  border: 1px solid color-mix(in srgb, var(--color-primary) 35%, transparent);
++  border-radius: var(--radius-card);
++  background: var(--color-surface);
++}
++
++.buy-dashboard__kpi {
++  display: grid;
++  gap: 6px;
++  padding: 16px;
++}
++
++.buy-dashboard__kpi span {
++  color: var(--color-muted);
++  font-size: 0.86rem;
++}
++
++.buy-dashboard__kpi strong {
++  font-size: 1.25rem;
++}
++
++.buy-dashboard__filters {
++  display: flex;
++  gap: 8px;
++  overflow-x: auto;
++}
++
++.buy-dashboard__filters button {
++  min-height: var(--touch-target);
++  padding: 8px 14px;
++  border: 1px solid var(--color-primary);
++  border-radius: 999px;
++  color: var(--color-text);
++  background: transparent;
++  font: inherit;
++  font-weight: 800;
++  white-space: nowrap;
++  cursor: pointer;
++}
++
++.buy-dashboard__filters button[aria-pressed="true"] {
++  color: var(--color-bg);
++  background: var(--color-primary);
++}
++
++.buy-dashboard__grid {
++  display: grid;
++  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
++  gap: 16px;
++}
++
++.dashboard-card {
++  overflow: hidden;
++}
++
++.dashboard-card__link {
++  display: grid;
++  gap: 12px;
++  padding: 18px;
++  color: inherit;
++  text-decoration: none;
++}
++
++.dashboard-card h2 {
++  margin: 0;
++  font-size: 1.1rem;
++}
++
++.dashboard-card h2 span,
++.dashboard-card__pick dt {
++  color: var(--color-muted);
++  font-weight: 500;
++}
++
++.dashboard-card__pick {
++  display: grid;
++  gap: 10px;
++}
++
++.dashboard-card__pick dl {
++  display: grid;
++  grid-template-columns: repeat(4, minmax(0, 1fr));
++  gap: 8px;
++  margin: 0;
++}
++
++.dashboard-card__pick dl div {
++  display: grid;
++  gap: 2px;
++}
++
++.dashboard-card__pick dt,
++.dashboard-card__pick dd {
++  margin: 0;
++}
++
++.dashboard-card__alternatives {
++  display: flex;
++  flex-wrap: wrap;
++  gap: 8px;
++  padding: 0 18px 18px;
++}
++
++.dashboard-card__alternative {
++  padding: 6px 9px;
++  border-radius: 999px;
++  color: var(--color-positive);
++  background: color-mix(in srgb, var(--color-positive) 12%, transparent);
++  font-size: 0.78rem;
++}
++
++.buy-dashboard__empty {
++  padding: 32px 20px;
++  text-align: center;
++}
++
++.buy-dashboard__empty a {
++  color: var(--color-positive);
++  font-weight: 800;
++}
++
++@media (max-width: 720px) {
++  .buy-dashboard__header,
++  .all-fixtures__header {
++    align-items: start;
++    flex-direction: column;
++  }
++
++  .buy-dashboard__kpis {
++    grid-template-columns: repeat(2, minmax(0, 1fr));
++  }
++
++  .dashboard-card__pick dl {
++    grid-template-columns: repeat(2, minmax(0, 1fr));
++  }
++}
+
+===== NUL -> src\App.test.tsx =====
+
+warning: in the working copy of 'src\App.test.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/src\\App.test.tsx" "b/src\\App.test.tsx"
+new file mode 100644
+index 0000000..0de0727
+--- /dev/null
++++ "b/src\\App.test.tsx"
+@@ -0,0 +1,25 @@
++// @ts-expect-error Vitest runs this file in Node; the app intentionally has no Node type dependency.
++import { readFileSync } from "node:fs";
++import { describe, expect, it } from "vitest";
++
++describe("App integration source", () => {
++  it("wires the shell and both new pages without the old topbar or page tabs", () => {
++    const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
++
++    expect(source).toContain('import { AppShell } from "./components/AppShell"');
++    expect(source).toContain('import { BuyDashboard } from "./pages/BuyDashboard"');
++    expect(source).toContain('import { AllFixtures } from "./pages/AllFixtures"');
++    expect(source).toContain("<AppShell");
++    expect(source).toContain("<BuyDashboard");
++    expect(source).toContain("<AllFixtures");
++    expect(source).not.toContain('className="topbar"');
++    expect(source).not.toContain('className="page-tabs"');
++  });
++
++  it("preserves standalone History and Analysis page headings after removing the old topbar", () => {
++    const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
++
++    expect(source).toContain('{page === "history" ? <h1 className="page-heading">完場對比</h1> : null}');
++    expect(source).toContain('{page === "analysis" ? <h1 className="page-heading">模型表現分析</h1> : null}');
++  });
++});

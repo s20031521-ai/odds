@@ -1,0 +1,3028 @@
+{
+  "events": {
+    "soccer_argentina_primera_division": [
+      {
+        "id": "9921813094aa28d1d044e6b3e1904daf",
+        "sport_key": "soccer_argentina_primera_division",
+        "sport_title": "Primera División - Argentina",
+        "commence_time": "2026-07-23T22:30:00Z",
+        "home_team": "Sarmiento de Junin",
+        "away_team": "Argentinos Juniors"
+      },
+      {
+        "id": "d638767591e974498d44fce3dbb8f004",
+        "sport_key": "soccer_argentina_primera_division",
+        "sport_title": "Primera División - Argentina",
+        "commence_time": "2026-07-23T22:30:00Z",
+        "home_team": "Belgrano de Cordoba",
+        "away_team": "Rosario Central"
+      },
+      {
+        "id": "8e4ec8f2da7bfb28357f46ca3f94a6c9",
+        "sport_key": "soccer_argentina_primera_division",
+        "sport_title": "Primera División - Argentina",
+        "commence_time": "2026-07-24T00:45:00Z",
+        "home_team": "Defensa y Justicia",
+        "away_team": "Aldosivi Mar del Plata"
+      },
+      {
+        "id": "82132c1764937494ad3f92fe93329fe6",
+        "sport_key": "soccer_argentina_primera_division",
+        "sport_title": "Primera División - Argentina",
+        "commence_time": "2026-07-24T19:45:00Z",
+        "home_team": "Gimnasia Mendoza",
+        "away_team": "Central Córdoba"
+      },
+      {
+        "id": "a780aadef9712643274b5be39d9ef098",
+        "sport_key": "soccer_argentina_primera_division",
+        "sport_title": "Primera División - Argentina",
+        "commence_time": "2026-07-24T22:00:00Z",
+        "home_team": "Racing Club",
+        "away_team": "Gimnasia La Plata"
+      },
+      {
+        "id": "9628401b7d00130e5b6e6cab15959c04",
+        "sport_key": "soccer_argentina_primera_division",
+        "sport_title": "Primera División - Argentina",
+        "commence_time": "2026-07-24T22:00:00Z",
+        "home_team": "Velez Sarsfield BA",
+        "away_team": "Instituto de Córdoba"
+      },
+      {
+        "id": "8e214c11344257acad0aee498894c0b6",
+        "sport_key": "soccer_argentina_primera_division",
+        "sport_title": "Primera División - Argentina",
+        "commence_time": "2026-07-25T00:15:00Z",
+        "home_team": "Atlético Huracán",
+        "away_team": "Banfield"
+      },
+      {
+        "id": "40c8ae2b4ebc393c954f62a3621ea377",
+        "sport_key": "soccer_argentina_primera_division",
+        "sport_title": "Primera División - Argentina",
+        "commence_time": "2026-07-25T00:15:00Z",
+        "home_team": "Platense",
+        "away_team": "Union Santa Fe"
+      },
+      {
+        "id": "14d541b1fe6b71b99254037172ba461e",
+        "sport_key": "soccer_argentina_primera_division",
+        "sport_title": "Primera División - Argentina",
+        "commence_time": "2026-07-25T17:45:00Z",
+        "home_team": "Estudiantes de Río Cuarto",
+        "away_team": "CA Tigre BA"
+      },
+      {
+        "id": "2c4fe97ca7225792318c1df8578a0821",
+        "sport_key": "soccer_argentina_primera_division",
+        "sport_title": "Primera División - Argentina",
+        "commence_time": "2026-07-25T20:00:00Z",
+        "home_team": "Newells Old Boys",
+        "away_team": "Talleres"
+      },
+      {
+        "id": "fc75af22ab986f3c515b9462745a1135",
+        "sport_key": "soccer_argentina_primera_division",
+        "sport_title": "Primera División - Argentina",
+        "commence_time": "2026-07-25T22:15:00Z",
+        "home_team": "River Plate",
+        "away_team": "Barracas Central"
+      },
+      {
+        "id": "548228868edea882febc372bf2906a7d",
+        "sport_key": "soccer_argentina_primera_division",
+        "sport_title": "Primera División - Argentina",
+        "commence_time": "2026-07-26T00:30:00Z",
+        "home_team": "Lanus",
+        "away_team": "San Lorenzo"
+      },
+      {
+        "id": "406cf355ea6f8b55927d829e8dffc622",
+        "sport_key": "soccer_argentina_primera_division",
+        "sport_title": "Primera División - Argentina",
+        "commence_time": "2026-07-26T18:00:00Z",
+        "home_team": "Atlético Tucuman",
+        "away_team": "Independiente Rivadavia"
+      },
+      {
+        "id": "53848ad999255023d153784e0a936f3b",
+        "sport_key": "soccer_argentina_primera_division",
+        "sport_title": "Primera División - Argentina",
+        "commence_time": "2026-07-26T20:15:00Z",
+        "home_team": "Estudiantes",
+        "away_team": "Independiente"
+      },
+      {
+        "id": "67c7319c34b7d0b5c96e4d6613321d0d",
+        "sport_key": "soccer_argentina_primera_division",
+        "sport_title": "Primera División - Argentina",
+        "commence_time": "2026-07-26T22:30:00Z",
+        "home_team": "Deportivo Riestra",
+        "away_team": "Boca Juniors"
+      }
+    ],
+    "soccer_austria_bundesliga": [
+      {
+        "id": "5cbad3a33c6ca6e8e943b42326028478",
+        "sport_key": "soccer_austria_bundesliga",
+        "sport_title": "Austrian Football Bundesliga",
+        "commence_time": "2026-07-31T17:30:00Z",
+        "home_team": "LASK",
+        "away_team": "Grazer AK"
+      },
+      {
+        "id": "c057323c1bc9aa0d77b69ba52cfb79f1",
+        "sport_key": "soccer_austria_bundesliga",
+        "sport_title": "Austrian Football Bundesliga",
+        "commence_time": "2026-08-01T15:00:00Z",
+        "home_team": "WSG Tirol",
+        "away_team": "Sturm Graz"
+      },
+      {
+        "id": "a20ed5527f35c9f9847132ac9ea6d1e0",
+        "sport_key": "soccer_austria_bundesliga",
+        "sport_title": "Austrian Football Bundesliga",
+        "commence_time": "2026-08-01T17:30:00Z",
+        "home_team": "RB Salzburg",
+        "away_team": "Hartberg"
+      },
+      {
+        "id": "524023fb163d291b39d88056f6c2c1f3",
+        "sport_key": "soccer_austria_bundesliga",
+        "sport_title": "Austrian Football Bundesliga",
+        "commence_time": "2026-08-02T15:00:00Z",
+        "home_team": "Austria Lustenau",
+        "away_team": "Ried"
+      },
+      {
+        "id": "d4e2d407a0fc75fb044f074d0cf70925",
+        "sport_key": "soccer_austria_bundesliga",
+        "sport_title": "Austrian Football Bundesliga",
+        "commence_time": "2026-08-02T15:00:00Z",
+        "home_team": "Wolfsberger AC",
+        "away_team": "Austria Wien"
+      },
+      {
+        "id": "bce77a10d2ded611991b14fd8e9fa374",
+        "sport_key": "soccer_austria_bundesliga",
+        "sport_title": "Austrian Football Bundesliga",
+        "commence_time": "2026-08-02T17:00:00Z",
+        "home_team": "Rapid Wien",
+        "away_team": "Rheindorf Altach"
+      }
+    ],
+    "soccer_brazil_campeonato": [
+      {
+        "id": "c3dbb97e9aef640afa391b76f7af061d",
+        "sport_key": "soccer_brazil_campeonato",
+        "sport_title": "Brazil Série A",
+        "commence_time": "2026-07-16T22:30:00Z",
+        "home_team": "Botafogo",
+        "away_team": "Santos"
+      },
+      {
+        "id": "0a5e9527c4698b6fb5af47094a185c1e",
+        "sport_key": "soccer_brazil_campeonato",
+        "sport_title": "Brazil Série A",
+        "commence_time": "2026-07-16T22:30:00Z",
+        "home_team": "Vitoria",
+        "away_team": "Vasco da Gama"
+      },
+      {
+        "id": "e64cfcc03ee00f71d21b9c99e9c37d2d",
+        "sport_key": "soccer_brazil_campeonato",
+        "sport_title": "Brazil Série A",
+        "commence_time": "2026-07-17T22:30:00Z",
+        "home_team": "Bahia",
+        "away_team": "Chapecoense"
+      },
+      {
+        "id": "86d6bb6c03425aec2dbe3e631e844d53",
+        "sport_key": "soccer_brazil_campeonato",
+        "sport_title": "Brazil Série A",
+        "commence_time": "2026-07-17T23:00:00Z",
+        "home_team": "Fluminense",
+        "away_team": "Bragantino-SP"
+      },
+      {
+        "id": "e105f546df821df13a1c7474f4734943",
+        "sport_key": "soccer_brazil_campeonato",
+        "sport_title": "Brazil Série A",
+        "commence_time": "2026-07-17T23:00:00Z",
+        "home_team": "Mirassol",
+        "away_team": "Grêmio"
+      },
+      {
+        "id": "f4080730439de4ccf01dadabc9a7ccc6",
+        "sport_key": "soccer_brazil_campeonato",
+        "sport_title": "Brazil Série A",
+        "commence_time": "2026-07-21T22:30:00Z",
+        "home_team": "Atletico Mineiro",
+        "away_team": "Bahia"
+      },
+      {
+        "id": "1564002429f60a7c9faba9a3789eeaad",
+        "sport_key": "soccer_brazil_campeonato",
+        "sport_title": "Brazil Série A",
+        "commence_time": "2026-07-22T22:30:00Z",
+        "home_team": "Coritiba",
+        "away_team": "Palmeiras"
+      },
+      {
+        "id": "7b0cca084d7d16ef946532414fbbcb53",
+        "sport_key": "soccer_brazil_campeonato",
+        "sport_title": "Brazil Série A",
+        "commence_time": "2026-07-23T00:30:00Z",
+        "home_team": "Sao Paulo",
+        "away_team": "Atletico Paranaense"
+      },
+      {
+        "id": "418b9adc21c20323f0b8311615c0cef4",
+        "sport_key": "soccer_brazil_campeonato",
+        "sport_title": "Brazil Série A",
+        "commence_time": "2026-07-23T00:30:00Z",
+        "home_team": "Chapecoense",
+        "away_team": "Flamengo"
+      },
+      {
+        "id": "d171851925e119650345107d24591b4f",
+        "sport_key": "soccer_brazil_campeonato",
+        "sport_title": "Brazil Série A",
+        "commence_time": "2026-07-23T00:30:00Z",
+        "home_team": "Internacional",
+        "away_team": "Cruzeiro"
+      },
+      {
+        "id": "6df3308f8f7f763bfbf6954ec73b0e94",
+        "sport_key": "soccer_brazil_campeonato",
+        "sport_title": "Brazil Série A",
+        "commence_time": "2026-07-23T22:30:00Z",
+        "home_team": "Botafogo",
+        "away_team": "Vitoria"
+      },
+      {
+        "id": "3035a6e6fd13fdd62f5b8445e795b2bf",
+        "sport_key": "soccer_brazil_campeonato",
+        "sport_title": "Brazil Série A",
+        "commence_time": "2026-07-23T22:30:00Z",
+        "home_team": "Corinthians",
+        "away_team": "Remo"
+      },
+      {
+        "id": "6ecf83a1cdfcedeeccebee5611f99ee6",
+        "sport_key": "soccer_brazil_campeonato",
+        "sport_title": "Brazil Série A",
+        "commence_time": "2026-07-24T00:30:00Z",
+        "home_team": "Coritiba",
+        "away_team": "Palmeiras"
+      }
+    ],
+    "soccer_brazil_serie_b": [
+      {
+        "id": "5a0f414f3dae8f58d208ea1ef1621427",
+        "sport_key": "soccer_brazil_serie_b",
+        "sport_title": "Brazil Série B",
+        "commence_time": "2026-07-16T23:00:00Z",
+        "home_team": "Clube de Regatas Brasil",
+        "away_team": "Nautico PE"
+      },
+      {
+        "id": "75e884517e60da1477391eba81d8e155",
+        "sport_key": "soccer_brazil_serie_b",
+        "sport_title": "Brazil Série B",
+        "commence_time": "2026-07-17T22:00:00Z",
+        "home_team": "América Mineiro",
+        "away_team": "Ceará"
+      },
+      {
+        "id": "280a1f1d99aa2102f1e3addeaf506db6",
+        "sport_key": "soccer_brazil_serie_b",
+        "sport_title": "Brazil Série B",
+        "commence_time": "2026-07-17T22:00:00Z",
+        "home_team": "São Bernardo",
+        "away_team": "Avai"
+      },
+      {
+        "id": "7b1cce6e6b78d5eb92beac490ed9900a",
+        "sport_key": "soccer_brazil_serie_b",
+        "sport_title": "Brazil Série B",
+        "commence_time": "2026-07-17T22:00:00Z",
+        "home_team": "Juventude",
+        "away_team": "Cuiabá"
+      },
+      {
+        "id": "83334ecd8da6252ae1df4fb1e91f09ca",
+        "sport_key": "soccer_brazil_serie_b",
+        "sport_title": "Brazil Série B",
+        "commence_time": "2026-07-18T00:00:00Z",
+        "home_team": "Londrina",
+        "away_team": "Botafogo"
+      },
+      {
+        "id": "11d2a3f0580d5a871978e8d398764fc5",
+        "sport_key": "soccer_brazil_serie_b",
+        "sport_title": "Brazil Série B",
+        "commence_time": "2026-07-18T00:00:00Z",
+        "home_team": "Fortaleza",
+        "away_team": "Grêmio Novorizontino"
+      },
+      {
+        "id": "20cdb34603db2e0327949bd1af674408",
+        "sport_key": "soccer_brazil_serie_b",
+        "sport_title": "Brazil Série B",
+        "commence_time": "2026-07-18T19:00:00Z",
+        "home_team": "Criciuma",
+        "away_team": "Vila Nova"
+      },
+      {
+        "id": "92dcfeed14e17eec0c873f6cfff6d154",
+        "sport_key": "soccer_brazil_serie_b",
+        "sport_title": "Brazil Série B",
+        "commence_time": "2026-07-18T19:00:00Z",
+        "home_team": "Ponte Preta",
+        "away_team": "Goiás"
+      },
+      {
+        "id": "b4abdaf20863ed466f4bf05059d01bff",
+        "sport_key": "soccer_brazil_serie_b",
+        "sport_title": "Brazil Série B",
+        "commence_time": "2026-07-18T19:00:00Z",
+        "home_team": "Sport Recife",
+        "away_team": "Operario PR"
+      },
+      {
+        "id": "0e6c6a373156a2d7e10d82a9b8d38618",
+        "sport_key": "soccer_brazil_serie_b",
+        "sport_title": "Brazil Série B",
+        "commence_time": "2026-07-18T21:00:00Z",
+        "home_team": "Atletico Goianiense",
+        "away_team": "Athletic Club (MG)"
+      }
+    ],
+    "soccer_chile_campeonato": [
+      {
+        "id": "1ae166322d8d7dfa93216f4d25f46a35",
+        "sport_key": "soccer_chile_campeonato",
+        "sport_title": "Primera División - Chile",
+        "commence_time": "2026-07-24T22:00:00Z",
+        "home_team": "Union La Calera",
+        "away_team": "Everton de Viña del Mar"
+      },
+      {
+        "id": "7400688202f939d3c6bd54e0243e85a4",
+        "sport_key": "soccer_chile_campeonato",
+        "sport_title": "Primera División - Chile",
+        "commence_time": "2026-07-25T00:30:00Z",
+        "home_team": "Colo Colo",
+        "away_team": "Deportes Limache"
+      },
+      {
+        "id": "56014b92a6ff7b352dabb179d9db1ea4",
+        "sport_key": "soccer_chile_campeonato",
+        "sport_title": "Primera División - Chile",
+        "commence_time": "2026-07-25T19:00:00Z",
+        "home_team": "Coquimbo Unido",
+        "away_team": "Universidad de Concepción"
+      },
+      {
+        "id": "c3d3d5022656c380fff749e85ea8d62f",
+        "sport_key": "soccer_chile_campeonato",
+        "sport_title": "Primera División - Chile",
+        "commence_time": "2026-07-25T21:30:00Z",
+        "home_team": "Huachipato",
+        "away_team": "Cobresal"
+      },
+      {
+        "id": "b9fe00438a6b095c30c26b8ca882f9eb",
+        "sport_key": "soccer_chile_campeonato",
+        "sport_title": "Primera División - Chile",
+        "commence_time": "2026-07-26T00:00:00Z",
+        "home_team": "Universidad Católica (CHI)",
+        "away_team": "La Serena"
+      },
+      {
+        "id": "e5fd8b6164731da6e7f3a1f252673e29",
+        "sport_key": "soccer_chile_campeonato",
+        "sport_title": "Primera División - Chile",
+        "commence_time": "2026-07-26T19:00:00Z",
+        "home_team": "Ñublense",
+        "away_team": "Palestino"
+      },
+      {
+        "id": "e8eba7fd4f171ac5ee39d426c1b762d2",
+        "sport_key": "soccer_chile_campeonato",
+        "sport_title": "Primera División - Chile",
+        "commence_time": "2026-07-26T21:30:00Z",
+        "home_team": "Audax Italiano",
+        "away_team": "Universidad de Chile"
+      },
+      {
+        "id": "160af72d7901238f2537eb6c08cd5cbd",
+        "sport_key": "soccer_chile_campeonato",
+        "sport_title": "Primera División - Chile",
+        "commence_time": "2026-07-27T00:30:00Z",
+        "home_team": "Deportes Concepción",
+        "away_team": "O'Higgins"
+      }
+    ],
+    "soccer_china_superleague": [
+      {
+        "id": "8f7c3eac91842d39f23f4d070864c016",
+        "sport_key": "soccer_china_superleague",
+        "sport_title": "Super League - China",
+        "commence_time": "2026-07-14T11:35:00Z",
+        "home_team": "Zhejiang",
+        "away_team": "Qingdao Hainiu FC"
+      },
+      {
+        "id": "c54601f4b8fb7b6ff66d8a58bd88e4df",
+        "sport_key": "soccer_china_superleague",
+        "sport_title": "Super League - China",
+        "commence_time": "2026-07-17T11:00:00Z",
+        "home_team": "Qingdao West Coast FC",
+        "away_team": "Chengdu Rongcheng FC"
+      },
+      {
+        "id": "033319c081ee30d81bbf6daf96897bba",
+        "sport_key": "soccer_china_superleague",
+        "sport_title": "Super League - China",
+        "commence_time": "2026-07-17T11:35:00Z",
+        "home_team": "Beijing FC",
+        "away_team": "Liaoning Tieren FC"
+      },
+      {
+        "id": "73b14004bac6348a0acec428b9024c14",
+        "sport_key": "soccer_china_superleague",
+        "sport_title": "Super League - China",
+        "commence_time": "2026-07-17T11:35:00Z",
+        "home_team": "Henan FC",
+        "away_team": "Qingdao Hainiu FC"
+      },
+      {
+        "id": "354532026104d407ef116b6ed2f0f05e",
+        "sport_key": "soccer_china_superleague",
+        "sport_title": "Super League - China",
+        "commence_time": "2026-07-17T12:00:00Z",
+        "home_team": "Yunnan Yukun",
+        "away_team": "Shanghai SIPG FC"
+      },
+      {
+        "id": "08d268ec4c18c02590640fe2cdafc1e5",
+        "sport_key": "soccer_china_superleague",
+        "sport_title": "Super League - China",
+        "commence_time": "2026-07-18T11:00:00Z",
+        "home_team": "Chongqing Tonglianglong FC",
+        "away_team": "Zhejiang"
+      },
+      {
+        "id": "a2f48c8669537b56409b960e6f4b5da8",
+        "sport_key": "soccer_china_superleague",
+        "sport_title": "Super League - China",
+        "commence_time": "2026-07-18T11:35:00Z",
+        "home_team": "Dalian Yingbo",
+        "away_team": "Shandong Luneng Taishan FC"
+      },
+      {
+        "id": "3abd5d6ab676880db7d46e5c1a267269",
+        "sport_key": "soccer_china_superleague",
+        "sport_title": "Super League - China",
+        "commence_time": "2026-07-18T11:35:00Z",
+        "home_team": "Shanghai Shenhua FC",
+        "away_team": "Tianjin Jinmen Tiger FC"
+      },
+      {
+        "id": "6d213f33c60b8339c5c6ff5c5d9cf15d",
+        "sport_key": "soccer_china_superleague",
+        "sport_title": "Super League - China",
+        "commence_time": "2026-07-18T12:00:00Z",
+        "home_team": "Wuhan Three Towns",
+        "away_team": "Shenzhen Peng City FC"
+      }
+    ],
+    "soccer_conmebol_copa_libertadores": [
+      {
+        "id": "5383e72b96aae89323d03f4cd36283e2",
+        "sport_key": "soccer_conmebol_copa_libertadores",
+        "sport_title": "Copa Libertadores",
+        "commence_time": "2026-08-11T22:00:00Z",
+        "home_team": "Fluminense-RJ",
+        "away_team": "Independiente Rivadavia"
+      },
+      {
+        "id": "d795b12013a333298079df3a5abd260d",
+        "sport_key": "soccer_conmebol_copa_libertadores",
+        "sport_title": "Copa Libertadores",
+        "commence_time": "2026-08-12T00:00:00Z",
+        "home_team": "Palmeiras-SP",
+        "away_team": "Cerro Porteño"
+      },
+      {
+        "id": "2931578ca874ba48e46a61c94fb56fcd",
+        "sport_key": "soccer_conmebol_copa_libertadores",
+        "sport_title": "Copa Libertadores",
+        "commence_time": "2026-08-12T00:00:00Z",
+        "home_team": "Platense",
+        "away_team": "Coquimbo Unido"
+      },
+      {
+        "id": "05412ae8c72a3f9765da81074803d9c2",
+        "sport_key": "soccer_conmebol_copa_libertadores",
+        "sport_title": "Copa Libertadores",
+        "commence_time": "2026-08-12T00:00:00Z",
+        "home_team": "Rosario Central",
+        "away_team": "Corinthians-SP"
+      },
+      {
+        "id": "76fe0ea572193cddb505ae4ba43cd069",
+        "sport_key": "soccer_conmebol_copa_libertadores",
+        "sport_title": "Copa Libertadores",
+        "commence_time": "2026-08-12T00:00:00Z",
+        "home_team": "Cruzeiro",
+        "away_team": "Flamengo-RJ"
+      },
+      {
+        "id": "dd06fab13c4861592da993d2d742c27b",
+        "sport_key": "soccer_conmebol_copa_libertadores",
+        "sport_title": "Copa Libertadores",
+        "commence_time": "2026-08-12T00:00:00Z",
+        "home_team": "Mirassol",
+        "away_team": "LDU Quito"
+      },
+      {
+        "id": "a19bccbe8889dfa8d2dafbdaa57749a0",
+        "sport_key": "soccer_conmebol_copa_libertadores",
+        "sport_title": "Copa Libertadores",
+        "commence_time": "2026-08-12T00:30:00Z",
+        "home_team": "Deportes Tolima",
+        "away_team": "Independiente del Valle"
+      },
+      {
+        "id": "0c574a337d17da360cbb2e4c44b637ee",
+        "sport_key": "soccer_conmebol_copa_libertadores",
+        "sport_title": "Copa Libertadores",
+        "commence_time": "2026-08-12T00:30:00Z",
+        "home_team": "Estudiantes La Plata",
+        "away_team": "Universidad Católica (CHI)"
+      },
+      {
+        "id": "eea2d21194999c598d9231fd40ed71fc",
+        "sport_key": "soccer_conmebol_copa_libertadores",
+        "sport_title": "Copa Libertadores",
+        "commence_time": "2026-08-14T00:30:00Z",
+        "home_team": "Rosario Central",
+        "away_team": "Corinthians-SP"
+      }
+    ],
+    "soccer_conmebol_copa_sudamericana": [
+      {
+        "id": "e38b938069d601692760954037d7ba59",
+        "sport_key": "soccer_conmebol_copa_sudamericana",
+        "sport_title": "Copa Sudamericana",
+        "commence_time": "2026-07-21T22:00:00Z",
+        "home_team": "Nacional de Montevideo",
+        "away_team": "CA Tigre BA"
+      },
+      {
+        "id": "03868280fe8e1f360f9faa1d11407af7",
+        "sport_key": "soccer_conmebol_copa_sudamericana",
+        "sport_title": "Copa Sudamericana",
+        "commence_time": "2026-07-22T00:30:00Z",
+        "home_team": "UCV FC",
+        "away_team": "Santos"
+      },
+      {
+        "id": "04fd513adb50860e553553a771be0887",
+        "sport_key": "soccer_conmebol_copa_sudamericana",
+        "sport_title": "Copa Sudamericana",
+        "commence_time": "2026-07-22T22:00:00Z",
+        "home_team": "Independiente Medellín",
+        "away_team": "Vasco da Gama"
+      },
+      {
+        "id": "9496a9a5346f72dd35cffb800eac7fb5",
+        "sport_key": "soccer_conmebol_copa_sudamericana",
+        "sport_title": "Copa Sudamericana",
+        "commence_time": "2026-07-23T00:30:00Z",
+        "home_team": "Sporting Cristal",
+        "away_team": "Bragantino-SP"
+      },
+      {
+        "id": "ebf2e592382079b9c0f291241cb5acb3",
+        "sport_key": "soccer_conmebol_copa_sudamericana",
+        "sport_title": "Copa Sudamericana",
+        "commence_time": "2026-07-23T00:30:00Z",
+        "home_team": "Lanus",
+        "away_team": "Club Cienciano"
+      },
+      {
+        "id": "4934cf8f31416013ec91adee3a0f4794",
+        "sport_key": "soccer_conmebol_copa_sudamericana",
+        "sport_title": "Copa Sudamericana",
+        "commence_time": "2026-07-23T22:00:00Z",
+        "home_team": "Club Bolívar",
+        "away_team": "Grêmio"
+      },
+      {
+        "id": "0ff2c6af9633805cd92c4110a5a53430",
+        "sport_key": "soccer_conmebol_copa_sudamericana",
+        "sport_title": "Copa Sudamericana",
+        "commence_time": "2026-07-24T00:30:00Z",
+        "home_team": "Boca Juniors",
+        "away_team": "O'Higgins"
+      },
+      {
+        "id": "2cc99c17a93bc9858e4d834bb532ab4f",
+        "sport_key": "soccer_conmebol_copa_sudamericana",
+        "sport_title": "Copa Sudamericana",
+        "commence_time": "2026-07-24T00:30:00Z",
+        "home_team": "Independiente Santa Fe",
+        "away_team": "Caracas FC"
+      }
+    ],
+    "soccer_denmark_superliga": [
+      {
+        "id": "ca31bdd5793c2da6a331604146878c2e",
+        "sport_key": "soccer_denmark_superliga",
+        "sport_title": "Denmark Superliga",
+        "commence_time": "2026-07-24T17:00:00Z",
+        "home_team": "Viborg FF",
+        "away_team": "OB Odense BK"
+      },
+      {
+        "id": "86867dca7b9b803fe664681be0a00b01",
+        "sport_key": "soccer_denmark_superliga",
+        "sport_title": "Denmark Superliga",
+        "commence_time": "2026-07-25T16:00:00Z",
+        "home_team": "AGF Aarhus",
+        "away_team": "Brondby IF"
+      },
+      {
+        "id": "28acd824b3948ef8e0c130967d0bf3c3",
+        "sport_key": "soccer_denmark_superliga",
+        "sport_title": "Denmark Superliga",
+        "commence_time": "2026-07-26T12:00:00Z",
+        "home_team": "SonderjyskE",
+        "away_team": "FC Midtjylland"
+      },
+      {
+        "id": "dc215efeff9db813ba8f8d11159d3ea8",
+        "sport_key": "soccer_denmark_superliga",
+        "sport_title": "Denmark Superliga",
+        "commence_time": "2026-07-26T14:00:00Z",
+        "home_team": "FC Copenhagen",
+        "away_team": "Lyngby"
+      },
+      {
+        "id": "6c19a93fdd28dadb649474ee55d807ae",
+        "sport_key": "soccer_denmark_superliga",
+        "sport_title": "Denmark Superliga",
+        "commence_time": "2026-07-26T16:00:00Z",
+        "home_team": "AC Horsens",
+        "away_team": "FC Nordsjaelland"
+      },
+      {
+        "id": "838b226546560d6500f71ead42a26c72",
+        "sport_key": "soccer_denmark_superliga",
+        "sport_title": "Denmark Superliga",
+        "commence_time": "2026-07-27T17:00:00Z",
+        "home_team": "Randers FC",
+        "away_team": "Silkeborg IF"
+      }
+    ],
+    "soccer_efl_champ": [
+      {
+        "id": "2b50ce61e415a3b3bd3f10ac39d0dbe3",
+        "sport_key": "soccer_efl_champ",
+        "sport_title": "Championship",
+        "commence_time": "2026-08-14T19:00:00Z",
+        "home_team": "Wolverhampton Wanderers",
+        "away_team": "Blackburn Rovers"
+      },
+      {
+        "id": "3fe7127e2d77a2b83d8fe3a9037a56f2",
+        "sport_key": "soccer_efl_champ",
+        "sport_title": "Championship",
+        "commence_time": "2026-08-15T11:30:00Z",
+        "home_team": "Bolton Wanderers",
+        "away_team": "Preston North End"
+      },
+      {
+        "id": "0518dd5358a1955d59561b30f702a651",
+        "sport_key": "soccer_efl_champ",
+        "sport_title": "Championship",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Bristol City",
+        "away_team": "Millwall"
+      },
+      {
+        "id": "d2e7e245e43705d3059b84dec8d007fe",
+        "sport_key": "soccer_efl_champ",
+        "sport_title": "Championship",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Charlton Athletic",
+        "away_team": "Derby County"
+      },
+      {
+        "id": "04cd3d29e95a89f25a34447296856443",
+        "sport_key": "soccer_efl_champ",
+        "sport_title": "Championship",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Middlesbrough",
+        "away_team": "Lincoln City"
+      },
+      {
+        "id": "570a465b84ec706d58cc57f558ebf29b",
+        "sport_key": "soccer_efl_champ",
+        "sport_title": "Championship",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Norwich City",
+        "away_team": "West Bromwich Albion"
+      },
+      {
+        "id": "c028d320a770bf1b99597c63a0a0fc55",
+        "sport_key": "soccer_efl_champ",
+        "sport_title": "Championship",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Portsmouth",
+        "away_team": "Queens Park Rangers"
+      },
+      {
+        "id": "779b9ecca0a96a9b638dcdc38bee85cd",
+        "sport_key": "soccer_efl_champ",
+        "sport_title": "Championship",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Stoke City",
+        "away_team": "Swansea City"
+      },
+      {
+        "id": "0cb1b113469e83f07b4593116cfa9339",
+        "sport_key": "soccer_efl_champ",
+        "sport_title": "Championship",
+        "commence_time": "2026-08-15T16:30:00Z",
+        "home_team": "Sheffield United",
+        "away_team": "Birmingham City"
+      },
+      {
+        "id": "0e01068c7b15cd9fdddf8ad5237d2170",
+        "sport_key": "soccer_efl_champ",
+        "sport_title": "Championship",
+        "commence_time": "2026-08-16T12:30:00Z",
+        "home_team": "Watford",
+        "away_team": "Southampton"
+      },
+      {
+        "id": "fd2380fb0d0736468c7a58dfe8c1d6e2",
+        "sport_key": "soccer_efl_champ",
+        "sport_title": "Championship",
+        "commence_time": "2026-08-16T15:00:00Z",
+        "home_team": "Burnley",
+        "away_team": "West Ham United"
+      },
+      {
+        "id": "bb0f8db2a6c8fd7984342d6ad2dcf569",
+        "sport_key": "soccer_efl_champ",
+        "sport_title": "Championship",
+        "commence_time": "2026-08-17T19:00:00Z",
+        "home_team": "Cardiff City",
+        "away_team": "Wrexham AFC"
+      }
+    ],
+    "soccer_england_efl_cup": [
+      {
+        "id": "accd8b430f69db8863f4fa2bd01d4e31",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-01T14:00:00Z",
+        "home_team": "Tranmere Rovers",
+        "away_team": "Rochdale"
+      },
+      {
+        "id": "44ad4485e4b330a4e57a8a5a66222809",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-03T18:30:00Z",
+        "home_team": "York City",
+        "away_team": "Crawley Town"
+      },
+      {
+        "id": "5074a97116ea137a4f155475a3afad7c",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-07T18:45:00Z",
+        "home_team": "Bristol City",
+        "away_team": "Walsall"
+      },
+      {
+        "id": "2903e6e02dbfa5383f1947d031a2fdfe",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-07T18:45:00Z",
+        "home_team": "Wolverhampton Wanderers",
+        "away_team": "Port Vale"
+      },
+      {
+        "id": "89b2043533e977e8ea487e15c3415a55",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-07T18:45:00Z",
+        "home_team": "Wycombe Wanderers",
+        "away_team": "Stevenage"
+      },
+      {
+        "id": "2199db4178585a026a7f0aec3c93253f",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-07T19:00:00Z",
+        "home_team": "Middlesbrough",
+        "away_team": "Wrexham AFC"
+      },
+      {
+        "id": "b8d19351fe3c98323d16822f0f8c6028",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T12:00:00Z",
+        "home_team": "Cambridge United",
+        "away_team": "Barnet"
+      },
+      {
+        "id": "28b6b34ce9351152e2e665f47f0634ac",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T13:00:00Z",
+        "home_team": "Queens Park Rangers",
+        "away_team": "Millwall"
+      },
+      {
+        "id": "d3a020575bbd3fbda29daf38376c4811",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Crewe Alexandra",
+        "away_team": "Accrington Stanley"
+      },
+      {
+        "id": "96d1c403314c580dbd797d2dacd08b71",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Barnsley",
+        "away_team": "Wigan Athletic"
+      },
+      {
+        "id": "49a99b0170106df6eeb6cd40734406ae",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Swansea City",
+        "away_team": "Birmingham City"
+      },
+      {
+        "id": "657b1b1e22ed6aa2bbe93c0235e390eb",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Burton Albion",
+        "away_team": "Blackburn Rovers"
+      },
+      {
+        "id": "4040ed37692224a9289782ad79661a7e",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Grimsby Town",
+        "away_team": "Blackpool"
+      },
+      {
+        "id": "c98960c12c31471c22784dc61b259a76",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Sheffield Wednesday",
+        "away_team": "Bolton Wanderers"
+      },
+      {
+        "id": "6142e8bcbd4ab7f5cd749e896e7ffa2d",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Bristol Rovers",
+        "away_team": "Peterborough United"
+      },
+      {
+        "id": "41699165472fa947290d0da04a6f2c94",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Bromley FC",
+        "away_team": "Reading"
+      },
+      {
+        "id": "47f6b777b3a24b2fce2766ff8857729d",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Burnley",
+        "away_team": "Notts County"
+      },
+      {
+        "id": "018cbc892e3cd13ec533480f1486f6c0",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Cardiff City",
+        "away_team": "Swindon Town"
+      },
+      {
+        "id": "7d5b0b9e1b0ee9df508d4947cce813cc",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Fleetwood Town",
+        "away_team": "Chesterfield FC"
+      },
+      {
+        "id": "e4f072c0fc3ae459631da68a61dfbece",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Derby County",
+        "away_team": "Lincoln City"
+      },
+      {
+        "id": "4c624f169d23e0a733b88efc143d6585",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Stockport County FC",
+        "away_team": "Doncaster Rovers"
+      },
+      {
+        "id": "7230a78db921dd843a77c7a68044b854",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Gillingham",
+        "away_team": "Luton"
+      },
+      {
+        "id": "4e7b216c266fdeb8627d478bbdc2f552",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Preston North End",
+        "away_team": "Huddersfield Town"
+      },
+      {
+        "id": "b61dfd863d08c42584c1e4e045250e35",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Leicester City",
+        "away_team": "Northampton Town"
+      },
+      {
+        "id": "9fad2b38c6ba85ef14214f4e2796eb9a",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Leyton Orient",
+        "away_team": "Oxford United"
+      },
+      {
+        "id": "57003e4ddfa51ffb9e46772da15b43c1",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Norwich City",
+        "away_team": "Milton Keynes Dons"
+      },
+      {
+        "id": "56d78f64bc56e930924d3b440c660125",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Wimbledon",
+        "away_team": "Newport County"
+      },
+      {
+        "id": "3749d89e8f4de89e0c4232420b6875ec",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Stoke City",
+        "away_team": "Oldham Athletic"
+      },
+      {
+        "id": "1e3e62b3b7aacb4f8ce16eee163cc3ea",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "West Ham United",
+        "away_team": "Portsmouth"
+      },
+      {
+        "id": "1ffccad5416bc0e013e251e8b60a9bc0",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T14:00:00Z",
+        "home_team": "Salford City",
+        "away_team": "Shrewsbury Town"
+      },
+      {
+        "id": "96cb650a369524b58ac6696e39cd95cb",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T16:00:00Z",
+        "home_team": "Cheltenham Town",
+        "away_team": "Charlton Athletic"
+      },
+      {
+        "id": "e3b831dd666ba4368205ef9a11c1945f",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T16:00:00Z",
+        "home_team": "Colchester United",
+        "away_team": "Southampton"
+      },
+      {
+        "id": "964f54471a5907162578e4bf2dfa5b6d",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T16:00:00Z",
+        "home_team": "Plymouth Argyle",
+        "away_team": "Exeter City"
+      },
+      {
+        "id": "458d2c638bdfaa526d42063a124619eb",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T16:00:00Z",
+        "home_team": "Mansfield Town",
+        "away_team": "Sheffield United"
+      },
+      {
+        "id": "1f71fc018fce94801f6a1b736a6d6823",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-08T16:00:00Z",
+        "home_team": "Rotherham United",
+        "away_team": "West Bromwich Albion"
+      },
+      {
+        "id": "8d4052f8217ef1761d64e149c7d3784d",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-09T15:00:00Z",
+        "home_team": "Mansfield Town",
+        "away_team": "Sheffield United"
+      },
+      {
+        "id": "f4b2f53b384839abbbdf6d1950d6f1c7",
+        "sport_key": "soccer_england_efl_cup",
+        "sport_title": "EFL Cup",
+        "commence_time": "2026-08-10T19:00:00Z",
+        "home_team": "Plymouth Argyle",
+        "away_team": "Exeter City"
+      }
+    ],
+    "soccer_england_league1": [
+      {
+        "id": "8fa8141096288144c6b6181d1fb5ffa2",
+        "sport_key": "soccer_england_league1",
+        "sport_title": "League 1",
+        "commence_time": "2026-08-15T11:30:00Z",
+        "home_team": "Notts County",
+        "away_team": "Leicester City"
+      },
+      {
+        "id": "c7044b4ebdb45c94e3973c9ad8f60241",
+        "sport_key": "soccer_england_league1",
+        "sport_title": "League 1",
+        "commence_time": "2026-08-15T11:30:00Z",
+        "home_team": "Reading",
+        "away_team": "Luton"
+      },
+      {
+        "id": "808d86dfd7646411d52eaa0308c0d693",
+        "sport_key": "soccer_england_league1",
+        "sport_title": "League 1",
+        "commence_time": "2026-08-15T11:30:00Z",
+        "home_team": "Oxford United",
+        "away_team": "Milton Keynes Dons"
+      },
+      {
+        "id": "79f656b6298e5f6003ab9a8bc6c28428",
+        "sport_key": "soccer_england_league1",
+        "sport_title": "League 1",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Barnsley",
+        "away_team": "Bromley FC"
+      },
+      {
+        "id": "9eb2d4a43ff7d4cca14a6403a11a91d7",
+        "sport_key": "soccer_england_league1",
+        "sport_title": "League 1",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Blackpool",
+        "away_team": "Wycombe Wanderers"
+      },
+      {
+        "id": "eced252d354de83c4e378e6e897a7ce1",
+        "sport_key": "soccer_england_league1",
+        "sport_title": "League 1",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Bradford City",
+        "away_team": "Peterborough United"
+      },
+      {
+        "id": "6ec54406a8439e81875b9098498af214",
+        "sport_key": "soccer_england_league1",
+        "sport_title": "League 1",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Burton Albion",
+        "away_team": "Stevenage"
+      },
+      {
+        "id": "525c528134816634185adb06efa21984",
+        "sport_key": "soccer_england_league1",
+        "sport_title": "League 1",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Cambridge United",
+        "away_team": "Wigan Athletic"
+      },
+      {
+        "id": "220a8d062ebd8e868f34848a275c924b",
+        "sport_key": "soccer_england_league1",
+        "sport_title": "League 1",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Mansfield Town",
+        "away_team": "Doncaster Rovers"
+      },
+      {
+        "id": "686c758175d584228d6a8cc8ed939a3b",
+        "sport_key": "soccer_england_league1",
+        "sport_title": "League 1",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Huddersfield Town",
+        "away_team": "Wimbledon"
+      },
+      {
+        "id": "0ef000045cc38c88ef64c0d5f3d21196",
+        "sport_key": "soccer_england_league1",
+        "sport_title": "League 1",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Leyton Orient",
+        "away_team": "Sheffield Wednesday"
+      },
+      {
+        "id": "fd2a951fd7e10c5f23f2f893c8d6b96b",
+        "sport_key": "soccer_england_league1",
+        "sport_title": "League 1",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Plymouth Argyle",
+        "away_team": "Stockport County FC"
+      }
+    ],
+    "soccer_england_league2": [
+      {
+        "id": "885f4c5e430d8bf7994fe0e4cbd5acad",
+        "sport_key": "soccer_england_league2",
+        "sport_title": "League 2",
+        "commence_time": "2026-08-15T11:30:00Z",
+        "home_team": "Newport County",
+        "away_team": "Rochdale"
+      },
+      {
+        "id": "81abdf81dbdec957ccf8c757adab5cdf",
+        "sport_key": "soccer_england_league2",
+        "sport_title": "League 2",
+        "commence_time": "2026-08-15T11:30:00Z",
+        "home_team": "Oldham Athletic",
+        "away_team": "Port Vale"
+      },
+      {
+        "id": "fc06b5bcf5c840924966084d89953406",
+        "sport_key": "soccer_england_league2",
+        "sport_title": "League 2",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Accrington Stanley",
+        "away_team": "Colchester United"
+      },
+      {
+        "id": "ea2ba60cbf0a4bda95756eac05730cb5",
+        "sport_key": "soccer_england_league2",
+        "sport_title": "League 2",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Barnet",
+        "away_team": "Salford City"
+      },
+      {
+        "id": "fd023338232978a02a364106a72f7ee3",
+        "sport_key": "soccer_england_league2",
+        "sport_title": "League 2",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "York City",
+        "away_team": "Bristol Rovers"
+      },
+      {
+        "id": "517c05ad7e6c1306d2af75772ee487eb",
+        "sport_key": "soccer_england_league2",
+        "sport_title": "League 2",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Cheltenham Town",
+        "away_team": "Rotherham United"
+      },
+      {
+        "id": "f4db37a9cb8eecfe296a3d73837be438",
+        "sport_key": "soccer_england_league2",
+        "sport_title": "League 2",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Chesterfield FC",
+        "away_team": "Fleetwood Town"
+      },
+      {
+        "id": "947fdbb31e2ccd26096f26f6db8b4878",
+        "sport_key": "soccer_england_league2",
+        "sport_title": "League 2",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Crawley Town",
+        "away_team": "Crewe Alexandra"
+      },
+      {
+        "id": "66127503f173b1e6465942fcecab886f",
+        "sport_key": "soccer_england_league2",
+        "sport_title": "League 2",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Grimsby Town",
+        "away_team": "Exeter City"
+      },
+      {
+        "id": "e792be63679ab5d36c7c17ecc030ba6e",
+        "sport_key": "soccer_england_league2",
+        "sport_title": "League 2",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Gillingham",
+        "away_team": "Walsall"
+      },
+      {
+        "id": "db5ad87b596963ddb2a327146fbdc807",
+        "sport_key": "soccer_england_league2",
+        "sport_title": "League 2",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Northampton Town",
+        "away_team": "Swindon Town"
+      },
+      {
+        "id": "8dc19297b0a144f5da7aa4fd293bd1e0",
+        "sport_key": "soccer_england_league2",
+        "sport_title": "League 2",
+        "commence_time": "2026-08-15T14:00:00Z",
+        "home_team": "Tranmere Rovers",
+        "away_team": "Shrewsbury Town"
+      }
+    ],
+    "soccer_epl": [
+      {
+        "id": "eb2553d10d63dc912b99f8fd0d675721",
+        "sport_key": "soccer_epl",
+        "sport_title": "EPL",
+        "commence_time": "2026-08-21T19:00:00Z",
+        "home_team": "Arsenal",
+        "away_team": "Coventry City"
+      },
+      {
+        "id": "95bb16d19debff3ec39919f361f072a4",
+        "sport_key": "soccer_epl",
+        "sport_title": "EPL",
+        "commence_time": "2026-08-22T11:30:00Z",
+        "home_team": "Hull City",
+        "away_team": "Manchester United"
+      },
+      {
+        "id": "cd1f0173ec061d9b8a8b22ab8f2f8393",
+        "sport_key": "soccer_epl",
+        "sport_title": "EPL",
+        "commence_time": "2026-08-22T14:00:00Z",
+        "home_team": "Everton",
+        "away_team": "Crystal Palace"
+      },
+      {
+        "id": "01615d9573ef1e5aa8c09eb32a4a983b",
+        "sport_key": "soccer_epl",
+        "sport_title": "EPL",
+        "commence_time": "2026-08-22T14:00:00Z",
+        "home_team": "Ipswich Town",
+        "away_team": "Sunderland"
+      },
+      {
+        "id": "ee99154f8db029efcf567c5f7f7a0c0b",
+        "sport_key": "soccer_epl",
+        "sport_title": "EPL",
+        "commence_time": "2026-08-22T14:00:00Z",
+        "home_team": "Nottingham Forest",
+        "away_team": "Leeds United"
+      },
+      {
+        "id": "8b4b033209bb204516cbd1f523614f25",
+        "sport_key": "soccer_epl",
+        "sport_title": "EPL",
+        "commence_time": "2026-08-22T16:30:00Z",
+        "home_team": "Brentford",
+        "away_team": "Tottenham Hotspur"
+      },
+      {
+        "id": "f5086c74d4a767e3ad7ea69bd4a66b76",
+        "sport_key": "soccer_epl",
+        "sport_title": "EPL",
+        "commence_time": "2026-08-23T13:00:00Z",
+        "home_team": "Brighton and Hove Albion",
+        "away_team": "Aston Villa"
+      },
+      {
+        "id": "87c7c9bfd5e3072bded20c702f553c63",
+        "sport_key": "soccer_epl",
+        "sport_title": "EPL",
+        "commence_time": "2026-08-23T13:00:00Z",
+        "home_team": "Manchester City",
+        "away_team": "Bournemouth"
+      },
+      {
+        "id": "ea0bacc4c23f813c6af97ec9b306a850",
+        "sport_key": "soccer_epl",
+        "sport_title": "EPL",
+        "commence_time": "2026-08-23T15:30:00Z",
+        "home_team": "Newcastle United",
+        "away_team": "Liverpool"
+      },
+      {
+        "id": "4e4a813bf4218cc527e6f8ef2351170d",
+        "sport_key": "soccer_epl",
+        "sport_title": "EPL",
+        "commence_time": "2026-08-24T19:00:00Z",
+        "home_team": "Fulham",
+        "away_team": "Chelsea"
+      }
+    ],
+    "soccer_fifa_world_cup": [
+      {
+        "id": "f9aa13a662d1658e5a02cfc06d6a2d73",
+        "sport_key": "soccer_fifa_world_cup",
+        "sport_title": "FIFA World Cup",
+        "commence_time": "2026-07-14T19:00:00Z",
+        "home_team": "France",
+        "away_team": "Spain"
+      },
+      {
+        "id": "ced22494ae0bbb8cc4f7108bf6f493df",
+        "sport_key": "soccer_fifa_world_cup",
+        "sport_title": "FIFA World Cup",
+        "commence_time": "2026-07-15T19:00:00Z",
+        "home_team": "England",
+        "away_team": "Argentina"
+      }
+    ],
+    "soccer_finland_veikkausliiga": [
+      {
+        "id": "c1f74fb15cde8e5d3f4743557bd42c0a",
+        "sport_key": "soccer_finland_veikkausliiga",
+        "sport_title": "Veikkausliiga - Finland",
+        "commence_time": "2026-07-18T12:00:00Z",
+        "home_team": "HJK Helsinki",
+        "away_team": "VPS Vaasa"
+      },
+      {
+        "id": "4cc93f73df99bca9496d7fb86f71a534",
+        "sport_key": "soccer_finland_veikkausliiga",
+        "sport_title": "Veikkausliiga - Finland",
+        "commence_time": "2026-07-18T14:00:00Z",
+        "home_team": "AC Oulu",
+        "away_team": "IF Gnistan"
+      },
+      {
+        "id": "9cc61756b23bf89a980f14ad4b3eab54",
+        "sport_key": "soccer_finland_veikkausliiga",
+        "sport_title": "Veikkausliiga - Finland",
+        "commence_time": "2026-07-18T14:00:00Z",
+        "home_team": "SJK Seinäjoki",
+        "away_team": "KuPS Kuopio"
+      },
+      {
+        "id": "0f168bdeebd748c092d64f1b713a5107",
+        "sport_key": "soccer_finland_veikkausliiga",
+        "sport_title": "Veikkausliiga - Finland",
+        "commence_time": "2026-07-19T15:30:00Z",
+        "home_team": "Jaro",
+        "away_team": "FC Inter Turku"
+      },
+      {
+        "id": "c04f5ccec011962051bf85a1b047b865",
+        "sport_key": "soccer_finland_veikkausliiga",
+        "sport_title": "Veikkausliiga - Finland",
+        "commence_time": "2026-07-20T15:00:00Z",
+        "home_team": "TPS Turku",
+        "away_team": "Ilves Tampere"
+      },
+      {
+        "id": "ed73836a6ae2d1b1e3ebb95548ce8699",
+        "sport_key": "soccer_finland_veikkausliiga",
+        "sport_title": "Veikkausliiga - Finland",
+        "commence_time": "2026-07-20T16:00:00Z",
+        "home_team": "IFK Mariehamn",
+        "away_team": "FC Lahti"
+      }
+    ],
+    "soccer_france_ligue_one": [
+      {
+        "id": "600aeb3560814afc9a02bec5126b249d",
+        "sport_key": "soccer_france_ligue_one",
+        "sport_title": "Ligue 1 - France",
+        "commence_time": "2026-08-21T18:45:00Z",
+        "home_team": "Marseille",
+        "away_team": "Strasbourg"
+      },
+      {
+        "id": "38b23d1127eb086d775f97b935bbf992",
+        "sport_key": "soccer_france_ligue_one",
+        "sport_title": "Ligue 1 - France",
+        "commence_time": "2026-08-22T15:00:00Z",
+        "home_team": "Le Havre",
+        "away_team": "AS Monaco"
+      },
+      {
+        "id": "1835d30f4ac2e1f3462f0654e0ea984a",
+        "sport_key": "soccer_france_ligue_one",
+        "sport_title": "Ligue 1 - France",
+        "commence_time": "2026-08-22T15:15:00Z",
+        "home_team": "RC Lens",
+        "away_team": "Auxerre"
+      },
+      {
+        "id": "0fe221a0fc71ab3ecfbecf8f1a224b89",
+        "sport_key": "soccer_france_ligue_one",
+        "sport_title": "Ligue 1 - France",
+        "commence_time": "2026-08-22T18:45:00Z",
+        "home_team": "Le Mans FC",
+        "away_team": "Brest"
+      },
+      {
+        "id": "dd38b144d1f20e8eee148914f68f482c",
+        "sport_key": "soccer_france_ligue_one",
+        "sport_title": "Ligue 1 - France",
+        "commence_time": "2026-08-22T18:45:00Z",
+        "home_team": "Nice",
+        "away_team": "Lorient"
+      },
+      {
+        "id": "e2b33e2f28135088d12b464684414353",
+        "sport_key": "soccer_france_ligue_one",
+        "sport_title": "Ligue 1 - France",
+        "commence_time": "2026-08-22T18:45:00Z",
+        "home_team": "Toulouse",
+        "away_team": "Lyon"
+      },
+      {
+        "id": "78431f1842f3312e28537492ec14f081",
+        "sport_key": "soccer_france_ligue_one",
+        "sport_title": "Ligue 1 - France",
+        "commence_time": "2026-08-22T18:45:00Z",
+        "home_team": "Troyes",
+        "away_team": "Paris FC"
+      },
+      {
+        "id": "48df026b72fffa82898ff0cfcb02878d",
+        "sport_key": "soccer_france_ligue_one",
+        "sport_title": "Ligue 1 - France",
+        "commence_time": "2026-08-22T19:00:00Z",
+        "home_team": "Angers",
+        "away_team": "Lille"
+      },
+      {
+        "id": "0a88bfab377a4bbddf8aec2983bf4c15",
+        "sport_key": "soccer_france_ligue_one",
+        "sport_title": "Ligue 1 - France",
+        "commence_time": "2026-08-22T19:00:00Z",
+        "home_team": "Paris Saint Germain",
+        "away_team": "Rennes"
+      },
+      {
+        "id": "d9d4a46dbac2090c0143ffccfb66a7da",
+        "sport_key": "soccer_france_ligue_one",
+        "sport_title": "Ligue 1 - France",
+        "commence_time": "2026-08-23T13:00:00Z",
+        "home_team": "Angers",
+        "away_team": "Lille"
+      },
+      {
+        "id": "45836ca8bac10650d8887108b4950fc8",
+        "sport_key": "soccer_france_ligue_one",
+        "sport_title": "Ligue 1 - France",
+        "commence_time": "2026-08-23T15:15:00Z",
+        "home_team": "Le Havre",
+        "away_team": "AS Monaco"
+      },
+      {
+        "id": "24f753b201f0de3088b15c90ee88120a",
+        "sport_key": "soccer_france_ligue_one",
+        "sport_title": "Ligue 1 - France",
+        "commence_time": "2026-08-23T18:45:00Z",
+        "home_team": "Paris Saint Germain",
+        "away_team": "Rennes"
+      }
+    ],
+    "soccer_germany_bundesliga": [
+      {
+        "id": "a8ca30a4492261eb5094ef63ba7e80d8",
+        "sport_key": "soccer_germany_bundesliga",
+        "sport_title": "Bundesliga - Germany",
+        "commence_time": "2026-08-28T18:30:00Z",
+        "home_team": "Bayern Munich",
+        "away_team": "VfB Stuttgart"
+      },
+      {
+        "id": "22ed1aaf03ab3966d098f7049715aada",
+        "sport_key": "soccer_germany_bundesliga",
+        "sport_title": "Bundesliga - Germany",
+        "commence_time": "2026-08-29T13:30:00Z",
+        "home_team": "1. FC Köln",
+        "away_team": "TSG Hoffenheim"
+      },
+      {
+        "id": "c9bfe9c077e1bfb343a6e228b903c6d6",
+        "sport_key": "soccer_germany_bundesliga",
+        "sport_title": "Bundesliga - Germany",
+        "commence_time": "2026-08-29T13:30:00Z",
+        "home_team": "Augsburg",
+        "away_team": "FC Schalke 04"
+      },
+      {
+        "id": "bf5e00842d79a39d57b99fce07a1257e",
+        "sport_key": "soccer_germany_bundesliga",
+        "sport_title": "Bundesliga - Germany",
+        "commence_time": "2026-08-29T13:30:00Z",
+        "home_team": "Elversberg",
+        "away_team": "Bayer Leverkusen"
+      },
+      {
+        "id": "9d7f045126ec9185b73d9c67f881c6d2",
+        "sport_key": "soccer_germany_bundesliga",
+        "sport_title": "Bundesliga - Germany",
+        "commence_time": "2026-08-29T13:30:00Z",
+        "home_team": "Borussia Dortmund",
+        "away_team": "Hamburger SV"
+      },
+      {
+        "id": "831beb2ef9729a813b44d2a50dd19970",
+        "sport_key": "soccer_germany_bundesliga",
+        "sport_title": "Bundesliga - Germany",
+        "commence_time": "2026-08-29T13:30:00Z",
+        "home_team": "RB Leipzig",
+        "away_team": "Borussia Monchengladbach"
+      },
+      {
+        "id": "57a8a5da3b5c298d388f4415c37cdf45",
+        "sport_key": "soccer_germany_bundesliga",
+        "sport_title": "Bundesliga - Germany",
+        "commence_time": "2026-08-29T13:30:00Z",
+        "home_team": "Union Berlin",
+        "away_team": "Eintracht Frankfurt"
+      },
+      {
+        "id": "fa5bd7399799a6c451cc4e6ca6145f11",
+        "sport_key": "soccer_germany_bundesliga",
+        "sport_title": "Bundesliga - Germany",
+        "commence_time": "2026-08-29T13:30:00Z",
+        "home_team": "FSV Mainz 05",
+        "away_team": "SC Paderborn"
+      },
+      {
+        "id": "66f7f9ce44fbbc1890035a3d68cfd3e5",
+        "sport_key": "soccer_germany_bundesliga",
+        "sport_title": "Bundesliga - Germany",
+        "commence_time": "2026-08-29T13:30:00Z",
+        "home_team": "SC Freiburg",
+        "away_team": "Werder Bremen"
+      }
+    ],
+    "soccer_germany_bundesliga2": [
+      {
+        "id": "2c3898d55ac2676ec57fcd3c3fcca66d",
+        "sport_key": "soccer_germany_bundesliga2",
+        "sport_title": "Bundesliga 2 - Germany",
+        "commence_time": "2026-08-07T18:30:00Z",
+        "home_team": "VfL Bochum",
+        "away_team": "Hertha Berlin"
+      },
+      {
+        "id": "893e0dc045776057a6fe7cd144f8f476",
+        "sport_key": "soccer_germany_bundesliga2",
+        "sport_title": "Bundesliga 2 - Germany",
+        "commence_time": "2026-08-08T11:00:00Z",
+        "home_team": "1. FC Heidenheim",
+        "away_team": "VfL Osnabrück"
+      },
+      {
+        "id": "e1b1e038d38d7e826436b59a1e8996e0",
+        "sport_key": "soccer_germany_bundesliga2",
+        "sport_title": "Bundesliga 2 - Germany",
+        "commence_time": "2026-08-08T11:00:00Z",
+        "home_team": "1. FC Magdeburg",
+        "away_team": "Eintracht Braunschweig"
+      },
+      {
+        "id": "8b6fee3d77ccb2a0881595bd87a930cf",
+        "sport_key": "soccer_germany_bundesliga2",
+        "sport_title": "Bundesliga 2 - Germany",
+        "commence_time": "2026-08-08T11:00:00Z",
+        "home_team": "Karlsruher SC",
+        "away_team": "Arminia Bielefeld"
+      },
+      {
+        "id": "a54ce42e7548c559b52477629388c2f8",
+        "sport_key": "soccer_germany_bundesliga2",
+        "sport_title": "Bundesliga 2 - Germany",
+        "commence_time": "2026-08-08T11:00:00Z",
+        "home_team": "SV Darmstadt 98",
+        "away_team": "Holstein Kiel"
+      },
+      {
+        "id": "cea3019d6db455c5dbd8bb29b4d5b2dd",
+        "sport_key": "soccer_germany_bundesliga2",
+        "sport_title": "Bundesliga 2 - Germany",
+        "commence_time": "2026-08-08T18:30:00Z",
+        "home_team": "VfL Wolfsburg",
+        "away_team": "1. FC Kaiserslautern"
+      },
+      {
+        "id": "c4c3f185b50b55ded4ea96351f8523d9",
+        "sport_key": "soccer_germany_bundesliga2",
+        "sport_title": "Bundesliga 2 - Germany",
+        "commence_time": "2026-08-09T11:30:00Z",
+        "home_team": "1. FC Nürnberg",
+        "away_team": "Dynamo Dresden"
+      },
+      {
+        "id": "387f00871fa093d20a7983af9b5d0408",
+        "sport_key": "soccer_germany_bundesliga2",
+        "sport_title": "Bundesliga 2 - Germany",
+        "commence_time": "2026-08-09T11:30:00Z",
+        "home_team": "FC Energie Cottbus",
+        "away_team": "Hannover 96"
+      },
+      {
+        "id": "06b55211376bb30fced8f186900f531f",
+        "sport_key": "soccer_germany_bundesliga2",
+        "sport_title": "Bundesliga 2 - Germany",
+        "commence_time": "2026-08-09T11:30:00Z",
+        "home_team": "FC St. Pauli",
+        "away_team": "Greuther Fürth"
+      }
+    ],
+    "soccer_germany_dfb_pokal": [
+      {
+        "id": "c72f9ba73c951c5071a2df4ea9d18930",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-08-21T16:00:00Z",
+        "home_team": "Waldhof Mannheim",
+        "away_team": "1. FC Kaiserslautern"
+      },
+      {
+        "id": "c2b405e2807cc3fb975017f4370d2997",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-08-21T16:00:00Z",
+        "home_team": "SC Preußen Münster",
+        "away_team": "Karlsruher SC"
+      },
+      {
+        "id": "138b7d1347b60a411a89a8e86856d714",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-08-21T18:45:00Z",
+        "home_team": "Hansa Rostock",
+        "away_team": "VfB Stuttgart"
+      },
+      {
+        "id": "15a48d58be1e08c333ecb606713c8da2",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-08-22T11:00:00Z",
+        "home_team": "FC Energie Cottbus",
+        "away_team": "Augsburg"
+      },
+      {
+        "id": "198814ee07f8b29b058840b4cc28ddb0",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-08-22T11:00:00Z",
+        "home_team": "Wehen Wiesbaden",
+        "away_team": "Bayer Leverkusen"
+      },
+      {
+        "id": "2b25008557b2664a27d9fa11fc850011",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-08-22T13:30:00Z",
+        "home_team": "FC Viktoria Köln 1904",
+        "away_team": "1. FC Nürnberg"
+      },
+      {
+        "id": "804fbafadfc39e37beb6a82d214b5584",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-08-22T13:30:00Z",
+        "home_team": "1. FC Saarbrücken",
+        "away_team": "Hertha Berlin"
+      },
+      {
+        "id": "84a4e1b2d43e54091e869f00db675b55",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-08-22T13:30:00Z",
+        "home_team": "MSV Duisburg",
+        "away_team": "Elversberg"
+      },
+      {
+        "id": "8535507f86367b9cb55bef43b938346e",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-08-22T13:30:00Z",
+        "home_team": "Erzgebirge Aue",
+        "away_team": "TSG Hoffenheim"
+      },
+      {
+        "id": "780aff16284512d03d3ae42436754b38",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-08-23T11:00:00Z",
+        "home_team": "Greuther Fürth",
+        "away_team": "VfL Bochum"
+      },
+      {
+        "id": "f35fb01af918c0aa81c83ab377d1bed5",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-08-23T13:30:00Z",
+        "home_team": "Eintracht Braunschweig",
+        "away_team": "Union Berlin"
+      },
+      {
+        "id": "8bbdec0bd34dfd96a2b49e39f714dfec",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-08-23T16:00:00Z",
+        "home_team": "Rot-Weiss Essen",
+        "away_team": "FC St. Pauli"
+      },
+      {
+        "id": "a4f34d64d2ec584dfae40bda70ec8002",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-08-23T16:00:00Z",
+        "home_team": "Fortuna Düsseldorf",
+        "away_team": "SC Freiburg"
+      },
+      {
+        "id": "29fbbde437cba7a9628929307c99d619",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-08-24T16:00:00Z",
+        "home_team": "FC Würzburger Kickers",
+        "away_team": "1. FC Köln"
+      },
+      {
+        "id": "cc557819bcfcd3c8fe84b9853b2a9d5b",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-08-24T16:00:00Z",
+        "home_team": "SC Verl",
+        "away_team": "Hamburger SV"
+      },
+      {
+        "id": "d87989242dcd35124a18af738401c661",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-08-24T18:45:00Z",
+        "home_team": "Hallescher FC",
+        "away_team": "FC Schalke 04"
+      },
+      {
+        "id": "8caf86ea8e85ebe4d9e8374c85ce67e5",
+        "sport_key": "soccer_germany_dfb_pokal",
+        "sport_title": "DFB-Pokal",
+        "commence_time": "2026-09-02T18:45:00Z",
+        "home_team": "VfL Osnabrück",
+        "away_team": "Bayern Munich"
+      }
+    ],
+    "soccer_germany_liga3": [
+      {
+        "id": "e09933f2f3610b990379640f0a6b0649",
+        "sport_key": "soccer_germany_liga3",
+        "sport_title": "3. Liga - Germany",
+        "commence_time": "2026-08-07T17:00:00Z",
+        "home_team": "Waldhof Mannheim",
+        "away_team": "Fortuna Düsseldorf"
+      },
+      {
+        "id": "53913cd33eef2fca860897558f60a38c",
+        "sport_key": "soccer_germany_liga3",
+        "sport_title": "3. Liga - Germany",
+        "commence_time": "2026-08-08T12:00:00Z",
+        "home_team": "1. FC Saarbrücken",
+        "away_team": "Rot-Weiss Essen"
+      },
+      {
+        "id": "9e2c4e082b59e9a90461e9f59ad36741",
+        "sport_key": "soccer_germany_liga3",
+        "sport_title": "3. Liga - Germany",
+        "commence_time": "2026-08-08T12:00:00Z",
+        "home_team": "Alemannia Aachen",
+        "away_team": "SC Verl"
+      },
+      {
+        "id": "13943c565ad717abd66c440d901d859d",
+        "sport_key": "soccer_germany_liga3",
+        "sport_title": "3. Liga - Germany",
+        "commence_time": "2026-08-08T12:00:00Z",
+        "home_team": "FC Ingolstadt 04",
+        "away_team": "FC Würzburger Kickers"
+      },
+      {
+        "id": "735fe51b39f41198f92e7ee0726d7763",
+        "sport_key": "soccer_germany_liga3",
+        "sport_title": "3. Liga - Germany",
+        "commence_time": "2026-08-08T12:00:00Z",
+        "home_team": "FC Viktoria Köln 1904",
+        "away_team": "Jahn Regensburg"
+      },
+      {
+        "id": "ce36691bf27a0bcdbfa2e3ade4af7093",
+        "sport_key": "soccer_germany_liga3",
+        "sport_title": "3. Liga - Germany",
+        "commence_time": "2026-08-08T12:00:00Z",
+        "home_team": "TSG Hoffenheim II",
+        "away_team": "Hansa Rostock"
+      },
+      {
+        "id": "cbbb3a8bb83fc640afb8365c180d72ec",
+        "sport_key": "soccer_germany_liga3",
+        "sport_title": "3. Liga - Germany",
+        "commence_time": "2026-08-08T12:00:00Z",
+        "home_team": "MSV Duisburg",
+        "away_team": "SV Meppen"
+      },
+      {
+        "id": "ef8eecc5c9e060d7de9793fadfa1173a",
+        "sport_key": "soccer_germany_liga3",
+        "sport_title": "3. Liga - Germany",
+        "commence_time": "2026-08-08T12:00:00Z",
+        "home_team": "Wehen Wiesbaden",
+        "away_team": "SC Preußen Münster"
+      },
+      {
+        "id": "db592ec3b93b8a473168518f743a9875",
+        "sport_key": "soccer_germany_liga3",
+        "sport_title": "3. Liga - Germany",
+        "commence_time": "2026-08-08T12:00:00Z",
+        "home_team": "TSV Havelse",
+        "away_team": "VfB Stuttgart II"
+      }
+    ],
+    "soccer_italy_serie_a": [
+      {
+        "id": "e37906b7522f30dbf519e60e767de811",
+        "sport_key": "soccer_italy_serie_a",
+        "sport_title": "Serie A - Italy",
+        "commence_time": "2026-08-22T13:00:00Z",
+        "home_team": "Torino",
+        "away_team": "AC Milan"
+      },
+      {
+        "id": "e4e88aada4f206a2cc82334dc6ffaee4",
+        "sport_key": "soccer_italy_serie_a",
+        "sport_title": "Serie A - Italy",
+        "commence_time": "2026-08-22T13:00:00Z",
+        "home_team": "AS Roma",
+        "away_team": "Fiorentina"
+      },
+      {
+        "id": "0a0f6982816e75d54caf976d288f6d15",
+        "sport_key": "soccer_italy_serie_a",
+        "sport_title": "Serie A - Italy",
+        "commence_time": "2026-08-22T13:00:00Z",
+        "home_team": "Atalanta BC",
+        "away_team": "Sassuolo"
+      },
+      {
+        "id": "4fe9bc44316cce0f1842180bd7fd42de",
+        "sport_key": "soccer_italy_serie_a",
+        "sport_title": "Serie A - Italy",
+        "commence_time": "2026-08-22T13:00:00Z",
+        "home_team": "Bologna",
+        "away_team": "Lazio"
+      },
+      {
+        "id": "7d4101254957e46d6037bd1d8f268a0e",
+        "sport_key": "soccer_italy_serie_a",
+        "sport_title": "Serie A - Italy",
+        "commence_time": "2026-08-22T13:00:00Z",
+        "home_team": "Parma",
+        "away_team": "Cagliari"
+      },
+      {
+        "id": "ed57c6f67558fabe25c4634ca959ee01",
+        "sport_key": "soccer_italy_serie_a",
+        "sport_title": "Serie A - Italy",
+        "commence_time": "2026-08-22T13:00:00Z",
+        "home_team": "Udinese",
+        "away_team": "Como"
+      },
+      {
+        "id": "d551f2c1f25f8717dc938e74bcbcb128",
+        "sport_key": "soccer_italy_serie_a",
+        "sport_title": "Serie A - Italy",
+        "commence_time": "2026-08-22T13:00:00Z",
+        "home_team": "Frosinone",
+        "away_team": "Juventus"
+      },
+      {
+        "id": "c123d013c16bf22279a1fdf1248c4afb",
+        "sport_key": "soccer_italy_serie_a",
+        "sport_title": "Serie A - Italy",
+        "commence_time": "2026-08-22T13:00:00Z",
+        "home_team": "Genoa",
+        "away_team": "Napoli"
+      },
+      {
+        "id": "ef8a47c3c8c0f71a251e2efcbf84854a",
+        "sport_key": "soccer_italy_serie_a",
+        "sport_title": "Serie A - Italy",
+        "commence_time": "2026-08-22T13:00:00Z",
+        "home_team": "Inter Milan",
+        "away_team": "Monza"
+      },
+      {
+        "id": "8e0fd55f15fc0f40767b91218afee9a7",
+        "sport_key": "soccer_italy_serie_a",
+        "sport_title": "Serie A - Italy",
+        "commence_time": "2026-08-22T13:00:00Z",
+        "home_team": "Venezia",
+        "away_team": "Lecce"
+      },
+      {
+        "id": "be3b0694068c114eda8d252c66210b11",
+        "sport_key": "soccer_italy_serie_a",
+        "sport_title": "Serie A - Italy",
+        "commence_time": "2026-08-23T16:30:00Z",
+        "home_team": "Frosinone",
+        "away_team": "Juventus"
+      },
+      {
+        "id": "120c61563f0b7119d87522da76fcaa33",
+        "sport_key": "soccer_italy_serie_a",
+        "sport_title": "Serie A - Italy",
+        "commence_time": "2026-08-23T16:30:00Z",
+        "home_team": "Venezia",
+        "away_team": "Lecce"
+      },
+      {
+        "id": "fbea45a1e53e07faac0027ac5d233587",
+        "sport_key": "soccer_italy_serie_a",
+        "sport_title": "Serie A - Italy",
+        "commence_time": "2026-08-23T18:45:00Z",
+        "home_team": "Torino",
+        "away_team": "AC Milan"
+      },
+      {
+        "id": "d44b7b56dadba2e7606cdceec655e62f",
+        "sport_key": "soccer_italy_serie_a",
+        "sport_title": "Serie A - Italy",
+        "commence_time": "2026-08-23T18:45:00Z",
+        "home_team": "Atalanta BC",
+        "away_team": "Sassuolo"
+      },
+      {
+        "id": "c23c70e25e6253ea30f33add6c73d299",
+        "sport_key": "soccer_italy_serie_a",
+        "sport_title": "Serie A - Italy",
+        "commence_time": "2026-08-24T16:30:00Z",
+        "home_team": "Bologna",
+        "away_team": "Lazio"
+      },
+      {
+        "id": "4164b325d120b7310921429a21496210",
+        "sport_key": "soccer_italy_serie_a",
+        "sport_title": "Serie A - Italy",
+        "commence_time": "2026-08-24T18:45:00Z",
+        "home_team": "AS Roma",
+        "away_team": "Fiorentina"
+      }
+    ],
+    "soccer_korea_kleague1": [
+      {
+        "id": "262879bd10e9b46ddb8f270d0c54c4a9",
+        "sport_key": "soccer_korea_kleague1",
+        "sport_title": "K League 1",
+        "commence_time": "2026-07-18T10:30:00Z",
+        "home_team": "Daejeon Citizen",
+        "away_team": "Ulsan Hyundai FC"
+      },
+      {
+        "id": "f89aa7468bfd471c3aa69bb289ea3d65",
+        "sport_key": "soccer_korea_kleague1",
+        "sport_title": "K League 1",
+        "commence_time": "2026-07-18T10:30:00Z",
+        "home_team": "Gangwon FC",
+        "away_team": "Sangju Sangmu FC"
+      },
+      {
+        "id": "bff9c4277cf6339edf6755cfc8be12cc",
+        "sport_key": "soccer_korea_kleague1",
+        "sport_title": "K League 1",
+        "commence_time": "2026-07-18T10:30:00Z",
+        "home_team": "Incheon United",
+        "away_team": "Jeonbuk Hyundai Motors"
+      },
+      {
+        "id": "0229cd3642745eb0e1c1e555c435e16a",
+        "sport_key": "soccer_korea_kleague1",
+        "sport_title": "K League 1",
+        "commence_time": "2026-07-18T10:30:00Z",
+        "home_team": "Jeju United FC",
+        "away_team": "Pohang Steelers"
+      },
+      {
+        "id": "853f2b2b2c9039cef0b61b6f3b8763ff",
+        "sport_key": "soccer_korea_kleague1",
+        "sport_title": "K League 1",
+        "commence_time": "2026-07-19T10:30:00Z",
+        "home_team": "Bucheon FC 1995",
+        "away_team": "FC Seoul"
+      },
+      {
+        "id": "5617b680720024bbdb33033bccf4e11e",
+        "sport_key": "soccer_korea_kleague1",
+        "sport_title": "K League 1",
+        "commence_time": "2026-07-19T10:30:00Z",
+        "home_team": "FC Anyang",
+        "away_team": "Gwangju FC"
+      }
+    ],
+    "soccer_mexico_ligamx": [
+      {
+        "id": "4412627f37a1bba21dfaf7e037860b0c",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-17T01:00:00Z",
+        "home_team": "Necaxa",
+        "away_team": "Atlante FC"
+      },
+      {
+        "id": "2318afd404921e416ba75ec1b40aee48",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-17T03:00:00Z",
+        "home_team": "Tijuana",
+        "away_team": "Tigres"
+      },
+      {
+        "id": "195e9fb345b01244a0bd7b061c4b8b97",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-18T01:00:00Z",
+        "home_team": "León",
+        "away_team": "Atlas"
+      },
+      {
+        "id": "88f78b661b5dba3c3fd76d8c0b652fce",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-18T01:00:00Z",
+        "home_team": "Atlético San Luis",
+        "away_team": "Cruz Azul"
+      },
+      {
+        "id": "4819f57d1815333505e29f72c4ea89d5",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-18T03:00:00Z",
+        "home_team": "FC Juárez",
+        "away_team": "Puebla"
+      },
+      {
+        "id": "f4a08c0894c249e567dd84fdce6c87a2",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-18T23:00:00Z",
+        "home_team": "Pumas",
+        "away_team": "Pachuca"
+      },
+      {
+        "id": "a1484e11682661c82594016ffb915ade",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-19T01:00:00Z",
+        "home_team": "Monterrey",
+        "away_team": "Santos Laguna"
+      },
+      {
+        "id": "69611d5f8f262efb16cb03413037a0e5",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-19T01:07:00Z",
+        "home_team": "Guadalajara",
+        "away_team": "Toluca"
+      },
+      {
+        "id": "c8e5989a3575c937d1e2dda00fa683ca",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-19T03:00:00Z",
+        "home_team": "Querétaro",
+        "away_team": "América"
+      },
+      {
+        "id": "9312c4bdfd8eefcabb2d3e92a571806f",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-22T01:00:00Z",
+        "home_team": "Cruz Azul",
+        "away_team": "Puebla"
+      },
+      {
+        "id": "651098b236b65d4256d7367e239f2db7",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-22T03:00:00Z",
+        "home_team": "Toluca",
+        "away_team": "Pumas"
+      },
+      {
+        "id": "6394c96e92a611806001df73b241f6ab",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-25T01:00:00Z",
+        "home_team": "Tigres",
+        "away_team": "Atlético San Luis"
+      },
+      {
+        "id": "ce98719a96856625554c0cb8e22eddec",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-25T03:00:00Z",
+        "home_team": "Atlante FC",
+        "away_team": "América"
+      },
+      {
+        "id": "7e73990b89d55272c9943ad1fad72b36",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-25T03:00:00Z",
+        "home_team": "Tijuana",
+        "away_team": "León"
+      },
+      {
+        "id": "3e291f2777b2fb12abacf8b3dbe3c981",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-25T23:07:00Z",
+        "home_team": "Guadalajara",
+        "away_team": "FC Juárez"
+      },
+      {
+        "id": "eea306786d5de484f74b922fb511a042",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-26T03:00:00Z",
+        "home_team": "Santos Laguna",
+        "away_team": "Atlas"
+      },
+      {
+        "id": "6c4afed1c376e65b1551ccff489c3574",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-26T23:00:00Z",
+        "home_team": "Necaxa",
+        "away_team": "Monterrey"
+      },
+      {
+        "id": "84cfc92f937672371f54a59d970e6295",
+        "sport_key": "soccer_mexico_ligamx",
+        "sport_title": "Liga MX",
+        "commence_time": "2026-07-27T01:00:00Z",
+        "home_team": "Pachuca",
+        "away_team": "Querétaro"
+      }
+    ],
+    "soccer_netherlands_eredivisie": [
+      {
+        "id": "d415a21944ca964ae9c10a9d9a7d9acd",
+        "sport_key": "soccer_netherlands_eredivisie",
+        "sport_title": "Dutch Eredivisie",
+        "commence_time": "2026-08-07T18:00:00Z",
+        "home_team": "SC Cambuur",
+        "away_team": "Excelsior"
+      },
+      {
+        "id": "5d48e61f140b4e0ad043d9c69c1db4bc",
+        "sport_key": "soccer_netherlands_eredivisie",
+        "sport_title": "Dutch Eredivisie",
+        "commence_time": "2026-08-08T14:30:00Z",
+        "home_team": "NEC Nijmegen",
+        "away_team": "SC Telstar"
+      },
+      {
+        "id": "2b7bb544e99581a9a45a09cc1dc45b19",
+        "sport_key": "soccer_netherlands_eredivisie",
+        "sport_title": "Dutch Eredivisie",
+        "commence_time": "2026-08-08T16:45:00Z",
+        "home_team": "Go Ahead Eagles",
+        "away_team": "Willem II"
+      },
+      {
+        "id": "846c84285ce10df291dd921fc30f419d",
+        "sport_key": "soccer_netherlands_eredivisie",
+        "sport_title": "Dutch Eredivisie",
+        "commence_time": "2026-08-08T18:00:00Z",
+        "home_team": "PSV Eindhoven",
+        "away_team": "Fortuna Sittard"
+      },
+      {
+        "id": "59359b3bddd711f25e4900223b4d5f2d",
+        "sport_key": "soccer_netherlands_eredivisie",
+        "sport_title": "Dutch Eredivisie",
+        "commence_time": "2026-08-08T19:00:00Z",
+        "home_team": "AZ Alkmaar",
+        "away_team": "ADO Den Haag"
+      },
+      {
+        "id": "15e1158fdc0c9c48e61c8ca477902202",
+        "sport_key": "soccer_netherlands_eredivisie",
+        "sport_title": "Dutch Eredivisie",
+        "commence_time": "2026-08-09T10:15:00Z",
+        "home_team": "Sparta Rotterdam",
+        "away_team": "Feyenoord"
+      },
+      {
+        "id": "a3d95b79823893f9425d847a6f630d53",
+        "sport_key": "soccer_netherlands_eredivisie",
+        "sport_title": "Dutch Eredivisie",
+        "commence_time": "2026-08-09T12:30:00Z",
+        "home_team": "FC Zwolle",
+        "away_team": "Ajax"
+      },
+      {
+        "id": "4bb3882580d6a46c4270f1c66296c00d",
+        "sport_key": "soccer_netherlands_eredivisie",
+        "sport_title": "Dutch Eredivisie",
+        "commence_time": "2026-08-09T12:30:00Z",
+        "home_team": "Groningen",
+        "away_team": "FC Utrecht"
+      },
+      {
+        "id": "2fef294b70aefb4ee114b4c3a44341e0",
+        "sport_key": "soccer_netherlands_eredivisie",
+        "sport_title": "Dutch Eredivisie",
+        "commence_time": "2026-08-09T14:45:00Z",
+        "home_team": "Heerenveen",
+        "away_team": "FC Twente Enschede"
+      }
+    ],
+    "soccer_norway_eliteserien": [
+      {
+        "id": "12226d36b36b3a8a7532ed388693aa6d",
+        "sport_key": "soccer_norway_eliteserien",
+        "sport_title": "Eliteserien - Norway",
+        "commence_time": "2026-07-16T17:00:00Z",
+        "home_team": "Vålerenga",
+        "away_team": "Aalesund"
+      },
+      {
+        "id": "5f40ef0c319af1a5d6737da93a735ecb",
+        "sport_key": "soccer_norway_eliteserien",
+        "sport_title": "Eliteserien - Norway",
+        "commence_time": "2026-07-17T17:15:00Z",
+        "home_team": "Bodø/Glimt",
+        "away_team": "Fredrikstad FK"
+      },
+      {
+        "id": "eb376f64e72f199c1c5c695ddaddb645",
+        "sport_key": "soccer_norway_eliteserien",
+        "sport_title": "Eliteserien - Norway",
+        "commence_time": "2026-07-18T12:00:00Z",
+        "home_team": "HamKam",
+        "away_team": "Tromso"
+      },
+      {
+        "id": "e158b3f733dd17745188b49b4c2e513c",
+        "sport_key": "soccer_norway_eliteserien",
+        "sport_title": "Eliteserien - Norway",
+        "commence_time": "2026-07-18T14:00:00Z",
+        "home_team": "IK Start",
+        "away_team": "Rosenborg"
+      },
+      {
+        "id": "634ee5a0e5dd981f76338783253987bc",
+        "sport_key": "soccer_norway_eliteserien",
+        "sport_title": "Eliteserien - Norway",
+        "commence_time": "2026-07-18T14:00:00Z",
+        "home_team": "Lillestrom",
+        "away_team": "KFUM"
+      },
+      {
+        "id": "4c7a0b129b8747f38730ad304a85e68a",
+        "sport_key": "soccer_norway_eliteserien",
+        "sport_title": "Eliteserien - Norway",
+        "commence_time": "2026-07-18T14:00:00Z",
+        "home_team": "Kristiansund BK",
+        "away_team": "Sarpsborg FK"
+      },
+      {
+        "id": "6bbb89eaf53c565b1f93b425e25dad90",
+        "sport_key": "soccer_norway_eliteserien",
+        "sport_title": "Eliteserien - Norway",
+        "commence_time": "2026-07-18T16:00:00Z",
+        "home_team": "Molde",
+        "away_team": "SK Brann"
+      },
+      {
+        "id": "37543ed72d20afc506563174975e07ce",
+        "sport_key": "soccer_norway_eliteserien",
+        "sport_title": "Eliteserien - Norway",
+        "commence_time": "2026-07-18T18:00:00Z",
+        "home_team": "Viking FK",
+        "away_team": "Sandefjord"
+      }
+    ],
+    "soccer_russia_premier_league": [
+      {
+        "id": "42923ec24e61e6f14755d0e8cbed0505",
+        "sport_key": "soccer_russia_premier_league",
+        "sport_title": "Premier League - Russia",
+        "commence_time": "2026-07-24T17:00:00Z",
+        "home_team": "CSKA Moscow",
+        "away_team": "FC Baltika Kaliningrad"
+      },
+      {
+        "id": "9ffd36f9f0f68f694460b195da89bc0b",
+        "sport_key": "soccer_russia_premier_league",
+        "sport_title": "Premier League - Russia",
+        "commence_time": "2026-07-25T11:00:00Z",
+        "home_team": "Dinamo Moscow",
+        "away_team": "Kryliya Sovetov"
+      },
+      {
+        "id": "261245d806cc5d187fc451b607cf8da6",
+        "sport_key": "soccer_russia_premier_league",
+        "sport_title": "Premier League - Russia",
+        "commence_time": "2026-07-25T13:15:00Z",
+        "home_team": "FC Akron Tolyatti",
+        "away_team": "Zenit St Petersburg"
+      },
+      {
+        "id": "1b0abf2b2556d6dc8ec4eaf320fbbfbc",
+        "sport_key": "soccer_russia_premier_league",
+        "sport_title": "Premier League - Russia",
+        "commence_time": "2026-07-25T17:45:00Z",
+        "home_team": "Spartak Moscow",
+        "away_team": "Dinamo Moscow"
+      },
+      {
+        "id": "e0f3d46a17f227140f7b0f79faa42081",
+        "sport_key": "soccer_russia_premier_league",
+        "sport_title": "Premier League - Russia",
+        "commence_time": "2026-07-26T11:30:00Z",
+        "home_team": "Gazovik Orenburg",
+        "away_team": "FK Rostov"
+      },
+      {
+        "id": "1d9f44be343c189187c31ce86adc4f32",
+        "sport_key": "soccer_russia_premier_league",
+        "sport_title": "Premier League - Russia",
+        "commence_time": "2026-07-26T14:00:00Z",
+        "home_team": "Lokomotiv Moscow",
+        "away_team": "FC Akhmat Grozny"
+      },
+      {
+        "id": "49e1d626496071abbfb0abec210623f9",
+        "sport_key": "soccer_russia_premier_league",
+        "sport_title": "Premier League - Russia",
+        "commence_time": "2026-07-26T16:30:00Z",
+        "home_team": "Rubin Kazan",
+        "away_team": "FC Krasnodar"
+      }
+    ],
+    "soccer_spain_la_liga": [
+      {
+        "id": "619ee9924303c828089d78a1216299a3",
+        "sport_key": "soccer_spain_la_liga",
+        "sport_title": "La Liga - Spain",
+        "commence_time": "2026-08-16T19:00:00Z",
+        "home_team": "Alavés",
+        "away_team": "Getafe"
+      },
+      {
+        "id": "cc046b0dcb624210df0aec3743c7c255",
+        "sport_key": "soccer_spain_la_liga",
+        "sport_title": "La Liga - Spain",
+        "commence_time": "2026-08-16T19:00:00Z",
+        "home_team": "Barcelona",
+        "away_team": "Athletic Bilbao"
+      },
+      {
+        "id": "c3346224e5e2d07b256fc33b5f941af6",
+        "sport_key": "soccer_spain_la_liga",
+        "sport_title": "La Liga - Spain",
+        "commence_time": "2026-08-16T19:00:00Z",
+        "home_team": "Atlético Madrid",
+        "away_team": "Málaga"
+      },
+      {
+        "id": "a346e686f4189817440e64cbe596cabc",
+        "sport_key": "soccer_spain_la_liga",
+        "sport_title": "La Liga - Spain",
+        "commence_time": "2026-08-16T19:00:00Z",
+        "home_team": "Celta Vigo",
+        "away_team": "CA Osasuna"
+      },
+      {
+        "id": "7b9f4d89d66c48e0c496aab1679e4ae4",
+        "sport_key": "soccer_spain_la_liga",
+        "sport_title": "La Liga - Spain",
+        "commence_time": "2026-08-16T19:00:00Z",
+        "home_team": "Deportivo La Coruña",
+        "away_team": "Elche CF"
+      },
+      {
+        "id": "4e24891d0ee382bfda6305eabbc54754",
+        "sport_key": "soccer_spain_la_liga",
+        "sport_title": "La Liga - Spain",
+        "commence_time": "2026-08-16T19:00:00Z",
+        "home_team": "Espanyol",
+        "away_team": "Levante"
+      },
+      {
+        "id": "90a7c2b1668f47eaf38c10c7b49ac166",
+        "sport_key": "soccer_spain_la_liga",
+        "sport_title": "La Liga - Spain",
+        "commence_time": "2026-08-16T19:00:00Z",
+        "home_team": "Sevilla",
+        "away_team": "Rayo Vallecano"
+      },
+      {
+        "id": "5bf64b707606b9102b4a2711fa9f18bc",
+        "sport_key": "soccer_spain_la_liga",
+        "sport_title": "La Liga - Spain",
+        "commence_time": "2026-08-16T19:00:00Z",
+        "home_team": "Valencia",
+        "away_team": "Real Betis"
+      },
+      {
+        "id": "25b944e1a0c2adb890dba6072f4b28b0",
+        "sport_key": "soccer_spain_la_liga",
+        "sport_title": "La Liga - Spain",
+        "commence_time": "2026-08-16T19:00:00Z",
+        "home_team": "Real Madrid",
+        "away_team": "Real Sociedad"
+      },
+      {
+        "id": "f32c9c00fd77e4ec1abd5e34d67a6817",
+        "sport_key": "soccer_spain_la_liga",
+        "sport_title": "La Liga - Spain",
+        "commence_time": "2026-08-16T19:00:00Z",
+        "home_team": "Real Racing Club de Santander",
+        "away_team": "Villarreal"
+      }
+    ],
+    "soccer_spl": [
+      {
+        "id": "8ce2195530798c1a52f648b890c3c75e",
+        "sport_key": "soccer_spl",
+        "sport_title": "Premiership - Scotland",
+        "commence_time": "2026-07-31T19:00:00Z",
+        "home_team": "Dundee United",
+        "away_team": "Rangers"
+      },
+      {
+        "id": "fc03687b90721ca242d2c147796ec56e",
+        "sport_key": "soccer_spl",
+        "sport_title": "Premiership - Scotland",
+        "commence_time": "2026-08-01T14:00:00Z",
+        "home_team": "Falkirk F.C.",
+        "away_team": "St Mirren"
+      },
+      {
+        "id": "4eda99032c13fd0fffb60ece22b3e033",
+        "sport_key": "soccer_spl",
+        "sport_title": "Premiership - Scotland",
+        "commence_time": "2026-08-01T16:30:00Z",
+        "home_team": "Aberdeen",
+        "away_team": "Hearts"
+      },
+      {
+        "id": "13550bcc2513df984d5bc4e2486f8a5a",
+        "sport_key": "soccer_spl",
+        "sport_title": "Premiership - Scotland",
+        "commence_time": "2026-08-02T13:00:00Z",
+        "home_team": "St Johnstone",
+        "away_team": "Kilmarnock"
+      },
+      {
+        "id": "fc30bc2a17e440c68526c3b960cf75e5",
+        "sport_key": "soccer_spl",
+        "sport_title": "Premiership - Scotland",
+        "commence_time": "2026-08-02T15:30:00Z",
+        "home_team": "Hibernian",
+        "away_team": "Motherwell"
+      },
+      {
+        "id": "a8a11af27febaf15a82fd532ce28ef4a",
+        "sport_key": "soccer_spl",
+        "sport_title": "Premiership - Scotland",
+        "commence_time": "2026-08-03T18:30:00Z",
+        "home_team": "Celtic",
+        "away_team": "Dundee FC"
+      }
+    ],
+    "soccer_sweden_allsvenskan": [
+      {
+        "id": "74024b28dc9e5d5e13a8c6ff8e31af46",
+        "sport_key": "soccer_sweden_allsvenskan",
+        "sport_title": "Allsvenskan - Sweden",
+        "commence_time": "2026-07-17T17:00:00Z",
+        "home_team": "IFK Goteborg",
+        "away_team": "IF Brommapojkarna"
+      },
+      {
+        "id": "5ee8f913f1577cab336519b97400f5df",
+        "sport_key": "soccer_sweden_allsvenskan",
+        "sport_title": "Allsvenskan - Sweden",
+        "commence_time": "2026-07-17T17:00:00Z",
+        "home_team": "Mjällby AIF",
+        "away_team": "Västerås SK"
+      },
+      {
+        "id": "3677975d7ff037fbf66e554f374b7ec0",
+        "sport_key": "soccer_sweden_allsvenskan",
+        "sport_title": "Allsvenskan - Sweden",
+        "commence_time": "2026-07-18T13:00:00Z",
+        "home_team": "AIK",
+        "away_team": "GAIS"
+      },
+      {
+        "id": "f2b95e715fa30c60add57e674e7b7836",
+        "sport_key": "soccer_sweden_allsvenskan",
+        "sport_title": "Allsvenskan - Sweden",
+        "commence_time": "2026-07-19T14:30:00Z",
+        "home_team": "Halmstads BK",
+        "away_team": "BK Hacken"
+      },
+      {
+        "id": "ab34625baad27ee8bb230c8479d3d2f0",
+        "sport_key": "soccer_sweden_allsvenskan",
+        "sport_title": "Allsvenskan - Sweden",
+        "commence_time": "2026-07-19T14:30:00Z",
+        "home_team": "Hammarby IF",
+        "away_team": "Degerfors IF"
+      },
+      {
+        "id": "8f70fce021a03c23c6c8cd2d04d49238",
+        "sport_key": "soccer_sweden_allsvenskan",
+        "sport_title": "Allsvenskan - Sweden",
+        "commence_time": "2026-07-19T14:30:00Z",
+        "home_team": "IF Elfsborg",
+        "away_team": "IK Sirius"
+      },
+      {
+        "id": "c606ab6eb01992ff068b7d918024e2e4",
+        "sport_key": "soccer_sweden_allsvenskan",
+        "sport_title": "Allsvenskan - Sweden",
+        "commence_time": "2026-07-20T17:00:00Z",
+        "home_team": "Örgryte IS",
+        "away_team": "Djurgardens IF"
+      },
+      {
+        "id": "79ef628cf011ce8c13f4af361247a729",
+        "sport_key": "soccer_sweden_allsvenskan",
+        "sport_title": "Allsvenskan - Sweden",
+        "commence_time": "2026-07-20T17:00:00Z",
+        "home_team": "Kalmar FF",
+        "away_team": "Malmo FF"
+      }
+    ],
+    "soccer_sweden_superettan": [
+      {
+        "id": "d7ce687456effaa9b98194f81817367f",
+        "sport_key": "soccer_sweden_superettan",
+        "sport_title": "Superettan - Sweden",
+        "commence_time": "2026-07-18T11:00:00Z",
+        "home_team": "IK Oddevold",
+        "away_team": "Varbergs BoIS"
+      },
+      {
+        "id": "e49b6b549d4dd08df217c6a19d75f6d1",
+        "sport_key": "soccer_sweden_superettan",
+        "sport_title": "Superettan - Sweden",
+        "commence_time": "2026-07-18T13:00:00Z",
+        "home_team": "Östersunds FK",
+        "away_team": "Landskrona BoIS"
+      },
+      {
+        "id": "f1adeb70353288596bc83bbda5e067b8",
+        "sport_key": "soccer_sweden_superettan",
+        "sport_title": "Superettan - Sweden",
+        "commence_time": "2026-07-18T15:00:00Z",
+        "home_team": "Östers IF",
+        "away_team": "IK Brage"
+      },
+      {
+        "id": "db727ff72f99451eef37abb58ea0fcc6",
+        "sport_key": "soccer_sweden_superettan",
+        "sport_title": "Superettan - Sweden",
+        "commence_time": "2026-07-19T11:00:00Z",
+        "home_team": "IFK Norrkoping",
+        "away_team": "Sandvikens IF"
+      },
+      {
+        "id": "c2a874e7fcbfc6dcd872f85d67a017da",
+        "sport_key": "soccer_sweden_superettan",
+        "sport_title": "Superettan - Sweden",
+        "commence_time": "2026-07-19T13:00:00Z",
+        "home_team": "IFK Värnamo",
+        "away_team": "Ljungskile SK"
+      },
+      {
+        "id": "85a117dab978dec13bf2aee9c5e35c44",
+        "sport_key": "soccer_sweden_superettan",
+        "sport_title": "Superettan - Sweden",
+        "commence_time": "2026-07-19T13:00:00Z",
+        "home_team": "Nordic United FC",
+        "away_team": "Örebro SK"
+      },
+      {
+        "id": "417b2a57e816c001cc95135d33d234c8",
+        "sport_key": "soccer_sweden_superettan",
+        "sport_title": "Superettan - Sweden",
+        "commence_time": "2026-07-20T17:00:00Z",
+        "home_team": "Norrby IF",
+        "away_team": "GIF Sundsvall"
+      },
+      {
+        "id": "ae13c37f51ce80963a697b13fc0a5c23",
+        "sport_key": "soccer_sweden_superettan",
+        "sport_title": "Superettan - Sweden",
+        "commence_time": "2026-07-21T17:00:00Z",
+        "home_team": "Falkenbergs FF",
+        "away_team": "Helsingborgs IF"
+      }
+    ],
+    "soccer_switzerland_superleague": [
+      {
+        "id": "ae0fa84044b18819fd1bd22f708f651d",
+        "sport_key": "soccer_switzerland_superleague",
+        "sport_title": "Swiss Superleague",
+        "commence_time": "2026-07-25T16:00:00Z",
+        "home_team": "Servette",
+        "away_team": "FC Basel"
+      },
+      {
+        "id": "7c80d07c72b6905f359ab637b313b120",
+        "sport_key": "soccer_switzerland_superleague",
+        "sport_title": "Swiss Superleague",
+        "commence_time": "2026-07-25T16:00:00Z",
+        "home_team": "FC Lausanne-Sport",
+        "away_team": "Grasshopper Zürich"
+      },
+      {
+        "id": "5b93a87a89559b47c82d146bd93bbfed",
+        "sport_key": "soccer_switzerland_superleague",
+        "sport_title": "Swiss Superleague",
+        "commence_time": "2026-07-25T18:30:00Z",
+        "home_team": "FC Luzern",
+        "away_team": "FC Thun"
+      },
+      {
+        "id": "2fc44001bdc29ab13a5763f88eb89043",
+        "sport_key": "soccer_switzerland_superleague",
+        "sport_title": "Swiss Superleague",
+        "commence_time": "2026-07-26T12:00:00Z",
+        "home_team": "BSC Young Boys",
+        "away_team": "FC Sion"
+      },
+      {
+        "id": "48c3e84a5db7053d3afdfc4dc75940dd",
+        "sport_key": "soccer_switzerland_superleague",
+        "sport_title": "Swiss Superleague",
+        "commence_time": "2026-07-26T14:30:00Z",
+        "home_team": "FC Lugano",
+        "away_team": "FC Vaduz"
+      },
+      {
+        "id": "b22cc136768a48957b7fe3819a40d0c6",
+        "sport_key": "soccer_switzerland_superleague",
+        "sport_title": "Swiss Superleague",
+        "commence_time": "2026-07-26T14:30:00Z",
+        "home_team": "FC St Gallen",
+        "away_team": "FC Zurich"
+      }
+    ],
+    "soccer_uefa_champs_league_qualification": [
+      {
+        "id": "be959d59b7ceda1a124e98c36297389e",
+        "sport_key": "soccer_uefa_champs_league_qualification",
+        "sport_title": "UEFA Champions League Qualification",
+        "commence_time": "2026-07-14T15:00:00Z",
+        "home_team": "KuPS Kuopio",
+        "away_team": "FK Vardar"
+      },
+      {
+        "id": "6c974a1f21732a5516bfcc1770add02b",
+        "sport_key": "soccer_uefa_champs_league_qualification",
+        "sport_title": "UEFA Champions League Qualification",
+        "commence_time": "2026-07-14T16:00:00Z",
+        "home_team": "FC Iberia 1999",
+        "away_team": "FC Flora"
+      },
+      {
+        "id": "81dd8822f72b231a70c820c6e93b050c",
+        "sport_key": "soccer_uefa_champs_league_qualification",
+        "sport_title": "UEFA Champions League Qualification",
+        "commence_time": "2026-07-14T16:00:00Z",
+        "home_team": "Inter Club d'Escaldes",
+        "away_team": "Lincoln Red Imps FC"
+      },
+      {
+        "id": "3b4b18344b48359bfc5ebb715a5de4ca",
+        "sport_key": "soccer_uefa_champs_league_qualification",
+        "sport_title": "UEFA Champions League Qualification",
+        "commence_time": "2026-07-14T17:00:00Z",
+        "home_team": "ETO FC Győr",
+        "away_team": "Víkingur Reykjavík"
+      },
+      {
+        "id": "a247233dce668f69c0c062d6ad7b122e",
+        "sport_key": "soccer_uefa_champs_league_qualification",
+        "sport_title": "UEFA Champions League Qualification",
+        "commence_time": "2026-07-14T17:00:00Z",
+        "home_team": "Riga FC",
+        "away_team": "FC Ararat-Armenia"
+      },
+      {
+        "id": "8e46fec32caf37396f477de0072251c7",
+        "sport_key": "soccer_uefa_champs_league_qualification",
+        "sport_title": "UEFA Champions League Qualification",
+        "commence_time": "2026-07-14T17:30:00Z",
+        "home_team": "PFC Levski Sofia",
+        "away_team": "FK Borac Banja Luka"
+      },
+      {
+        "id": "2aff0f58d982a407be756e56584afdef",
+        "sport_key": "soccer_uefa_champs_league_qualification",
+        "sport_title": "UEFA Champions League Qualification",
+        "commence_time": "2026-07-14T17:30:00Z",
+        "home_team": "The New Saints FC",
+        "away_team": "Sabah FK"
+      },
+      {
+        "id": "2a73e50cf20744389f7e018ee47a77c7",
+        "sport_key": "soccer_uefa_champs_league_qualification",
+        "sport_title": "UEFA Champions League Qualification",
+        "commence_time": "2026-07-14T18:00:00Z",
+        "home_team": "FC Drita",
+        "away_team": "FK Kauno Žalgiris"
+      },
+      {
+        "id": "7463bd956c84f59c1acf93e89e435877",
+        "sport_key": "soccer_uefa_champs_league_qualification",
+        "sport_title": "UEFA Champions League Qualification",
+        "commence_time": "2026-07-14T19:00:00Z",
+        "home_team": "Shamrock Rovers",
+        "away_team": "Floriana F.C."
+      },
+      {
+        "id": "8e8b0acc5108f8758f87eacc31b2b9b4",
+        "sport_key": "soccer_uefa_champs_league_qualification",
+        "sport_title": "UEFA Champions League Qualification",
+        "commence_time": "2026-07-14T19:00:00Z",
+        "home_team": "Larne FC",
+        "away_team": "Tre Fiori F.C."
+      },
+      {
+        "id": "0e116266acbb098c6c8e84c8de9d2b3a",
+        "sport_key": "soccer_uefa_champs_league_qualification",
+        "sport_title": "UEFA Champions League Qualification",
+        "commence_time": "2026-07-15T17:30:00Z",
+        "home_team": "Universitatea Craiova",
+        "away_team": "FC Vitebsk"
+      },
+      {
+        "id": "dcfccbf7441012a312976ed702237c66",
+        "sport_key": "soccer_uefa_champs_league_qualification",
+        "sport_title": "UEFA Champions League Qualification",
+        "commence_time": "2026-07-15T18:15:00Z",
+        "home_team": "FC Atert Bissen",
+        "away_team": "Klaksvíkar Ítróttarfelag"
+      },
+      {
+        "id": "637b3c9fa3e5b5da3baa0e0d476b7236",
+        "sport_key": "soccer_uefa_champs_league_qualification",
+        "sport_title": "UEFA Champions League Qualification",
+        "commence_time": "2026-07-15T19:00:00Z",
+        "home_team": "FK Sutjeska Nikšić",
+        "away_team": "FC Kairat"
+      },
+      {
+        "id": "7c1560600c79b377bb0447099dd4e26d",
+        "sport_key": "soccer_uefa_champs_league_qualification",
+        "sport_title": "UEFA Champions League Qualification",
+        "commence_time": "2026-07-15T19:00:00Z",
+        "home_team": "KF Egnatia",
+        "away_team": "Petrocub Hîncești"
+      }
+    ],
+    "soccer_usa_mls": [
+      {
+        "id": "5c16421f1e1447792ee21d773bf528ec",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-16T23:30:00Z",
+        "home_team": "CF Montreal",
+        "away_team": "Toronto FC"
+      },
+      {
+        "id": "1d13bd275c7b67b77bea8ff4d03850cc",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-17T00:30:00Z",
+        "home_team": "Chicago Fire",
+        "away_team": "Vancouver Whitecaps FC"
+      },
+      {
+        "id": "fb40e730bdc7fbd168852ac3693c822d",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-17T00:30:00Z",
+        "home_team": "St. Louis City SC",
+        "away_team": "Sporting Kansas City"
+      },
+      {
+        "id": "dfe087523a4b8e3b166d53bb4eece217",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-17T02:30:00Z",
+        "home_team": "Seattle Sounders FC",
+        "away_team": "Portland Timbers"
+      },
+      {
+        "id": "d75f62546d34912c6805cdc433475c87",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-18T00:10:00Z",
+        "home_team": "Nashville SC",
+        "away_team": "Atlanta United FC"
+      },
+      {
+        "id": "f60d83e04e708b1928aae40b124a1f54",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-18T02:25:00Z",
+        "home_team": "LA Galaxy",
+        "away_team": "Los Angeles FC"
+      },
+      {
+        "id": "e5f7bbee08fb7c01da63faaee4f83b38",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-22T23:30:00Z",
+        "home_team": "Inter Miami CF",
+        "away_team": "Chicago Fire"
+      },
+      {
+        "id": "91e73da1636862fccf59fbf2e745e7cf",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-22T23:30:00Z",
+        "home_team": "Columbus Crew SC",
+        "away_team": "New York City FC"
+      },
+      {
+        "id": "144587319a3ab8cee3a02a28d815914e",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-22T23:30:00Z",
+        "home_team": "FC Cincinnati",
+        "away_team": "Vancouver Whitecaps FC"
+      },
+      {
+        "id": "f1915283c0febf8297dbb558666a4690",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-22T23:30:00Z",
+        "home_team": "New England Revolution",
+        "away_team": "Toronto FC"
+      },
+      {
+        "id": "b453ea14d7c033045b51018b59635d39",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-22T23:30:00Z",
+        "home_team": "Philadelphia Union",
+        "away_team": "New York Red Bulls"
+      },
+      {
+        "id": "67b300e5936d7a5b4743101895dca07d",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-23T00:15:00Z",
+        "home_team": "Charlotte FC",
+        "away_team": "Atlanta United FC"
+      },
+      {
+        "id": "fe8b159820312a859ce06a8c062fb6d4",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-23T00:30:00Z",
+        "home_team": "Austin FC",
+        "away_team": "Seattle Sounders FC"
+      },
+      {
+        "id": "991b91d4b2ab8022fc2722cb806b93e3",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-23T00:30:00Z",
+        "home_team": "Nashville SC",
+        "away_team": "CF Montreal"
+      },
+      {
+        "id": "9b6e52d74e3e078185ecfd02e8198653",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-23T00:30:00Z",
+        "home_team": "Houston Dynamo",
+        "away_team": "D.C. United"
+      },
+      {
+        "id": "9d65fa134ade9d1be96d983d26764ece",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-23T00:30:00Z",
+        "home_team": "Sporting Kansas City",
+        "away_team": "Minnesota United FC"
+      },
+      {
+        "id": "624a9c22aabb57ddf913177559b4c7b2",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-23T01:30:00Z",
+        "home_team": "Colorado Rapids",
+        "away_team": "San Diego FC"
+      },
+      {
+        "id": "d785780a494faac7a0e326e54a7d52d2",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-23T02:30:00Z",
+        "home_team": "Portland Timbers",
+        "away_team": "FC Dallas"
+      },
+      {
+        "id": "9e3e4c1bff938b8f5076f9aa9cf1dbcf",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-23T02:30:00Z",
+        "home_team": "LA Galaxy",
+        "away_team": "St. Louis City SC"
+      },
+      {
+        "id": "a86289ceba2168f9574ec8fccf0305b7",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-23T02:30:00Z",
+        "home_team": "Los Angeles FC",
+        "away_team": "Real Salt Lake"
+      },
+      {
+        "id": "28a1bc1c2796424dd61a92a695b07c3a",
+        "sport_key": "soccer_usa_mls",
+        "sport_title": "MLS",
+        "commence_time": "2026-07-23T02:30:00Z",
+        "home_team": "San Jose Earthquakes",
+        "away_team": "Orlando City SC"
+      }
+    ]
+  },
+  "lastOddsAt": {
+    "soccer_brazil_serie_b": "2026-07-13T23:28:34.809Z",
+    "soccer_sweden_allsvenskan": "2026-07-13T16:56:43.074Z",
+    "soccer_norway_eliteserien": "2026-07-12T17:12:49.639Z"
+  },
+  "lastScoresAt": {},
+  "completedIds": [],
+  "quotaRemaining": 177,
+  "quotaUsed": 323,
+  "lastDiscoveryAt": "2026-07-14T02:18:28.288Z",
+  "lastHkjcAt": "2026-07-14T02:22:28.374Z",
+  "quotaLastCost": 0
+}

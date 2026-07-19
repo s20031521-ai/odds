@@ -1,0 +1,84 @@
+<style>
+  .layout-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
+  .layout-card { cursor:pointer; border:2px solid #263650; border-radius:18px; overflow:hidden; background:#0b1424; transition:.18s ease; }
+  .layout-card:hover, .layout-card.selected { border-color:#38bdf8; transform:translateY(-2px); }
+  .layout-card.selected { box-shadow:0 0 0 3px rgba(56,189,248,.18); }
+  .preview { height:410px; padding:14px; color:#dbeafe; background:#07111f; font:12px/1.35 Inter,system-ui,sans-serif; }
+  .preview * { box-sizing:border-box; }
+  .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .brand { font-size:14px; font-weight:800; color:white; }
+  .fresh { padding:4px 8px; border-radius:999px; background:#123726; color:#86efac; font-size:10px; }
+  .muted { color:#8294ad; }
+  .chips { display:flex; gap:6px; margin:10px 0; }
+  .chip { padding:5px 8px; border:1px solid #29405f; border-radius:999px; }
+  .chip.on { background:#2563eb; border-color:#2563eb; color:white; }
+  .hero-pick { padding:16px; border:1px solid #1d4ed8; border-radius:14px; background:linear-gradient(135deg,#10264b,#0b1729); }
+  .pick-row { display:flex; justify-content:space-between; gap:8px; align-items:start; }
+  .team { margin:5px 0 10px; color:white; font-size:17px; font-weight:800; }
+  .signal { color:#86efac; font-size:18px; font-weight:900; }
+  .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin-top:12px; }
+  .metric { padding:8px; border-radius:9px; background:#08111f; }
+  .metric b { display:block; color:white; font-size:14px; }
+  .mini-list { display:grid; gap:7px; margin-top:9px; }
+  .mini { display:flex; justify-content:space-between; padding:9px; border:1px solid #1d2e48; border-radius:10px; }
+  .sidebar-layout { display:grid; grid-template-columns:90px 1fr; gap:9px; height:350px; }
+  .side { padding:9px; border-radius:10px; background:#0d1b30; }
+  .side div { margin-bottom:10px; color:#8294ad; }
+  .side .active { color:white; font-weight:800; }
+  .detail { padding:12px; border:1px solid #213957; border-radius:12px; }
+  .market-box { margin-top:9px; padding:10px; border-radius:9px; background:#0d1b30; }
+  .market-box.good { border-left:3px solid #22c55e; }
+  .terminal { border:1px solid #263850; border-radius:10px; overflow:hidden; }
+  .terminal-head, .terminal-row { display:grid; grid-template-columns:1.5fr .7fr .6fr .6fr; gap:5px; padding:8px; }
+  .terminal-head { background:#101e32; color:#8294ad; font-size:9px; text-transform:uppercase; }
+  .terminal-row { border-top:1px solid #1b2b42; }
+  .terminal-row.hot { background:#0d251d; }
+  .buy { color:#86efac; font-weight:800; }
+  .card-copy { padding:14px 16px 17px; }
+  .card-copy h3 { margin:0 0 5px; color:white; }
+  .card-copy p { margin:0; color:#9fb0c5; font-size:13px; }
+  .badge { display:inline-block; margin-top:9px; padding:3px 7px; border-radius:999px; background:#153155; color:#93c5fd; font-size:10px; font-weight:800; }
+  @media(max-width:1000px){.layout-grid{grid-template-columns:1fr}.preview{height:auto;min-height:360px}}
+</style>
+
+<h2>首頁應該點樣幫你「快速揀盤」？</h2>
+<p class="subtitle">三個方向都保留現有四個市場同資料可信度；分別只係第一眼將焦點放喺唔同位置。撳一個最接近你想要嘅感覺。</p>
+
+<div class="layout-grid">
+  <div class="layout-card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="preview">
+      <div class="top"><span class="brand">Odds Desk</span><span class="fresh">資料 2 分鐘前</span></div>
+      <div class="muted">今日最值得留意</div>
+      <div class="chips"><span class="chip on">全部</span><span class="chip">主客和</span><span class="chip">大細</span></div>
+      <div class="hero-pick">
+        <div class="pick-row"><span>01:00 · 挪威</span><span class="signal">+6.2%</span></div>
+        <div class="team">Valerenga vs Aalesund</div>
+        <b>建議：Valerenga 主勝 @ 1.92</b>
+        <div class="metrics"><div class="metric"><span class="muted">模型</span><b>58%</b></div><div class="metric"><span class="muted">市場</span><b>52%</b></div><div class="metric"><span class="muted">信心</span><b>中</b></div></div>
+      </div>
+      <div class="mini-list"><div class="mini"><span>Brann vs Molde<br><span class="muted">大 2.5</span></span><b class="buy">+4.1%</b></div><div class="mini"><span>Rosenborg vs Tromso<br><span class="muted">客隊 +0.5</span></span><b>+2.0%</b></div></div>
+    </div>
+    <div class="card-copy"><h3>A · 推薦 Feed</h3><p>最似每日決策清單：先睇最強訊號，再逐個展開原因。</p><span class="badge">推薦</span></div>
+  </div>
+
+  <div class="layout-card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="preview">
+      <div class="top"><span class="brand">Odds Desk</span><span class="fresh">系統正常</span></div>
+      <div class="sidebar-layout">
+        <div class="side"><div class="active">今日</div><div>聽日</div><div>主客和</div><div>大細</div><div>角球</div><div>讓球</div></div>
+        <div class="detail"><span class="muted">01:00 · 挪威</span><div class="team">Valerenga<br>vs Aalesund</div><div class="market-box good"><div class="pick-row"><b>主勝</b><b class="buy">+6.2%</b></div><span class="muted">模型 58% · 市場 52% · 1.92</span></div><div class="market-box"><div class="pick-row"><b>大 2.5</b><b>+2.7%</b></div><span class="muted">模型 55% · 市場 52%</span></div><div class="market-box"><div class="pick-row"><b>角球大 10.5</b><b>未夠資料</b></div></div></div>
+      </div>
+    </div>
+    <div class="card-copy"><h3>B · 賽事工作台</h3><p>先揀賽事，再喺同一畫面比較四個市場；分析感最強。</p></div>
+  </div>
+
+  <div class="layout-card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="preview">
+      <div class="top"><span class="brand">Odds Scanner</span><span class="fresh">LIVE DATA</span></div>
+      <div class="chips"><span class="chip on">Edge ↓</span><span class="chip">開賽時間</span><span class="chip">可信度</span></div>
+      <div class="terminal"><div class="terminal-head"><span>賽事 / 推薦</span><span>賠率</span><span>Edge</span><span>狀態</span></div><div class="terminal-row hot"><span><b>Valerenga</b><br><span class="muted">主勝</span></span><span>1.92</span><span class="buy">+6.2%</span><span class="buy">買</span></div><div class="terminal-row"><span><b>Brann</b><br><span class="muted">大 2.5</span></span><span>1.88</span><span class="buy">+4.1%</span><span>留意</span></div><div class="terminal-row"><span><b>Rosenborg</b><br><span class="muted">+0.5</span></span><span>1.84</span><span>+2.0%</span><span>跳過</span></div><div class="terminal-row"><span><b>Viking</b><br><span class="muted">角球大</span></span><span>1.90</span><span>—</span><span>欠數據</span></div></div>
+      <div class="metrics"><div class="metric"><span class="muted">可買</span><b>1</b></div><div class="metric"><span class="muted">候選</span><b>2</b></div><div class="metric"><span class="muted">異常</span><b>1</b></div></div>
+    </div>
+    <div class="card-copy"><h3>C · 密集 Scanner</h3><p>似交易終端：一屏掃最多盤，速度最快，但資訊較密。</p></div>
+  </div>
+</div>

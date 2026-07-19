@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "plugins": [
+    {
+      "id": "image_generation",
+      "root": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\runtime\\kimi-code\\home\\plugins\\managed\\image_generation",
+      "source": "local-path",
+      "enabled": true,
+      "installedAt": "2026-07-18T14:30:04.829Z",
+      "updatedAt": "2026-07-18T14:30:04.829Z",
+      "originalSource": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\plugin-packages\\image_generation"
+    },
+    {
+      "id": "audio_generation",
+      "root": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\runtime\\kimi-code\\home\\plugins\\managed\\audio_generation",
+      "source": "local-path",
+      "enabled": true,
+      "installedAt": "2026-07-18T14:30:05.666Z",
+      "updatedAt": "2026-07-18T14:30:05.666Z",
+      "originalSource": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\plugin-packages\\audio_generation"
+    },
+    {
+      "id": "kimi-webbridge",
+      "root": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\runtime\\kimi-code\\home\\plugins\\managed\\kimi-webbridge",
+      "source": "local-path",
+      "enabled": true,
+      "installedAt": "2026-07-18T14:30:06.429Z",
+      "updatedAt": "2026-07-18T14:30:06.429Z",
+      "originalSource": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\plugin-packages\\kimi-webbridge"
+    },
+    {
+      "id": "yuandian_law",
+      "root": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\runtime\\kimi-code\\home\\plugins\\managed\\yuandian_law",
+      "source": "local-path",
+      "enabled": true,
+      "installedAt": "2026-07-18T14:30:07.322Z",
+      "updatedAt": "2026-07-18T14:30:07.322Z",
+      "originalSource": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\plugin-packages\\yuandian_law"
+    },
+    {
+      "id": "sec_edgar",
+      "root": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\runtime\\kimi-code\\home\\plugins\\managed\\sec_edgar",
+      "source": "local-path",
+      "enabled": true,
+      "installedAt": "2026-07-18T14:30:08.183Z",
+      "updatedAt": "2026-07-18T14:30:08.183Z",
+      "originalSource": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\plugin-packages\\sec_edgar"
+    },
+    {
+      "id": "scholar",
+      "root": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\runtime\\kimi-code\\home\\plugins\\managed\\scholar",
+      "source": "local-path",
+      "enabled": true,
+      "installedAt": "2026-07-18T14:30:08.887Z",
+      "updatedAt": "2026-07-18T14:30:08.887Z",
+      "originalSource": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\plugin-packages\\scholar"
+    },
+    {
+      "id": "yahoo_finance",
+      "root": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\runtime\\kimi-code\\home\\plugins\\managed\\yahoo_finance",
+      "source": "local-path",
+      "enabled": true,
+      "installedAt": "2026-07-18T14:30:09.668Z",
+      "updatedAt": "2026-07-18T14:30:09.668Z",
+      "originalSource": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\plugin-packages\\yahoo_finance"
+    },
+    {
+      "id": "world_bank_open_data",
+      "root": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\runtime\\kimi-code\\home\\plugins\\managed\\world_bank_open_data",
+      "source": "local-path",
+      "enabled": true,
+      "installedAt": "2026-07-18T14:30:10.543Z",
+      "updatedAt": "2026-07-18T14:30:10.543Z",
+      "originalSource": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\plugin-packages\\world_bank_open_data"
+    },
+    {
+      "id": "imf",
+      "root": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\runtime\\kimi-code\\home\\plugins\\managed\\imf",
+      "source": "local-path",
+      "enabled": true,
+      "installedAt": "2026-07-18T14:30:11.351Z",
+      "updatedAt": "2026-07-18T14:30:11.351Z",
+      "originalSource": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\plugin-packages\\imf"
+    },
+    {
+      "id": "ifind",
+      "root": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\runtime\\kimi-code\\home\\plugins\\managed\\ifind",
+      "source": "local-path",
+      "enabled": true,
+      "installedAt": "2026-07-18T14:30:12.220Z",
+      "updatedAt": "2026-07-18T14:30:12.220Z",
+      "originalSource": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\plugin-packages\\ifind"
+    },
+    {
+      "id": "tianyancha",
+      "root": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\runtime\\kimi-code\\home\\plugins\\managed\\tianyancha",
+      "source": "local-path",
+      "enabled": true,
+      "installedAt": "2026-07-18T14:30:13.092Z",
+      "updatedAt": "2026-07-18T14:30:13.092Z",
+      "originalSource": "C:\\Users\\itadmin\\AppData\\Roaming\\kimi-desktop\\daimon-share\\daimon\\plugin-packages\\tianyancha"
+    }
+  ]
+}

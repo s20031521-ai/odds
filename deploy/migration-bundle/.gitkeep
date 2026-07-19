@@ -1,0 +1,5 @@
+# Dated, read-only archive migration bundles are staged here on the VM
+# (e.g. /opt/odds-tool/migration-bundle-YYYY-MM-DD/). The bundle contents
+# (data/*.jsonl, data/*.json, public/hkjc-odds.json) are owner data and must
+# never be committed to any VCS. See deploy/secrets/README.md and the Phase 2
+# plan Task 3 for the procedure.

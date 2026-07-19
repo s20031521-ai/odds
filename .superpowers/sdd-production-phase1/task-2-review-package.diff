@@ -1,0 +1,1586 @@
+﻿# modified package.json
+diff --git a/.superpowers/sdd-production-phase1/task-2-base/package.json b/package.json
+index c0e62a7..e8bd29a 100644
+--- a/.superpowers/sdd-production-phase1/task-2-base/package.json
++++ b/package.json
+@@ -11,22 +11,24 @@
+     "test:ui:only": "playwright test",
+     "monitor:odds": "node scripts/odds-monitor.mjs",
+     "monitor:odds:once": "node scripts/odds-monitor.mjs --once",
+     "import:hkjc": "node scripts/hkjc-import.mjs",
+     "check:data": "node scripts/check-data-integrity.mjs",
+     "server": "node server.mjs",
+     "server:self-test": "node server.mjs --self-test",
+     "preview": "vite preview --host 127.0.0.1"
+   },
+   "dependencies": {
++    "@node-rs/argon2": "^2.0.2",
+     "@vitejs/plugin-react": "^4.3.4",
+     "lucide-react": "^0.468.0",
++    "pg": "^8.22.0",
+     "react": "^19.0.0",
+     "react-dom": "^19.0.0",
+     "typescript": "^5.7.2",
+     "vite": "^6.0.7"
+   },
+   "devDependencies": {
+     "@playwright/test": "^1.61.1",
+     "@types/react": "^19.0.2",
+     "@types/react-dom": "^19.0.2",
+     "vite-plugin-pwa": "^1.3.0",
+# modified package-lock.json
+diff --git a/.superpowers/sdd-production-phase1/task-2-base/package-lock.json b/package-lock.json
+index 3040d21..a006102 100644
+--- a/.superpowers/sdd-production-phase1/task-2-base/package-lock.json
++++ b/package-lock.json
+@@ -1,22 +1,24 @@
+ {
+   "name": "odds-value-analyzer",
+   "version": "0.1.0",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "odds-value-analyzer",
+       "version": "0.1.0",
+       "dependencies": {
++        "@node-rs/argon2": "^2.0.2",
+         "@vitejs/plugin-react": "^4.3.4",
+         "lucide-react": "^0.468.0",
++        "pg": "^8.22.0",
+         "react": "^19.0.0",
+         "react-dom": "^19.0.0",
+         "typescript": "^5.7.2",
+         "vite": "^6.0.7"
+       },
+       "devDependencies": {
+         "@playwright/test": "^1.61.1",
+         "@types/react": "^19.0.2",
+         "@types/react-dom": "^19.0.2",
+         "vite-plugin-pwa": "^1.3.0",
+@@ -1588,20 +1590,51 @@
+       "integrity": "sha512-4zBIxpPzowiZpusoFkyGVwakdRJUyuH5PxQ/PrqghfdFWWasvnCdPfQXHrenDai+gyLARulZjZowCOj6fjT4pA==",
+       "license": "MIT",
+       "dependencies": {
+         "@babel/helper-string-parser": "^7.29.7",
+         "@babel/helper-validator-identifier": "^7.29.7"
+       },
+       "engines": {
+         "node": ">=6.9.0"
+       }
+     },
++    "node_modules/@emnapi/core": {
++      "version": "1.11.2",
++      "resolved": "https://registry.npmjs.org/@emnapi/core/-/core-1.11.2.tgz",
++      "integrity": "sha512-TC8MkTuZUtcTSiFeuC0ksCh9QIJ5+F21MvZ4Wn4ORfYaFJ/0dsiudv5tVkejgwZlwQ39jL9WWDe2lz8x0WglOA==",
++      "license": "MIT",
++      "optional": true,
++      "dependencies": {
++        "@emnapi/wasi-threads": "1.2.2",
++        "tslib": "^2.4.0"
++      }
++    },
++    "node_modules/@emnapi/runtime": {
++      "version": "1.11.2",
++      "resolved": "https://registry.npmjs.org/@emnapi/runtime/-/runtime-1.11.2.tgz",
++      "integrity": "sha512-kyOl3X0DuTiT1h2ft8r2fYO8JYtU9a9Xis/zBSiGArNaagCOWx90N1k2wxp18czFDH+OgcWGb5ZP/XMt3dcyPA==",
++      "license": "MIT",
++      "optional": true,
++      "dependencies": {
++        "tslib": "^2.4.0"
++      }
++    },
++    "node_modules/@emnapi/wasi-threads": {
++      "version": "1.2.2",
++      "resolved": "https://registry.npmjs.org/@emnapi/wasi-threads/-/wasi-threads-1.2.2.tgz",
++      "integrity": "sha512-c95qOXkHdydNKhscBTebqEC1CVAZpyqOfVfBzQ1qgzyl3gfeldUjIggDbIZgDKsHLgnsM+igH7TJ/eAasaVuMA==",
++      "license": "MIT",
++      "optional": true,
++      "dependencies": {
++        "tslib": "^2.4.0"
++      }
++    },
+     "node_modules/@esbuild/aix-ppc64": {
+       "version": "0.25.12",
+       "resolved": "https://registry.npmjs.org/@esbuild/aix-ppc64/-/aix-ppc64-0.25.12.tgz",
+       "integrity": "sha512-Hhmwd6CInZ3dwpuGTF8fJG6yoWmsToE+vYgD4nytZVxcu1ulHpUQRAB1UJ8+N1Am3Mz4+xOByoQoSZf4D+CpkA==",
+       "cpu": [
+         "ppc64"
+       ],
+       "license": "MIT",
+       "optional": true,
+       "os": [
+@@ -2070,20 +2103,293 @@
+     "node_modules/@jridgewell/trace-mapping": {
+       "version": "0.3.31",
+       "resolved": "https://registry.npmjs.org/@jridgewell/trace-mapping/-/trace-mapping-0.3.31.tgz",
+       "integrity": "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==",
+       "license": "MIT",
+       "dependencies": {
+         "@jridgewell/resolve-uri": "^3.1.0",
+         "@jridgewell/sourcemap-codec": "^1.4.14"
+       }
+     },
++    "node_modules/@napi-rs/wasm-runtime": {
++      "version": "0.2.12",
++      "resolved": "https://registry.npmjs.org/@napi-rs/wasm-runtime/-/wasm-runtime-0.2.12.tgz",
++      "integrity": "sha512-ZVWUcfwY4E/yPitQJl481FjFo3K22D6qF0DuFH6Y/nbnE11GY5uguDxZMGXPQ8WQ0128MXQD7TnfHyK4oWoIJQ==",
++      "license": "MIT",
++      "optional": true,
++      "dependencies": {
++        "@emnapi/core": "^1.4.3",
++        "@emnapi/runtime": "^1.4.3",
++        "@tybys/wasm-util": "^0.10.0"
++      }
++    },
++    "node_modules/@node-rs/argon2": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/@node-rs/argon2/-/argon2-2.0.2.tgz",
++      "integrity": "sha512-t64wIsPEtNd4aUPuTAyeL2ubxATCBGmeluaKXEMAFk/8w6AJIVVkeLKMBpgLW6LU2t5cQxT+env/c6jxbtTQBg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">= 10"
++      },
++      "optionalDependencies": {
++        "@node-rs/argon2-android-arm-eabi": "2.0.2",
++        "@node-rs/argon2-android-arm64": "2.0.2",
++        "@node-rs/argon2-darwin-arm64": "2.0.2",
++        "@node-rs/argon2-darwin-x64": "2.0.2",
++        "@node-rs/argon2-freebsd-x64": "2.0.2",
++        "@node-rs/argon2-linux-arm-gnueabihf": "2.0.2",
++        "@node-rs/argon2-linux-arm64-gnu": "2.0.2",
++        "@node-rs/argon2-linux-arm64-musl": "2.0.2",
++        "@node-rs/argon2-linux-x64-gnu": "2.0.2",
++        "@node-rs/argon2-linux-x64-musl": "2.0.2",
++        "@node-rs/argon2-wasm32-wasi": "2.0.2",
++        "@node-rs/argon2-win32-arm64-msvc": "2.0.2",
++        "@node-rs/argon2-win32-ia32-msvc": "2.0.2",
++        "@node-rs/argon2-win32-x64-msvc": "2.0.2"
++      }
++    },
++    "node_modules/@node-rs/argon2-android-arm-eabi": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/@node-rs/argon2-android-arm-eabi/-/argon2-android-arm-eabi-2.0.2.tgz",
++      "integrity": "sha512-DV/H8p/jt40lrao5z5g6nM9dPNPGEHL+aK6Iy/og+dbL503Uj0AHLqj1Hk9aVUSCNnsDdUEKp4TVMi0YakDYKw==",
++      "cpu": [
++        "arm"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "android"
++      ],
++      "engines": {
++        "node": ">= 10"
++      }
++    },
++    "node_modules/@node-rs/argon2-android-arm64": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/@node-rs/argon2-android-arm64/-/argon2-android-arm64-2.0.2.tgz",
++      "integrity": "sha512-1LKwskau+8O1ktKx7TbK7jx1oMOMt4YEXZOdSNIar1TQKxm6isZ0cRXgHLibPHEcNHgYRsJWDE9zvDGBB17QDg==",
++      "cpu": [
++        "arm64"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "android"
++      ],
++      "engines": {
++        "node": ">= 10"
++      }
++    },
++    "node_modules/@node-rs/argon2-darwin-arm64": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/@node-rs/argon2-darwin-arm64/-/argon2-darwin-arm64-2.0.2.tgz",
++      "integrity": "sha512-3TTNL/7wbcpNju5YcqUrCgXnXUSbD7ogeAKatzBVHsbpjZQbNb1NDxDjqqrWoTt6XL3z9mJUMGwbAk7zQltHtA==",
++      "cpu": [
++        "arm64"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "darwin"
++      ],
++      "engines": {
++        "node": ">= 10"
++      }
++    },
++    "node_modules/@node-rs/argon2-darwin-x64": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/@node-rs/argon2-darwin-x64/-/argon2-darwin-x64-2.0.2.tgz",
++      "integrity": "sha512-vNPfkLj5Ij5111UTiYuwgxMqE7DRbOS2y58O2DIySzSHbcnu+nipmRKg+P0doRq6eKIJStyBK8dQi5Ic8pFyDw==",
++      "cpu": [
++        "x64"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "darwin"
++      ],
++      "engines": {
++        "node": ">= 10"
++      }
++    },
++    "node_modules/@node-rs/argon2-freebsd-x64": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/@node-rs/argon2-freebsd-x64/-/argon2-freebsd-x64-2.0.2.tgz",
++      "integrity": "sha512-M8vQZk01qojQfCqQU0/O1j1a4zPPrz93zc9fSINY7Q/6RhQRBCYwDw7ltDCZXg5JRGlSaeS8cUXWyhPGar3cGg==",
++      "cpu": [
++        "x64"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "freebsd"
++      ],
++      "engines": {
++        "node": ">= 10"
++      }
++    },
++    "node_modules/@node-rs/argon2-linux-arm-gnueabihf": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/@node-rs/argon2-linux-arm-gnueabihf/-/argon2-linux-arm-gnueabihf-2.0.2.tgz",
++      "integrity": "sha512-7EmmEPHLzcu0G2GDh30L6G48CH38roFC2dqlQJmtRCxs6no3tTE/pvgBGatTp/o2n2oyOJcfmgndVFcUpwMnww==",
++      "cpu": [
++        "arm"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ],
++      "engines": {
++        "node": ">= 10"
++      }
++    },
++    "node_modules/@node-rs/argon2-linux-arm64-gnu": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/@node-rs/argon2-linux-arm64-gnu/-/argon2-linux-arm64-gnu-2.0.2.tgz",
++      "integrity": "sha512-6lsYh3Ftbk+HAIZ7wNuRF4SZDtxtFTfK+HYFAQQyW7Ig3LHqasqwfUKRXVSV5tJ+xTnxjqgKzvZSUJCAyIfHew==",
++      "cpu": [
++        "arm64"
++      ],
++      "libc": [
++        "glibc"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ],
++      "engines": {
++        "node": ">= 10"
++      }
++    },
++    "node_modules/@node-rs/argon2-linux-arm64-musl": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/@node-rs/argon2-linux-arm64-musl/-/argon2-linux-arm64-musl-2.0.2.tgz",
++      "integrity": "sha512-p3YqVMNT/4DNR67tIHTYGbedYmXxW9QlFmF39SkXyEbGQwpgSf6pH457/fyXBIYznTU/smnG9EH+C1uzT5j4hA==",
++      "cpu": [
++        "arm64"
++      ],
++      "libc": [
++        "musl"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ],
++      "engines": {
++        "node": ">= 10"
++      }
++    },
++    "node_modules/@node-rs/argon2-linux-x64-gnu": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/@node-rs/argon2-linux-x64-gnu/-/argon2-linux-x64-gnu-2.0.2.tgz",
++      "integrity": "sha512-ZM3jrHuJ0dKOhvA80gKJqBpBRmTJTFSo2+xVZR+phQcbAKRlDMSZMFDiKbSTnctkfwNFtjgDdh5g1vaEV04AvA==",
++      "cpu": [
++        "x64"
++      ],
++      "libc": [
++        "glibc"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ],
++      "engines": {
++        "node": ">= 10"
++      }
++    },
++    "node_modules/@node-rs/argon2-linux-x64-musl": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/@node-rs/argon2-linux-x64-musl/-/argon2-linux-x64-musl-2.0.2.tgz",
++      "integrity": "sha512-of5uPqk7oCRF/44a89YlWTEfjsftPywyTULwuFDKyD8QtVZoonrJR6ZWvfFE/6jBT68S0okAkAzzMEdBVWdxWw==",
++      "cpu": [
++        "x64"
++      ],
++      "libc": [
++        "musl"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "linux"
++      ],
++      "engines": {
++        "node": ">= 10"
++      }
++    },
++    "node_modules/@node-rs/argon2-wasm32-wasi": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/@node-rs/argon2-wasm32-wasi/-/argon2-wasm32-wasi-2.0.2.tgz",
++      "integrity": "sha512-U3PzLYKSQYzTERstgtHLd4ZTkOF9co57zTXT77r0cVUsleGZOrd6ut7rHzeWwoJSiHOVxxa0OhG1JVQeB7lLoQ==",
++      "cpu": [
++        "wasm32"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "dependencies": {
++        "@napi-rs/wasm-runtime": "^0.2.5"
++      },
++      "engines": {
++        "node": ">=14.0.0"
++      }
++    },
++    "node_modules/@node-rs/argon2-win32-arm64-msvc": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/@node-rs/argon2-win32-arm64-msvc/-/argon2-win32-arm64-msvc-2.0.2.tgz",
++      "integrity": "sha512-Eisd7/NM0m23ijrGr6xI2iMocdOuyl6gO27gfMfya4C5BODbUSP7ljKJ7LrA0teqZMdYHesRDzx36Js++/vhiQ==",
++      "cpu": [
++        "arm64"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "win32"
++      ],
++      "engines": {
++        "node": ">= 10"
++      }
++    },
++    "node_modules/@node-rs/argon2-win32-ia32-msvc": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/@node-rs/argon2-win32-ia32-msvc/-/argon2-win32-ia32-msvc-2.0.2.tgz",
++      "integrity": "sha512-GsE2ezwAYwh72f9gIjbGTZOf4HxEksb5M2eCaj+Y5rGYVwAdt7C12Q2e9H5LRYxWcFvLH4m4jiSZpQQ4upnPAQ==",
++      "cpu": [
++        "ia32"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "win32"
++      ],
++      "engines": {
++        "node": ">= 10"
++      }
++    },
++    "node_modules/@node-rs/argon2-win32-x64-msvc": {
++      "version": "2.0.2",
++      "resolved": "https://registry.npmjs.org/@node-rs/argon2-win32-x64-msvc/-/argon2-win32-x64-msvc-2.0.2.tgz",
++      "integrity": "sha512-cJxWXanH4Ew9CfuZ4IAEiafpOBCe97bzoKowHCGk5lG/7kR4WF/eknnBlHW9m8q7t10mKq75kruPLtbSDqgRTw==",
++      "cpu": [
++        "x64"
++      ],
++      "license": "MIT",
++      "optional": true,
++      "os": [
++        "win32"
++      ],
++      "engines": {
++        "node": ">= 10"
++      }
++    },
+     "node_modules/@playwright/test": {
+       "version": "1.61.1",
+       "resolved": "https://registry.npmjs.org/@playwright/test/-/test-1.61.1.tgz",
+       "integrity": "sha512-8nKv6+0RJSL9FE4jYOEGXnPeM/Hg12qZpmqzZjRh3qM0Y7c3z1mrOTfFLids72RDQYVh9WpLEfR5WdpNX4fkig==",
+       "dev": true,
+       "license": "Apache-2.0",
+       "dependencies": {
+         "playwright": "1.61.1"
+       },
+       "bin": {
+@@ -2606,20 +2912,30 @@
+       "dependencies": {
+         "ejs": "^3.1.10",
+         "json5": "^2.2.3",
+         "magic-string": "^0.30.21",
+         "string.prototype.matchall": "^4.0.12"
+       },
+       "engines": {
+         "node": ">=12"
+       }
+     },
++    "node_modules/@tybys/wasm-util": {
++      "version": "0.10.3",
++      "resolved": "https://registry.npmjs.org/@tybys/wasm-util/-/wasm-util-0.10.3.tgz",
++      "integrity": "sha512-F3fo1MYrRJYL3zER0OUOmkutjr1Vp23m7OsSgp7nq4SP6OqX6C/56XFIPAl5bt3zaBRjmW7SGz3u/6LwFpYcOg==",
++      "license": "MIT",
++      "optional": true,
++      "dependencies": {
++        "tslib": "^2.4.0"
++      }
++    },
+     "node_modules/@types/babel__core": {
+       "version": "7.20.5",
+       "resolved": "https://registry.npmjs.org/@types/babel__core/-/babel__core-7.20.5.tgz",
+       "integrity": "sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==",
+       "license": "MIT",
+       "dependencies": {
+         "@babel/parser": "^7.20.7",
+         "@babel/types": "^7.20.7",
+         "@types/babel__generator": "*",
+         "@types/babel__template": "*",
+@@ -4862,20 +5178,109 @@
+         "node": "20 || >=22"
+       }
+     },
+     "node_modules/pathe": {
+       "version": "2.0.3",
+       "resolved": "https://registry.npmjs.org/pathe/-/pathe-2.0.3.tgz",
+       "integrity": "sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==",
+       "dev": true,
+       "license": "MIT"
+     },
++    "node_modules/pg": {
++      "version": "8.22.0",
++      "resolved": "https://registry.npmjs.org/pg/-/pg-8.22.0.tgz",
++      "integrity": "sha512-8wih1vVIBMxoUM2oB4soJsD9tDnDpLv4OXBJ+EJzFsvycD+lfyIreC2gGHq78f8jbLLt+bvlPTFdFZfJkOuzAA==",
++      "license": "MIT",
++      "dependencies": {
++        "pg-connection-string": "^2.14.0",
++        "pg-pool": "^3.14.0",
++        "pg-protocol": "^1.15.0",
++        "pg-types": "2.2.0",
++        "pgpass": "1.0.5"
++      },
++      "engines": {
++        "node": ">= 16.0.0"
++      },
++      "optionalDependencies": {
++        "pg-cloudflare": "^1.4.0"
++      },
++      "peerDependencies": {
++        "pg-native": ">=3.0.1"
++      },
++      "peerDependenciesMeta": {
++        "pg-native": {
++          "optional": true
++        }
++      }
++    },
++    "node_modules/pg-cloudflare": {
++      "version": "1.4.0",
++      "resolved": "https://registry.npmjs.org/pg-cloudflare/-/pg-cloudflare-1.4.0.tgz",
++      "integrity": "sha512-Vo7z/6rrQYxpNRylp4Tlob2elzbh+N/MOQbxFVWCxS7oEx6jF53GTJFxK2WWpKuBRkmiin4Mt+xofFDjx09R0A==",
++      "license": "MIT",
++      "optional": true
++    },
++    "node_modules/pg-connection-string": {
++      "version": "2.14.0",
++      "resolved": "https://registry.npmjs.org/pg-connection-string/-/pg-connection-string-2.14.0.tgz",
++      "integrity": "sha512-XwWDGcLRGCXAR8F/AM5bG7Q+A3Wm2s6QeEjlOKZLlH3UYcguiqCWKyWXVag5TLTIjR7oOJUY8kcADaZgWPyLeg==",
++      "license": "MIT"
++    },
++    "node_modules/pg-int8": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/pg-int8/-/pg-int8-1.0.1.tgz",
++      "integrity": "sha512-WCtabS6t3c8SkpDBUlb1kjOs7l66xsGdKpIPZsg4wR+B3+u9UAum2odSsF9tnvxg80h4ZxLWMy4pRjOsFIqQpw==",
++      "license": "ISC",
++      "engines": {
++        "node": ">=4.0.0"
++      }
++    },
++    "node_modules/pg-pool": {
++      "version": "3.14.0",
++      "resolved": "https://registry.npmjs.org/pg-pool/-/pg-pool-3.14.0.tgz",
++      "integrity": "sha512-gKtPkFdQPU3DksooVLi9LsjZxrsBUZIpa+7aVx+LV5pNh0KzP4Zleud2po+ConrxbuXGBJ6Hfer6hdgpIBpBaw==",
++      "license": "MIT",
++      "peerDependencies": {
++        "pg": ">=8.0"
++      }
++    },
++    "node_modules/pg-protocol": {
++      "version": "1.15.0",
++      "resolved": "https://registry.npmjs.org/pg-protocol/-/pg-protocol-1.15.0.tgz",
++      "integrity": "sha512-cq9sECI5s0+uPUXjbz8ioyPJni6RzsRib0US67i5IoTZKw8fNeYlVE7u8F4dG7vEJJtc5wdD1K189lCCUwqWTQ==",
++      "license": "MIT"
++    },
++    "node_modules/pg-types": {
++      "version": "2.2.0",
++      "resolved": "https://registry.npmjs.org/pg-types/-/pg-types-2.2.0.tgz",
++      "integrity": "sha512-qTAAlrEsl8s4OiEQY69wDvcMIdQN6wdz5ojQiOy6YRMuynxenON0O5oCpJI6lshc6scgAY8qvJ2On/p+CXY0GA==",
++      "license": "MIT",
++      "dependencies": {
++        "pg-int8": "1.0.1",
++        "postgres-array": "~2.0.0",
++        "postgres-bytea": "~1.0.0",
++        "postgres-date": "~1.0.4",
++        "postgres-interval": "^1.1.0"
++      },
++      "engines": {
++        "node": ">=4"
++      }
++    },
++    "node_modules/pgpass": {
++      "version": "1.0.5",
++      "resolved": "https://registry.npmjs.org/pgpass/-/pgpass-1.0.5.tgz",
++      "integrity": "sha512-FdW9r/jQZhSeohs1Z3sI1yxFQNFvMcnmfuj4WBMUTxOrAyLMaTcE1aAMBiTlbMNaXvBCQuVi0R7hd8udDSP7ug==",
++      "license": "MIT",
++      "dependencies": {
++        "split2": "^4.1.0"
++      }
++    },
+     "node_modules/picocolors": {
+       "version": "1.1.1",
+       "resolved": "https://registry.npmjs.org/picocolors/-/picocolors-1.1.1.tgz",
+       "integrity": "sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==",
+       "license": "ISC"
+     },
+     "node_modules/picomatch": {
+       "version": "4.0.5",
+       "resolved": "https://registry.npmjs.org/picomatch/-/picomatch-4.0.5.tgz",
+       "integrity": "sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A==",
+@@ -4965,20 +5370,59 @@
+       "license": "MIT",
+       "dependencies": {
+         "nanoid": "^3.3.12",
+         "picocolors": "^1.1.1",
+         "source-map-js": "^1.2.1"
+       },
+       "engines": {
+         "node": "^10 || ^12 || >=14"
+       }
+     },
++    "node_modules/postgres-array": {
++      "version": "2.0.0",
++      "resolved": "https://registry.npmjs.org/postgres-array/-/postgres-array-2.0.0.tgz",
++      "integrity": "sha512-VpZrUqU5A69eQyW2c5CA1jtLecCsN2U/bD6VilrFDWq5+5UIEVO7nazS3TEcHf1zuPYO/sqGvUvW62g86RXZuA==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=4"
++      }
++    },
++    "node_modules/postgres-bytea": {
++      "version": "1.0.1",
++      "resolved": "https://registry.npmjs.org/postgres-bytea/-/postgres-bytea-1.0.1.tgz",
++      "integrity": "sha512-5+5HqXnsZPE65IJZSMkZtURARZelel2oXUEO8rH83VS/hxH5vv1uHquPg5wZs8yMAfdv971IU+kcPUczi7NVBQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/postgres-date": {
++      "version": "1.0.7",
++      "resolved": "https://registry.npmjs.org/postgres-date/-/postgres-date-1.0.7.tgz",
++      "integrity": "sha512-suDmjLVQg78nMK2UZ454hAG+OAW+HQPZ6n++TNDUX+L0+uUlLywnoxJKDou51Zm+zTCjrCl0Nq6J9C5hP9vK/Q==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
++    "node_modules/postgres-interval": {
++      "version": "1.2.0",
++      "resolved": "https://registry.npmjs.org/postgres-interval/-/postgres-interval-1.2.0.tgz",
++      "integrity": "sha512-9ZhXKM/rw350N1ovuWHbGxnGh/SNJ4cnxHiM0rxE4VN41wsg8P8zWn9hv/buK00RP4WvlOyr/RBDiptyxVbkZQ==",
++      "license": "MIT",
++      "dependencies": {
++        "xtend": "^4.0.0"
++      },
++      "engines": {
++        "node": ">=0.10.0"
++      }
++    },
+     "node_modules/pretty-bytes": {
+       "version": "6.1.1",
+       "resolved": "https://registry.npmjs.org/pretty-bytes/-/pretty-bytes-6.1.1.tgz",
+       "integrity": "sha512-mQUvGU6aUFQ+rNvTIAcZuWGRT9a6f6Yrg9bHs4ImKF+HZCEK+plBvnAZYSIQztknZF2qnzNtr6F8s0+IuptdlQ==",
+       "dev": true,
+       "license": "MIT",
+       "engines": {
+         "node": "^14.13.1 || >=16.0.0"
+       },
+       "funding": {
+@@ -5498,20 +5942,29 @@
+     "node_modules/source-map-support/node_modules/source-map": {
+       "version": "0.6.1",
+       "resolved": "https://registry.npmjs.org/source-map/-/source-map-0.6.1.tgz",
+       "integrity": "sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g==",
+       "devOptional": true,
+       "license": "BSD-3-Clause",
+       "engines": {
+         "node": ">=0.10.0"
+       }
+     },
++    "node_modules/split2": {
++      "version": "4.2.0",
++      "resolved": "https://registry.npmjs.org/split2/-/split2-4.2.0.tgz",
++      "integrity": "sha512-UcjcJOWknrNkF6PLX83qcHM6KHgVKNkV62Y8a5uYDVv9ydGQVwAHMKqHdJje1VTWpljG0WYpCDhrCdAOYH4TWg==",
++      "license": "ISC",
++      "engines": {
++        "node": ">= 10.x"
++      }
++    },
+     "node_modules/stackback": {
+       "version": "0.0.2",
+       "resolved": "https://registry.npmjs.org/stackback/-/stackback-0.0.2.tgz",
+       "integrity": "sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==",
+       "dev": true,
+       "license": "MIT"
+     },
+     "node_modules/std-env": {
+       "version": "4.1.0",
+       "resolved": "https://registry.npmjs.org/std-env/-/std-env-4.1.0.tgz",
+@@ -5753,20 +6206,27 @@
+     "node_modules/tr46": {
+       "version": "1.0.1",
+       "resolved": "https://registry.npmjs.org/tr46/-/tr46-1.0.1.tgz",
+       "integrity": "sha512-dTpowEjclQ7Kgx5SdBkqRzVhERQXov8/l9Ft9dVM9fmg0W0KQSVaXX9T4i6twCPNtYiZM53lpSSUAwJbFPOHxA==",
+       "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "punycode": "^2.1.0"
+       }
+     },
++    "node_modules/tslib": {
++      "version": "2.8.1",
++      "resolved": "https://registry.npmjs.org/tslib/-/tslib-2.8.1.tgz",
++      "integrity": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==",
++      "license": "0BSD",
++      "optional": true
++    },
+     "node_modules/type-fest": {
+       "version": "0.16.0",
+       "resolved": "https://registry.npmjs.org/type-fest/-/type-fest-0.16.0.tgz",
+       "integrity": "sha512-eaBzG6MxNzEn9kiwvtre90cXaNLkmadMWa1zQMs3XORCXNbsH/OewwbxC5ia9dCxIxnTAsSxXJaa/p5y8DlvJg==",
+       "dev": true,
+       "license": "(MIT OR CC0-1.0)",
+       "engines": {
+         "node": ">=10"
+       },
+       "funding": {
+@@ -6540,18 +7000,27 @@
+       "version": "7.4.1",
+       "resolved": "https://registry.npmjs.org/workbox-window/-/workbox-window-7.4.1.tgz",
+       "integrity": "sha512-notZDH2u8VXaqyuD7xaqIfEFi6SRM4SUSd7ewe9PDsVqADuepxX2ZMY3uvuZGxzY5ZOsGC/vD3A/3smFtJt4/A==",
+       "dev": true,
+       "license": "MIT",
+       "dependencies": {
+         "@types/trusted-types": "^2.0.2",
+         "workbox-core": "7.4.1"
+       }
+     },
++    "node_modules/xtend": {
++      "version": "4.0.2",
++      "resolved": "https://registry.npmjs.org/xtend/-/xtend-4.0.2.tgz",
++      "integrity": "sha512-LKYU1iAXJXUgAXn9URjiu+MWhyUXHsvfp7mcuYm9dSUKK0/CjtrUwFAxD82/mCWbtLsGjFIad0wIsod4zrTAEQ==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=0.4"
++      }
++    },
+     "node_modules/yallist": {
+       "version": "3.1.1",
+       "resolved": "https://registry.npmjs.org/yallist/-/yallist-3.1.1.tgz",
+       "integrity": "sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g==",
+       "license": "ISC"
+     }
+   }
+ }
+# new compose.test.yaml
+diff --git a/compose.test.yaml b/compose.test.yaml
+new file mode 100644
+index 0000000..38e2c9a
+--- /dev/null
++++ b/compose.test.yaml
+@@ -0,0 +1,16 @@
++services:
++  postgres-test:
++    image: postgres:18-bookworm
++    environment:
++      POSTGRES_DB: odds_test
++      POSTGRES_USER: odds_test
++      POSTGRES_PASSWORD: odds_test
++    ports:
++      - "127.0.0.1:55432:5432"
++    tmpfs:
++      - /var/lib/postgresql
++    healthcheck:
++      test: ["CMD-SHELL", "pg_isready -U odds_test -d odds_test"]
++      interval: 2s
++      timeout: 2s
++      retries: 20
+# new db/migrations/001_initial.sql
+diff --git a/db/migrations/001_initial.sql b/db/migrations/001_initial.sql
+new file mode 100644
+index 0000000..c83ea2d
+--- /dev/null
++++ b/db/migrations/001_initial.sql
+@@ -0,0 +1,121 @@
++CREATE TABLE IF NOT EXISTS schema_migrations (
++  version text PRIMARY KEY,
++  checksum_sha256 text NOT NULL,
++  applied_at timestamptz NOT NULL
++);
++
++CREATE TABLE owners (
++  id uuid PRIMARY KEY,
++  username text UNIQUE NOT NULL,
++  password_hash text NOT NULL,
++  disabled_at timestamptz,
++  created_at timestamptz NOT NULL
++);
++
++CREATE TABLE sessions (
++  id uuid PRIMARY KEY,
++  owner_id uuid REFERENCES owners(id),
++  token_hash bytea UNIQUE NOT NULL,
++  csrf_hash bytea NOT NULL,
++  created_at timestamptz,
++  last_seen_at timestamptz,
++  idle_expires_at timestamptz,
++  absolute_expires_at timestamptz,
++  revoked_at timestamptz
++);
++
++CREATE TABLE login_attempts (
++  scope_key text PRIMARY KEY,
++  failed_count integer,
++  window_started_at timestamptz,
++  blocked_until timestamptz
++);
++
++CREATE TABLE prediction_snapshots (
++  id bigserial PRIMARY KEY,
++  identity_key text UNIQUE NOT NULL,
++  match_id text,
++  market text,
++  prediction text,
++  line double precision,
++  odds double precision,
++  chance double precision,
++  edge double precision,
++  saved_at timestamptz,
++  commence_time timestamptz,
++  model_version text,
++  source text,
++  snapshot_status text,
++  rejection_reason text,
++  raw jsonb NOT NULL,
++  CONSTRAINT prediction_snapshots_odds_valid CHECK (
++    odds IS NULL OR (odds > 0 AND odds < 'Infinity'::double precision)
++  ),
++  CONSTRAINT prediction_snapshots_chance_valid CHECK (
++    chance IS NULL OR (chance >= 0 AND chance <= 1)
++  )
++);
++
++CREATE TABLE results (
++  id bigserial PRIMARY KEY,
++  identity_key text UNIQUE NOT NULL,
++  match_id text,
++  market text,
++  actual text,
++  source text,
++  source_priority integer,
++  completed_at timestamptz,
++  raw jsonb NOT NULL
++);
++
++CREATE TABLE live_odds (
++  id bigserial PRIMARY KEY,
++  identity_key text UNIQUE NOT NULL,
++  entry_id text,
++  provider text,
++  match_id text,
++  home_team text,
++  away_team text,
++  commence_time timestamptz,
++  market text,
++  selection text,
++  line double precision,
++  odds double precision,
++  observed_at timestamptz,
++  expires_at timestamptz,
++  raw jsonb NOT NULL,
++  CONSTRAINT live_odds_odds_valid CHECK (
++    odds IS NULL OR (odds > 0 AND odds < 'Infinity'::double precision)
++  )
++);
++
++CREATE TABLE collector_state (
++  state_key text PRIMARY KEY,
++  state jsonb NOT NULL,
++  updated_at timestamptz NOT NULL
++);
++
++CREATE TABLE import_runs (
++  id uuid PRIMARY KEY,
++  source_name text,
++  source_sha256 text,
++  importer_version text,
++  status text,
++  total_rows integer,
++  accepted_rows integer,
++  rejected_rows integer,
++  started_at timestamptz,
++  finished_at timestamptz,
++  UNIQUE (source_name, source_sha256, importer_version)
++);
++
++CREATE TABLE import_rows (
++  import_run_id uuid REFERENCES import_runs(id),
++  source_row integer,
++  idempotency_key text,
++  classification text,
++  rejection_reason text,
++  raw jsonb NOT NULL,
++  PRIMARY KEY (import_run_id, source_row),
++  UNIQUE (idempotency_key)
++);
+# new server/config.mjs
+diff --git a/server/config.mjs b/server/config.mjs
+new file mode 100644
+index 0000000..3820f62
+--- /dev/null
++++ b/server/config.mjs
+@@ -0,0 +1,58 @@
++export function loadServerConfig(env) {
++  const databaseUrl = parseDatabaseUrl(env?.DATABASE_URL);
++  const sessionSecret = parseSessionSecret(env?.SESSION_SECRET);
++  const publicOrigin = parsePublicOrigin(env?.PUBLIC_ORIGIN);
++
++  return { databaseUrl, sessionSecret, publicOrigin };
++}
++
++function parseDatabaseUrl(value) {
++  if (typeof value !== "string" || value.length === 0) {
++    throw new Error("DATABASE_URL is required");
++  }
++
++  let url;
++  try {
++    url = new URL(value);
++  } catch {
++    throw new Error("DATABASE_URL must be a valid PostgreSQL URL");
++  }
++
++  if (!["postgres:", "postgresql:"].includes(url.protocol) || !url.hostname || url.pathname === "/") {
++    throw new Error("DATABASE_URL must be a valid PostgreSQL URL");
++  }
++  return value;
++}
++
++function parseSessionSecret(value) {
++  if (typeof value !== "string" || Buffer.byteLength(value, "utf8") < 32) {
++    throw new Error("SESSION_SECRET must be at least 32 bytes");
++  }
++  return value;
++}
++
++function parsePublicOrigin(value) {
++  if (typeof value !== "string" || value.length === 0) {
++    throw new Error("PUBLIC_ORIGIN is required");
++  }
++
++  let url;
++  try {
++    url = new URL(value);
++  } catch {
++    throw new Error("PUBLIC_ORIGIN must be a valid HTTPS origin");
++  }
++
++  if (
++    url.protocol !== "https:"
++    || url.pathname !== "/"
++    || url.search
++    || url.hash
++    || url.username
++    || url.password
++    || value !== url.origin
++  ) {
++    throw new Error("PUBLIC_ORIGIN must be a valid HTTPS origin");
++  }
++  return url.origin;
++}
+# new server/db/pool.mjs
+diff --git a/server/db/pool.mjs b/server/db/pool.mjs
+new file mode 100644
+index 0000000..1849288
+--- /dev/null
++++ b/server/db/pool.mjs
+@@ -0,0 +1,30 @@
++import pg from "pg";
++
++const { Pool } = pg;
++
++export function createPool(databaseUrl) {
++  return new Pool({ connectionString: databaseUrl });
++}
++
++export async function withTransaction(pool, callback) {
++  const client = await pool.connect();
++  let releaseError;
++  try {
++    await client.query("BEGIN");
++    const result = await callback(client);
++    await client.query("COMMIT");
++    return result;
++  } catch (error) {
++    try {
++      await client.query("ROLLBACK");
++    } catch (rollbackError) {
++      releaseError = rollbackError;
++      if (error && (typeof error === "object" || typeof error === "function")) {
++        error.rollbackError = rollbackError;
++      }
++    }
++    throw error;
++  } finally {
++    client.release(releaseError);
++  }
++}
+# new server/db/migrate.mjs
+diff --git a/server/db/migrate.mjs b/server/db/migrate.mjs
+new file mode 100644
+index 0000000..1b00e9c
+--- /dev/null
++++ b/server/db/migrate.mjs
+@@ -0,0 +1,129 @@
++import { createHash } from "node:crypto";
++import { readdir, readFile } from "node:fs/promises";
++import path from "node:path";
++
++const CREATE_MIGRATION_LEDGER = `
++  CREATE TABLE IF NOT EXISTS schema_migrations (
++    version text PRIMARY KEY,
++    checksum_sha256 text NOT NULL,
++    applied_at timestamptz NOT NULL
++  )
++`;
++const MIGRATION_LOCK_ID = "7957694271668822348";
++
++export async function runMigrations(pool, migrationsDir) {
++  const client = await pool.connect();
++  let lockHeld = false;
++  let primaryError;
++  let cleanupError;
++  const connectionState = {
++    lockAcquisitionUncertain: false,
++    transactionUncertain: false,
++  };
++
++  try {
++    connectionState.lockAcquisitionUncertain = true;
++    await client.query("SELECT pg_advisory_lock($1)", [MIGRATION_LOCK_ID]);
++    connectionState.lockAcquisitionUncertain = false;
++    lockHeld = true;
++    return await runLockedMigrations(client, migrationsDir, connectionState);
++  } catch (error) {
++    primaryError = error;
++    throw error;
++  } finally {
++    if (lockHeld) {
++      try {
++        await client.query("SELECT pg_advisory_unlock($1)", [MIGRATION_LOCK_ID]);
++        lockHeld = false;
++      } catch (unlockError) {
++        cleanupError = unlockError;
++        if (primaryError && (typeof primaryError === "object" || typeof primaryError === "function")) {
++          primaryError.unlockError = unlockError;
++        }
++      }
++    }
++    const uncertainStateError = (
++      connectionState.lockAcquisitionUncertain || connectionState.transactionUncertain
++    )
++      ? (primaryError instanceof Error ? primaryError : new Error("Migration connection state is uncertain"))
++      : undefined;
++    client.release(cleanupError ?? primaryError?.rollbackError ?? uncertainStateError);
++    if (cleanupError && !primaryError) throw cleanupError;
++  }
++}
++
++async function runLockedMigrations(client, migrationsDir, connectionState) {
++  await client.query(CREATE_MIGRATION_LEDGER);
++
++  const entries = await readdir(migrationsDir, { withFileTypes: true });
++  const filenames = entries
++    .filter((entry) => entry.isFile() && entry.name.endsWith(".sql"))
++    .map((entry) => entry.name)
++    .sort();
++  const recorded = await client.query("SELECT version, checksum_sha256 FROM schema_migrations");
++  const appliedChecksums = new Map(recorded.rows.map(({ version, checksum_sha256 }) => [version, checksum_sha256]));
++  const availableFilenames = new Set(filenames);
++  const missingVersions = [...appliedChecksums.keys()]
++    .filter((version) => !availableFilenames.has(version))
++    .sort();
++  if (missingVersions.length > 0) {
++    throw new Error(`Recorded migration ${missingVersions[0]} is missing from the migration directory`);
++  }
++  let latestApplied = [...appliedChecksums.keys()].sort().at(-1);
++  const applied = [];
++
++  for (const filename of filenames) {
++    const sql = await readFile(path.join(migrationsDir, filename), "utf8");
++    const checksum = createHash("sha256").update(sql, "utf8").digest("hex");
++    const appliedChecksum = appliedChecksums.get(filename);
++
++    if (appliedChecksum !== undefined) {
++      if (appliedChecksum !== checksum) {
++        throw new Error(`Migration checksum changed for ${filename}`);
++      }
++      continue;
++    }
++
++    if (latestApplied && filename < latestApplied) {
++      throw new Error(`Migration ${filename} sorts before already-applied ${latestApplied}`);
++    }
++
++    await applyMigration(client, filename, checksum, sql, connectionState);
++    appliedChecksums.set(filename, checksum);
++    latestApplied = filename;
++    applied.push(filename);
++  }
++
++  return applied;
++}
++
++async function applyMigration(client, filename, checksum, sql, connectionState) {
++  connectionState.transactionUncertain = true;
++  await client.query("BEGIN");
++  connectionState.transactionUncertain = false;
++  let commitAttempted = false;
++  try {
++    await client.query(sql);
++    await client.query(
++      "INSERT INTO schema_migrations (version, checksum_sha256, applied_at) VALUES ($1, $2, CURRENT_TIMESTAMP)",
++      [filename, checksum],
++    );
++    connectionState.transactionUncertain = true;
++    commitAttempted = true;
++    await client.query("COMMIT");
++    connectionState.transactionUncertain = false;
++  } catch (error) {
++    if (!commitAttempted) {
++      connectionState.transactionUncertain = true;
++      try {
++        await client.query("ROLLBACK");
++        connectionState.transactionUncertain = false;
++      } catch (rollbackError) {
++        if (error && (typeof error === "object" || typeof error === "function")) {
++          error.rollbackError = rollbackError;
++        }
++      }
++    }
++    throw error;
++  }
++}
+# new server/db/migrate.test.mjs
+diff --git a/server/db/migrate.test.mjs b/server/db/migrate.test.mjs
+new file mode 100644
+index 0000000..f84dcc2
+--- /dev/null
++++ b/server/db/migrate.test.mjs
+@@ -0,0 +1,497 @@
++import assert from "node:assert/strict";
++import { randomUUID } from "node:crypto";
++import { mkdtemp, rm, writeFile } from "node:fs/promises";
++import { tmpdir } from "node:os";
++import path from "node:path";
++import { fileURLToPath } from "node:url";
++import test from "node:test";
++
++import { loadServerConfig } from "../config.mjs";
++import { createPool, withTransaction } from "./pool.mjs";
++import { runMigrations } from "./migrate.mjs";
++
++const DATABASE_URL = process.env.DATABASE_URL;
++const EXPECTED_TEST_DATABASE_URL = "postgresql://odds_test:odds_test@127.0.0.1:55432/odds_test";
++const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
++const INITIAL_MIGRATIONS_DIR = path.join(PROJECT_ROOT, "db", "migrations");
++const VALID_ENV = Object.freeze({
++  DATABASE_URL: DATABASE_URL ?? EXPECTED_TEST_DATABASE_URL,
++  SESSION_SECRET: "test-only-session-secret-32-bytes-minimum",
++  PUBLIC_ORIGIN: "https://odds.ballballchu.com.hk",
++});
++
++test("loadServerConfig accepts the complete production-shaped environment", () => {
++  assert.deepEqual(loadServerConfig(VALID_ENV), {
++    databaseUrl: VALID_ENV.DATABASE_URL,
++    sessionSecret: VALID_ENV.SESSION_SECRET,
++    publicOrigin: VALID_ENV.PUBLIC_ORIGIN,
++  });
++});
++
++test("loadServerConfig rejects missing and invalid required values without echoing secrets", () => {
++  const cases = [
++    ["DATABASE_URL", undefined, /DATABASE_URL/],
++    ["DATABASE_URL", "not-a-database-url", /DATABASE_URL/],
++    ["DATABASE_URL", "mysql://user:password@localhost/database", /DATABASE_URL/],
++    ["SESSION_SECRET", undefined, /SESSION_SECRET/],
++    ["SESSION_SECRET", "too-short", /SESSION_SECRET/],
++    ["PUBLIC_ORIGIN", undefined, /PUBLIC_ORIGIN/],
++    ["PUBLIC_ORIGIN", "not-an-origin", /PUBLIC_ORIGIN/],
++    ["PUBLIC_ORIGIN", "http://odds.ballballchu.com.hk", /PUBLIC_ORIGIN/],
++    ["PUBLIC_ORIGIN", "https://odds.ballballchu.com.hk/api", /PUBLIC_ORIGIN/],
++  ];
++
++  for (const [name, value, expectedMessage] of cases) {
++    const env = { ...VALID_ENV, [name]: value };
++    assert.throws(() => loadServerConfig(env), (error) => {
++      assert.match(error.message, expectedMessage);
++      if (typeof value === "string" && name === "SESSION_SECRET") {
++        assert.equal(error.message.includes(value), false);
++      }
++      if (typeof value === "string" && name === "DATABASE_URL" && value.includes("user:password")) {
++        assert.equal(error.message.includes(value), false);
++        assert.equal(error.message.includes("user:password"), false);
++      }
++      return true;
++    });
++  }
++});
++
++test("withTransaction commits returned work and rolls back thrown work", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    await pool.query("CREATE TABLE transaction_probe (value integer NOT NULL)");
++
++    const result = await withTransaction(pool, async (client) => {
++      await client.query("INSERT INTO transaction_probe (value) VALUES ($1)", [1]);
++      return "committed";
++    });
++    assert.equal(result, "committed");
++
++    await assert.rejects(
++      withTransaction(pool, async (client) => {
++        await client.query("INSERT INTO transaction_probe (value) VALUES ($1)", [2]);
++        throw new Error("force rollback");
++      }),
++      /force rollback/,
++    );
++
++    const values = await pool.query("SELECT value FROM transaction_probe ORDER BY value");
++    assert.deepEqual(values.rows, [{ value: 1 }]);
++  });
++});
++
++test("withTransaction preserves the original error if rollback also fails", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    let releasedWith;
++    const rollbackFailingPool = {
++      async connect() {
++        const realClient = await pool.connect();
++        return {
++          async query(sql, parameters) {
++            if (sql === "ROLLBACK") throw new Error("injected rollback failure");
++            return realClient.query(sql, parameters);
++          },
++          release(error) {
++            releasedWith = error;
++            realClient.release(error);
++          },
++        };
++      },
++    };
++
++    await assert.rejects(
++      withTransaction(rollbackFailingPool, async (client) => {
++        await client.query("SELECT 1");
++        throw new Error("original transaction failure");
++      }),
++      (error) => {
++        assert.equal(error.message, "original transaction failure");
++        assert.equal(error.rollbackError?.message, "injected rollback failure");
++        return true;
++      },
++    );
++    assert.equal(releasedWith?.message, "injected rollback failure");
++  });
++});
++
++test("runMigrations applies SQL files in lexical order and records SHA-256 checksums", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    await withTempMigrations([
++      ["010_second.sql", "INSERT INTO migration_order (position) VALUES (2);"],
++      ["002_first.sql", "CREATE TABLE migration_order (position integer NOT NULL); INSERT INTO migration_order (position) VALUES (1);"],
++      ["README.txt", "This is not a migration."],
++    ], async (directory) => {
++      const applied = await runMigrations(pool, directory);
++      assert.deepEqual(applied, ["002_first.sql", "010_second.sql"]);
++
++      const values = await pool.query("SELECT position FROM migration_order ORDER BY position");
++      assert.deepEqual(values.rows, [{ position: 1 }, { position: 2 }]);
++
++      const ledger = await pool.query("SELECT version, checksum_sha256 FROM schema_migrations ORDER BY version");
++      assert.deepEqual(ledger.rows.map(({ version }) => version), ["002_first.sql", "010_second.sql"]);
++      assert.ok(ledger.rows.every(({ checksum_sha256 }) => /^[a-f0-9]{64}$/.test(checksum_sha256)));
++    });
++  });
++});
++
++test("runMigrations is idempotent and rejects changed content for an applied version", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    await withTempMigrations([
++      ["001_counter.sql", "CREATE TABLE migration_counter (value integer NOT NULL); INSERT INTO migration_counter (value) VALUES (1);"],
++    ], async (directory) => {
++      assert.deepEqual(await runMigrations(pool, directory), ["001_counter.sql"]);
++      assert.deepEqual(await runMigrations(pool, directory), []);
++
++      const counter = await pool.query("SELECT value FROM migration_counter");
++      assert.deepEqual(counter.rows, [{ value: 1 }]);
++
++      await writeFile(path.join(directory, "001_counter.sql"), "SELECT 2;", "utf8");
++      await assert.rejects(runMigrations(pool, directory), /checksum.*001_counter\.sql|001_counter\.sql.*checksum/i);
++
++      const ledger = await pool.query("SELECT count(*)::integer AS count FROM schema_migrations");
++      assert.deepEqual(ledger.rows, [{ count: 1 }]);
++    });
++  });
++});
++
++test("runMigrations rejects recorded migration history whose SQL file is missing", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    await withTempMigrations([
++      ["001_then_deleted.sql", "CREATE TABLE deleted_migration_probe (id integer);"],
++    ], async (directory) => {
++      assert.deepEqual(await runMigrations(pool, directory), ["001_then_deleted.sql"]);
++      await rm(path.join(directory, "001_then_deleted.sql"));
++
++      await assert.rejects(
++        runMigrations(pool, directory),
++        /recorded migration 001_then_deleted\.sql.*missing/i,
++      );
++
++      const ledger = await pool.query("SELECT version FROM schema_migrations ORDER BY version");
++      assert.deepEqual(ledger.rows, [{ version: "001_then_deleted.sql" }]);
++    });
++  });
++});
++
++test("runMigrations destroys the client after an ambiguous advisory-lock acquisition failure", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    let releasedWith;
++    const acquisitionFailure = new Error("injected lost advisory-lock response");
++    const uncertainLockPool = {
++      async connect() {
++        const realClient = await pool.connect();
++        return {
++          async query(sql, parameters) {
++            const result = await realClient.query(sql, parameters);
++            if (sql === "SELECT pg_advisory_lock($1)") throw acquisitionFailure;
++            return result;
++          },
++          release(error) {
++            releasedWith = error;
++            realClient.release(error);
++          },
++        };
++      },
++    };
++
++    await withTempMigrations([], async (directory) => {
++      await assert.rejects(runMigrations(uncertainLockPool, directory), acquisitionFailure);
++      assert.equal(releasedWith, acquisitionFailure);
++    });
++  });
++});
++
++test("runMigrations destroys the client after an ambiguous BEGIN failure", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    let releasedWith;
++    const beginFailure = new Error("injected lost BEGIN response");
++    const uncertainBeginPool = {
++      async connect() {
++        const realClient = await pool.connect();
++        return {
++          async query(sql, parameters) {
++            const result = await realClient.query(sql, parameters);
++            if (sql === "BEGIN") throw beginFailure;
++            return result;
++          },
++          release(error) {
++            releasedWith = error;
++            realClient.release(error);
++          },
++        };
++      },
++    };
++
++    await withTempMigrations([
++      ["001_ambiguous_begin.sql", "CREATE TABLE must_not_run_after_ambiguous_begin (id integer);"],
++    ], async (directory) => {
++      await assert.rejects(runMigrations(uncertainBeginPool, directory), beginFailure);
++      assert.equal(releasedWith, beginFailure);
++    });
++  });
++});
++
++test("runMigrations serializes concurrent runners", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    await withTempMigrations([
++      ["001_concurrent.sql", "SELECT pg_sleep(0.1); CREATE TABLE concurrent_probe (id integer);"],
++    ], async (directory) => {
++      const results = await Promise.all([
++        runMigrations(pool, directory),
++        runMigrations(pool, directory),
++      ]);
++      assert.deepEqual(results.sort((left, right) => right.length - left.length), [["001_concurrent.sql"], []]);
++
++      const ledger = await pool.query("SELECT count(*)::integer AS count FROM schema_migrations");
++      assert.deepEqual(ledger.rows, [{ count: 1 }]);
++    });
++  });
++});
++
++test("runMigrations rejects a new migration that predates recorded history", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    await withTempMigrations([
++      ["010_later.sql", "CREATE TABLE lexical_history (id integer);"],
++    ], async (directory) => {
++      assert.deepEqual(await runMigrations(pool, directory), ["010_later.sql"]);
++      await writeFile(path.join(directory, "005_earlier.sql"), "SELECT 5;", "utf8");
++
++      await assert.rejects(
++        runMigrations(pool, directory),
++        /005_earlier\.sql.*before.*010_later\.sql/i,
++      );
++
++      const ledger = await pool.query("SELECT version FROM schema_migrations ORDER BY version");
++      assert.deepEqual(ledger.rows, [{ version: "010_later.sql" }]);
++    });
++  });
++});
++
++test("runMigrations destroys the client if advisory unlock fails after a migration error", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    let releasedWith;
++    const unlockFailure = new Error("injected advisory unlock failure");
++    const unlockFailingPool = {
++      async connect() {
++        const realClient = await pool.connect();
++        return {
++          async query(sql, parameters) {
++            if (sql === "SELECT pg_advisory_unlock($1)") throw unlockFailure;
++            return realClient.query(sql, parameters);
++          },
++          release(error) {
++            releasedWith = error;
++            realClient.release(error);
++          },
++        };
++      },
++    };
++
++    await withTempMigrations([
++      ["001_fails_and_unlock_fails.sql", "SELECT * FROM another_table_that_does_not_exist;"],
++    ], async (directory) => {
++      await assert.rejects(runMigrations(unlockFailingPool, directory), (error) => {
++        assert.match(error.message, /another_table_that_does_not_exist/);
++        assert.equal(error.unlockError, unlockFailure);
++        return true;
++      });
++      assert.equal(releasedWith, unlockFailure);
++    });
++  });
++});
++
++test("a failed SQL migration is rolled back and is never marked applied", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    await withTempMigrations([
++      ["001_fails.sql", "CREATE TABLE must_be_rolled_back (id integer); SELECT * FROM table_that_does_not_exist;"],
++    ], async (directory) => {
++      await assert.rejects(runMigrations(pool, directory), /table_that_does_not_exist/);
++
++      const table = await pool.query("SELECT to_regclass('must_be_rolled_back') AS name");
++      assert.deepEqual(table.rows, [{ name: null }]);
++      const ledger = await pool.query("SELECT version FROM schema_migrations WHERE version = $1", ["001_fails.sql"]);
++      assert.deepEqual(ledger.rows, []);
++    });
++  });
++});
++
++test("the initial migration creates the exact table and uniqueness boundaries", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    assert.deepEqual(await runMigrations(pool, INITIAL_MIGRATIONS_DIR), ["001_initial.sql"]);
++    assert.deepEqual(await runMigrations(pool, INITIAL_MIGRATIONS_DIR), []);
++
++    const tables = await pool.query(`
++      SELECT table_name
++      FROM information_schema.tables
++      WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'
++      ORDER BY table_name
++    `);
++    assert.deepEqual(tables.rows.map(({ table_name }) => table_name), [
++      "collector_state",
++      "import_rows",
++      "import_runs",
++      "live_odds",
++      "login_attempts",
++      "owners",
++      "prediction_snapshots",
++      "results",
++      "schema_migrations",
++      "sessions",
++    ]);
++
++    const uniqueConstraints = await pool.query(`
++      SELECT relation.relname AS table_name,
++             array_agg(attribute.attname::text ORDER BY key.ordinality) AS columns
++      FROM pg_constraint AS constraint_record
++      JOIN pg_class AS relation ON relation.oid = constraint_record.conrelid
++      JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
++      CROSS JOIN LATERAL unnest(constraint_record.conkey) WITH ORDINALITY AS key(attribute_number, ordinality)
++      JOIN pg_attribute AS attribute
++        ON attribute.attrelid = relation.oid AND attribute.attnum = key.attribute_number
++      WHERE namespace.nspname = current_schema() AND constraint_record.contype = 'u'
++      GROUP BY relation.relname, constraint_record.conname
++      ORDER BY relation.relname, constraint_record.conname
++    `);
++    assert.deepEqual(uniqueConstraints.rows, [
++      { table_name: "import_rows", columns: ["idempotency_key"] },
++      { table_name: "import_runs", columns: ["source_name", "source_sha256", "importer_version"] },
++      { table_name: "live_odds", columns: ["identity_key"] },
++      { table_name: "owners", columns: ["username"] },
++      { table_name: "prediction_snapshots", columns: ["identity_key"] },
++      { table_name: "results", columns: ["identity_key"] },
++      { table_name: "sessions", columns: ["token_hash"] },
++    ]);
++
++    const foreignKeys = await pool.query(`
++      SELECT source.relname AS table_name,
++             array_agg(source_attribute.attname::text ORDER BY source_key.ordinality) AS columns,
++             target.relname AS referenced_table,
++             array_agg(target_attribute.attname::text ORDER BY source_key.ordinality) AS referenced_columns
++      FROM pg_constraint AS constraint_record
++      JOIN pg_class AS source ON source.oid = constraint_record.conrelid
++      JOIN pg_class AS target ON target.oid = constraint_record.confrelid
++      JOIN pg_namespace AS namespace ON namespace.oid = source.relnamespace
++      CROSS JOIN LATERAL unnest(constraint_record.conkey) WITH ORDINALITY AS source_key(attribute_number, ordinality)
++      JOIN pg_attribute AS source_attribute
++        ON source_attribute.attrelid = source.oid AND source_attribute.attnum = source_key.attribute_number
++      JOIN pg_attribute AS target_attribute
++        ON target_attribute.attrelid = target.oid
++       AND target_attribute.attnum = constraint_record.confkey[source_key.ordinality]
++      WHERE namespace.nspname = current_schema() AND constraint_record.contype = 'f'
++      GROUP BY source.relname, target.relname, constraint_record.conname
++      ORDER BY source.relname, constraint_record.conname
++    `);
++    assert.deepEqual(foreignKeys.rows, [
++      { table_name: "import_rows", columns: ["import_run_id"], referenced_table: "import_runs", referenced_columns: ["id"] },
++      { table_name: "sessions", columns: ["owner_id"], referenced_table: "owners", referenced_columns: ["id"] },
++    ]);
++
++    const columns = await pool.query(`
++      SELECT table_name, column_name, data_type, is_nullable
++      FROM information_schema.columns
++      WHERE table_schema = current_schema()
++      ORDER BY table_name, ordinal_position
++    `);
++    assert.deepEqual(columns.rows, expectedInitialColumns());
++
++    await assert.rejects(
++      pool.query("INSERT INTO prediction_snapshots (identity_key, odds, raw) VALUES ($1, $2, $3)", ["bad-zero-odds", 0, {}]),
++      /check constraint/i,
++    );
++    await assert.rejects(
++      pool.query("INSERT INTO prediction_snapshots (identity_key, odds, raw) VALUES ($1, $2, $3)", ["bad-infinite-odds", Number.POSITIVE_INFINITY, {}]),
++      /check constraint/i,
++    );
++    await assert.rejects(
++      pool.query("INSERT INTO prediction_snapshots (identity_key, odds, raw) VALUES ($1, $2, $3)", ["bad-nan-odds", Number.NaN, {}]),
++      /check constraint/i,
++    );
++    await assert.rejects(
++      pool.query("INSERT INTO prediction_snapshots (identity_key, chance, raw) VALUES ($1, $2, $3)", ["bad-chance", 1.01, {}]),
++      /check constraint/i,
++    );
++    await assert.rejects(
++      pool.query("INSERT INTO prediction_snapshots (identity_key, chance, raw) VALUES ($1, $2, $3)", ["bad-nan-chance", Number.NaN, {}]),
++      /check constraint/i,
++    );
++    await assert.rejects(
++      pool.query("INSERT INTO live_odds (identity_key, odds, raw) VALUES ($1, $2, $3)", ["bad-live-odds", Number.POSITIVE_INFINITY, {}]),
++      /check constraint/i,
++    );
++    await assert.rejects(
++      pool.query("INSERT INTO live_odds (identity_key, odds, raw) VALUES ($1, $2, $3)", ["bad-live-nan-odds", Number.NaN, {}]),
++      /check constraint/i,
++    );
++  });
++});
++
++function expectedInitialColumns() {
++  const timestamp = "timestamp with time zone";
++  const definitions = {
++    collector_state: [["state_key", "text", "NO"], ["state", "jsonb", "NO"], ["updated_at", timestamp, "NO"]],
++    import_rows: [["import_run_id", "uuid", "NO"], ["source_row", "integer", "NO"], ["idempotency_key", "text", "YES"], ["classification", "text", "YES"], ["rejection_reason", "text", "YES"], ["raw", "jsonb", "NO"]],
++    import_runs: [["id", "uuid", "NO"], ["source_name", "text", "YES"], ["source_sha256", "text", "YES"], ["importer_version", "text", "YES"], ["status", "text", "YES"], ["total_rows", "integer", "YES"], ["accepted_rows", "integer", "YES"], ["rejected_rows", "integer", "YES"], ["started_at", timestamp, "YES"], ["finished_at", timestamp, "YES"]],
++    live_odds: [["id", "bigint", "NO"], ["identity_key", "text", "NO"], ["entry_id", "text", "YES"], ["provider", "text", "YES"], ["match_id", "text", "YES"], ["home_team", "text", "YES"], ["away_team", "text", "YES"], ["commence_time", timestamp, "YES"], ["market", "text", "YES"], ["selection", "text", "YES"], ["line", "double precision", "YES"], ["odds", "double precision", "YES"], ["observed_at", timestamp, "YES"], ["expires_at", timestamp, "YES"], ["raw", "jsonb", "NO"]],
++    login_attempts: [["scope_key", "text", "NO"], ["failed_count", "integer", "YES"], ["window_started_at", timestamp, "YES"], ["blocked_until", timestamp, "YES"]],
++    owners: [["id", "uuid", "NO"], ["username", "text", "NO"], ["password_hash", "text", "NO"], ["disabled_at", timestamp, "YES"], ["created_at", timestamp, "NO"]],
++    prediction_snapshots: [["id", "bigint", "NO"], ["identity_key", "text", "NO"], ["match_id", "text", "YES"], ["market", "text", "YES"], ["prediction", "text", "YES"], ["line", "double precision", "YES"], ["odds", "double precision", "YES"], ["chance", "double precision", "YES"], ["edge", "double precision", "YES"], ["saved_at", timestamp, "YES"], ["commence_time", timestamp, "YES"], ["model_version", "text", "YES"], ["source", "text", "YES"], ["snapshot_status", "text", "YES"], ["rejection_reason", "text", "YES"], ["raw", "jsonb", "NO"]],
++    results: [["id", "bigint", "NO"], ["identity_key", "text", "NO"], ["match_id", "text", "YES"], ["market", "text", "YES"], ["actual", "text", "YES"], ["source", "text", "YES"], ["source_priority", "integer", "YES"], ["completed_at", timestamp, "YES"], ["raw", "jsonb", "NO"]],
++    schema_migrations: [["version", "text", "NO"], ["checksum_sha256", "text", "NO"], ["applied_at", timestamp, "NO"]],
++    sessions: [["id", "uuid", "NO"], ["owner_id", "uuid", "YES"], ["token_hash", "bytea", "NO"], ["csrf_hash", "bytea", "NO"], ["created_at", timestamp, "YES"], ["last_seen_at", timestamp, "YES"], ["idle_expires_at", timestamp, "YES"], ["absolute_expires_at", timestamp, "YES"], ["revoked_at", timestamp, "YES"]],
++  };
++
++  return Object.entries(definitions).flatMap(([table_name, tableColumns]) => (
++    tableColumns.map(([column_name, data_type, is_nullable]) => ({ table_name, column_name, data_type, is_nullable }))
++  ));
++}
++
++function requireDatabaseUrl() {
++  assert.equal(
++    DATABASE_URL === EXPECTED_TEST_DATABASE_URL,
++    true,
++    "DATABASE_URL must be the controller-provided disposable odds_test database",
++  );
++}
++
++async function withIsolatedSchema(t, callback) {
++  const adminPool = createPool(DATABASE_URL);
++  const schema = `task2_${randomUUID().replaceAll("-", "")}`;
++  const quotedSchema = `"${schema}"`;
++  await adminPool.query(`CREATE SCHEMA ${quotedSchema}`);
++
++  const scopedUrl = new URL(DATABASE_URL);
++  scopedUrl.searchParams.set("options", `-c search_path=${schema}`);
++  const pool = createPool(scopedUrl.toString());
++
++  t.after(async () => {
++    await pool.end();
++    await adminPool.query(`DROP SCHEMA ${quotedSchema} CASCADE`);
++    await adminPool.end();
++  });
++
++  await callback(pool);
++}
++
++async function withTempMigrations(files, callback) {
++  const directory = await mkdtemp(path.join(tmpdir(), "odds-migrations-"));
++  try {
++    for (const [filename, contents] of files) {
++      await writeFile(path.join(directory, filename), contents, "utf8");
++    }
++    await callback(directory);
++  } finally {
++    await rm(directory, { recursive: true, force: true });
++  }
++}

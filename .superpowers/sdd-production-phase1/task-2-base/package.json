@@ -1,0 +1,35 @@
+{
+  "name": "odds-value-analyzer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit -p tsconfig.json && vite build",
+    "test": "vitest run",
+    "test:ui": "npm.cmd run build && playwright test",
+    "test:ui:only": "playwright test",
+    "monitor:odds": "node scripts/odds-monitor.mjs",
+    "monitor:odds:once": "node scripts/odds-monitor.mjs --once",
+    "import:hkjc": "node scripts/hkjc-import.mjs",
+    "check:data": "node scripts/check-data-integrity.mjs",
+    "server": "node server.mjs",
+    "server:self-test": "node server.mjs --self-test",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^4.1.10"
+  }
+}

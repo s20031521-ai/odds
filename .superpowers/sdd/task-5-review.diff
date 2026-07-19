@@ -1,0 +1,219 @@
+Task 5 review package (updated after reviewer fixes)
+Base: pre-task filesystem snapshot
+Head: current workspace
+
+diff --git a/.superpowers/sdd/task-5-base/App.tsx b/src/App.tsx
+index 8d35355..37d7ee5 100644
+--- a/.superpowers/sdd/task-5-base/App.tsx
++++ b/src/App.tsx
+@@ -15,7 +15,7 @@ import { dataHealthWarning, type DataHealth } from "./dataHealth";
+ 
+ import { buildTotalsCards, type TotalsMarketEntry } from "./oddsApi";
+ import { buildHandicapCards, type HandicapEntry } from "./handicap";
+-import { calibrationBuckets, cornerPickLabel, currentModelRows, excludeLegacyRows, filterHistoryRows, groupMarketCards, hasPredictionSnapshot, predictionDistribution, summarizeHistoryRows, summarizePerformanceRows } from "./marketDisplay";
++import { calibrationBuckets, clearBacktestResponseState, cornerPickLabel, currentModelRows, excludeLegacyRows, filterHistoryRows, groupMarketCards, hasPredictionSnapshot, isSnapshotQuality, predictionDistribution, snapshotQualityMessage, summarizeHistoryRows, summarizePerformanceRows, type SnapshotQuality } from "./marketDisplay";
+ 
+ import { fixtureIdFromHash, pageFromHash } from "./route";
+ import { postPredictionSnapshots, savePredictionSnapshots, type PredictionSnapshot } from "./predictionSnapshots";
+@@ -50,6 +50,7 @@ type ResultEntry = {
+   source?: string;
+   odds?: number;
+   chance?: number;
++  snapshotStatus?: string;
+ };
+ 
+ type ModelReadiness = {
+@@ -94,6 +95,7 @@ function App() {
+   const [handicapEntries, setHandicapEntries] = useState<HandicapEntry[]>([]);
+   const [resultEntries, setResultEntries] = useState<ResultEntry[]>([]);
+   const [readiness, setReadiness] = useState<ModelReadiness[]>([]);
++  const [snapshotQuality, setSnapshotQuality] = useState<SnapshotQuality | null>(null);
+   const [historyError, setHistoryError] = useState("");
+   const [dataWarning, setDataWarning] = useState("");
+   const [historyLoading, setHistoryLoading] = useState(() => pageFromHash(window.location.hash) === "history");
+@@ -149,6 +151,7 @@ function App() {
+   const modelSummaries = useMemo(() => summarizePerformanceRows(currentAnalysisRows, (row) => row.modelVersion!), [currentAnalysisRows]);
+   const directionSummaries = useMemo(() => predictionDistribution(currentAnalysisRows), [currentAnalysisRows]);
+   const calibrationSummaries = useMemo(() => calibrationBuckets(currentAnalysisRows), [currentAnalysisRows]);
++  const qualityWarning = snapshotQuality ? snapshotQualityMessage(snapshotQuality) : null;
+   const selectedPerformance = marketSummaries.find((item) => item.market === analysisMarket)?.summary ?? null;
+   const selectedReadiness = excludeLegacyRows(readiness.filter((item) => item.market === analysisMarket));
+   const completeEntries = entries.filter((entry) => hasCompleteOdds(entry.odds)).length;
+@@ -203,7 +206,12 @@ function App() {
+       if (!response.ok || !Array.isArray(body?.rows)) throw new Error("Backend backtest 暫時不可用。");
+       setResultEntries(body.rows);
+       setReadiness(Array.isArray(body.readiness) ? body.readiness : []);
++      setSnapshotQuality(isSnapshotQuality(body.snapshotQuality) ? body.snapshotQuality : null);
+     } catch (error) {
++      const cleared = clearBacktestResponseState({ resultEntries, readiness, snapshotQuality });
++      setResultEntries(cleared.resultEntries);
++      setReadiness(cleared.readiness);
++      setSnapshotQuality(cleared.snapshotQuality);
+       setHistoryError(error instanceof Error ? error.message : "Backend backtest 暫時不可用。");
+     } finally {
+       setHistoryLoading(false);
+@@ -354,6 +362,7 @@ function App() {
+           <div className="empty-state" role="alert"><span>{historyError}</span><button className="secondary-button compact" onClick={loadBacktest}>重新載入</button></div>
+         ) : (
+           <>
++            {qualityWarning ? <div className="sample-warning" role="status"><AlertTriangle size={17} />{qualityWarning}</div> : null}
+             <div className="performance-market-grid" aria-label="市場模型表現">
+               {marketSummaries.map(({ market, summary }) => (
+                 <button aria-pressed={analysisMarket === market} className={analysisMarket === market ? "performance-market-card active" : "performance-market-card"} key={market} onClick={() => setAnalysisMarket(market)} type="button">
+@@ -487,6 +496,7 @@ function App() {
+       {page === "history" ? (
+       <section className="dashboard-section">
+         <Panel title="完場紀錄 vs 預測" icon={<CalendarDays size={18} />}>
++          {qualityWarning ? <div className="sample-warning" role="status"><AlertTriangle size={17} />{qualityWarning}</div> : null}
+           <div className="history-toolbar">
+             <div className="history-market-tabs" aria-label="完場市場">
+               {(["主客和", "角球", "大細波", "亞洲讓球"] as HistoryMarket[]).map((market) => (
+
+diff --git a/.superpowers/sdd/task-5-base/marketDisplay.ts b/src/marketDisplay.ts
+index d60f492..f37ae54 100644
+--- a/.superpowers/sdd/task-5-base/marketDisplay.ts
++++ b/src/marketDisplay.ts
+@@ -1,3 +1,32 @@
++export type SnapshotQuality = {
++  raw: number;
++  validCurrent: number;
++  legacy: number;
++  invalid: number;
++  invalidReasons: Record<string, number>;
++};
++
++export type BacktestResponseState<ResultEntry, ModelReadiness> = {
++  resultEntries: ResultEntry[];
++  readiness: ModelReadiness[];
++  snapshotQuality: SnapshotQuality | null;
++};
++
++export function clearBacktestResponseState<ResultEntry, ModelReadiness>(
++  _state: BacktestResponseState<ResultEntry, ModelReadiness>,
++): BacktestResponseState<ResultEntry, ModelReadiness> {
++  return { resultEntries: [], readiness: [], snapshotQuality: null };
++}
++
++export function isSnapshotQuality(value: unknown): value is SnapshotQuality {
++  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
++  const quality = value as Record<string, unknown>;
++  if (!["raw", "validCurrent", "legacy", "invalid"].every((key) => isNonnegativeInteger(quality[key]))) return false;
++  const reasons = quality.invalidReasons;
++  if (!reasons || typeof reasons !== "object" || Array.isArray(reasons)) return false;
++  return Object.values(reasons).every(isNonnegativeInteger);
++}
++
+ export function cornerPickLabel(pickLabel: string, bookmakerCount: number): string {
+   if (bookmakerCount < 2) return "資料不足，唔買";
+   if (pickLabel === "買大") return "買大角";
+@@ -5,6 +34,11 @@ export function cornerPickLabel(pickLabel: string, bookmakerCount: number): stri
+   return pickLabel;
+ }
+ 
++export function snapshotQualityMessage(quality: { raw: number; validCurrent: number; legacy: number; invalid: number; invalidReasons: Record<string, number> }): string | null {
++  if (quality.legacy === 0 && quality.invalid === 0) return null;
++  return `已隔離 ${quality.legacy} 個 legacy 同 ${quality.invalid} 個無效 snapshots；current 統計只使用 ${quality.validCurrent} 個有效 snapshots。`;
++}
++
+ type GroupableMarketCard = {
+   id: string;
+   matchId: string;
+@@ -23,8 +57,10 @@ export function groupMarketCards<T extends GroupableMarketCard>(cards: T[]): Arr
+   }).sort((left, right) => Date.parse(left.primary.commenceTime) - Date.parse(right.primary.commenceTime));
+ }
+ 
+-export function hasPredictionSnapshot(row: { prediction: string; modelVersion?: string }): boolean {
+-  return Boolean(row.modelVersion) && row.prediction !== "未有賽前快照";
++export function hasPredictionSnapshot(row: { prediction: string; modelVersion?: string; snapshotStatus?: string }): boolean {
++  return Boolean(row.modelVersion)
++    && row.prediction !== "未有賽前快照"
++    && (!("snapshotStatus" in row) || row.snapshotStatus === "valid-current");
+ }
+ 
+ export function filterHistoryRows<T extends { market: string }>(rows: T[], market: string): T[] {
+@@ -116,8 +152,10 @@ export function excludeLegacyRows<T extends { modelVersion?: string }>(rows: T[]
+   return rows.filter((row) => row.modelVersion !== "legacy-v0");
+ }
+ 
+-export function currentModelRows<T extends { modelVersion?: string }>(rows: T[]): T[] {
+-  return rows.filter((row) => Boolean(row.modelVersion) && row.modelVersion !== "legacy-v0");
++export function currentModelRows<T extends { modelVersion?: string; snapshotStatus?: string }>(rows: T[]): T[] {
++  return rows.filter((row) => Boolean(row.modelVersion)
++    && row.modelVersion !== "legacy-v0"
++    && (!("snapshotStatus" in row) || row.snapshotStatus === "valid-current"));
+ }
+ 
+ export function predictionDistribution(rows: PerformanceRow[]) {
+@@ -172,3 +210,7 @@ function cardRank(card: GroupableMarketCard): number {
+   if (card.pickLabel === "資料不足，唔買") return 0;
+   return 1;
+ }
++
++function isNonnegativeInteger(value: unknown): value is number {
++  return typeof value === "number" && Number.isInteger(value) && value >= 0;
++}
+
+diff --git a/.superpowers/sdd/task-5-base/marketDisplay.test.ts b/src/marketDisplay.test.ts
+index e36521d..8b29588 100644
+--- a/.superpowers/sdd/task-5-base/marketDisplay.test.ts
++++ b/src/marketDisplay.test.ts
+@@ -1,5 +1,40 @@
+ import { describe, expect, it } from "vitest";
+-import { calibrationBuckets, cornerPickLabel, currentModelRows, excludeLegacyRows, filterHistoryRows, groupMarketCards, hasPredictionSnapshot, predictionDistribution, selectDistinctPerformanceRows, summarizeHistoryRows, summarizePerformanceRows } from "./marketDisplay";
++import { calibrationBuckets, clearBacktestResponseState, cornerPickLabel, currentModelRows, excludeLegacyRows, filterHistoryRows, groupMarketCards, hasPredictionSnapshot, isSnapshotQuality, predictionDistribution, selectDistinctPerformanceRows, snapshotQualityMessage, summarizeHistoryRows, summarizePerformanceRows } from "./marketDisplay";
++
++describe("backtest response state", () => {
++  it("clears response-owned data when a load fails after a success", () => {
++    expect(clearBacktestResponseState({
++      resultEntries: [{ id: "settled-row" }],
++      readiness: [{ modelVersion: "totals-v1" }],
++      snapshotQuality: { raw: 3, validCurrent: 3, legacy: 0, invalid: 0, invalidReasons: {} },
++    })).toEqual({ resultEntries: [], readiness: [], snapshotQuality: null });
++  });
++});
++
++describe("snapshot quality presentation", () => {
++  it("warns when legacy or invalid snapshots are isolated", () => {
++    expect(snapshotQualityMessage({ raw: 183, validCurrent: 3, legacy: 90, invalid: 90, invalidReasons: { "missing-commence-time": 87 } }))
++      .toBe("已隔離 90 個 legacy 同 90 個無效 snapshots；current 統計只使用 3 個有效 snapshots。");
++    expect(snapshotQualityMessage({ raw: 3, validCurrent: 3, legacy: 0, invalid: 0, invalidReasons: {} })).toBeNull();
++  });
++
++  it("accepts only well-shaped nonnegative integer quality counts", () => {
++    const valid = { raw: 3, validCurrent: 2, legacy: 1, invalid: 0, invalidReasons: { "invalid-odds": 0 } };
++
++    expect(isSnapshotQuality(valid)).toBe(true);
++    expect([
++      undefined,
++      [],
++      { ...valid, raw: -1 },
++      { ...valid, legacy: 0.5 },
++      { raw: 3, validCurrent: 2, legacy: 1, invalid: 0 },
++      { ...valid, invalidReasons: [] },
++      { ...valid, invalidReasons: { "invalid-odds": -1 } },
++      { ...valid, invalidReasons: { "invalid-odds": 1.5 } },
++      { ...valid, invalidReasons: { "invalid-odds": "1" } },
++    ].map(isSnapshotQuality)).toEqual(Array(9).fill(false));
++  });
++});
+ 
+ describe("market card presentation", () => {
+   it("never presents a buy when fewer than two bookmakers support the line", () => {
+@@ -31,6 +66,17 @@ describe("market card presentation", () => {
+     expect(hasPredictionSnapshot({ prediction: "主" })).toBe(false);
+   });
+ 
++  it("honors valid-current status when supplied while accepting old-server rows", () => {
++    const rows = [
++      { prediction: "大", modelVersion: "totals-v1", snapshotStatus: "valid-current" },
++      { prediction: "細", modelVersion: "totals-v1", snapshotStatus: "invalid" },
++      { prediction: "大", modelVersion: "totals-v1" },
++    ];
++
++    expect(rows.map(hasPredictionSnapshot)).toEqual([true, false, true]);
++    expect(currentModelRows(rows)).toEqual([rows[0], rows[2]]);
++  });
++
+   it("hides legacy rows without dropping raw result rows", () => {
+     const rows = [{ modelVersion: "corner-loo-v1" }, { modelVersion: "legacy-v0" }, {}];
+     expect(excludeLegacyRows(rows)).toEqual([rows[0], rows[2]]);

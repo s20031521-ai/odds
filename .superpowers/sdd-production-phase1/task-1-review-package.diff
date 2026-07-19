@@ -1,0 +1,873 @@
+﻿# server.mjs before/after
+diff --git a/.superpowers/sdd-production-phase1/task-1-base/server.mjs b/server.mjs
+index 82b1f9b..f1ca229 100644
+--- a/.superpowers/sdd-production-phase1/task-1-base/server.mjs
++++ b/server.mjs
+@@ -1,29 +1,40 @@
+ import { createServer } from "node:http";
+ import { mkdir, readFile, writeFile } from "node:fs/promises";
+ import { spawn } from "node:child_process";
+ import path from "node:path";
+ import { fileURLToPath } from "node:url";
+ import { classifySnapshot, summarizeSnapshotQuality } from "./shared/snapshot-policy.mjs";
++import {
++  buildBacktest,
++  buildHealth,
++  bucket,
++  flattenLiveCache,
++  groupSummary,
++  mergeResults,
++  mergeSnapshots,
++  oddsScoreRows,
++  selectBacktestResults,
++  summarize,
++} from "./server/domain/backtest.mjs";
++import { liveOddsIdentity } from "./server/domain/identity.mjs";
+ 
+ const root = path.dirname(fileURLToPath(import.meta.url));
+ const dataDir = path.join(root, "data");
+ const predictionsPath = path.join(dataDir, "prediction-snapshots.jsonl");
+ const resultArchivePath = path.join(dataDir, "result-archive.jsonl");
+ const backgroundPredictionsPath = path.join(dataDir, "background-hdc-snapshots.jsonl");
+ const backgroundResultsPath = path.join(dataDir, "background-result-archive.jsonl");
+ const backgroundLivePath = path.join(dataDir, "background-hdc-odds.json");
+ const collectorStatePath = path.join(dataDir, "hdc-collector-state.json");
+ const hkjcPath = path.join(root, "public", "hkjc-odds.json");
+ const port = Number(process.env.PORT ?? 8787);
+-const SETTLEMENT_GRACE_MS = 180 * 60_000;
+-const DATA_FRESH_MS = 45 * 60_000;
+ let snapshotWrite = Promise.resolve();
+ let resultWrite = Promise.resolve();
+ 
+ if (process.argv.includes("--self-test")) {
+   function validSnapshot(overrides = {}) {
+     const snapshot = { odds: 2, chance: 0.55, savedAt: "2026-07-11T05:00:00Z", commenceTime: "2026-07-11T06:00:00Z", modelVersion: "self-test-v1", ...overrides };
+     if (!Number.isFinite(Date.parse(snapshot.savedAt))) snapshot.savedAt = "2026-07-11T05:00:00Z";
+     if (!Number.isFinite(Date.parse(snapshot.commenceTime))) snapshot.commenceTime = "2026-07-11T06:00:00Z";
+     if (!Number.isFinite(snapshot.odds) || snapshot.odds <= 1) snapshot.odds = 2;
+     if (!Number.isFinite(snapshot.chance)) snapshot.chance = 0.55;
+@@ -185,334 +196,72 @@ createServer(async (req, res) => {
+     if (req.method === "POST" && req.url === "/api/import/hkjc") {
+       const output = await run("node", ["scripts/hkjc-import.mjs"]);
+       return send(res, 200, { output });
+     }
+     send(res, 404, { error: "not found" });
+   } catch (error) {
+     send(res, 500, { error: error instanceof Error ? error.message : "server error" });
+   }
+ }).listen(port, "127.0.0.1", () => console.log(`[server] http://127.0.0.1:${port}`));
+ 
+-function flattenLiveCache(cached) {
+-  const items = Object.values(cached ?? {});
+-  return {
+-    h2hEntries: items.flatMap((item) => item?.h2hEntries ?? []),
+-    handicapEntries: items.flatMap((item) => item?.handicapEntries ?? item?.entries ?? []),
+-    totalEntries: items.flatMap((item) => item?.totalEntries ?? []),
+-    cornerEntries: items.flatMap((item) => item?.cornerEntries ?? []),
+-  };
+-}
+-
+ async function readHealth(now = Date.now()) {
+   const [collector, hkjc] = await Promise.all([
+     readJsonFile(collectorStatePath, {}),
+     readJsonFile(hkjcPath, {}),
+   ]);
+   return buildHealth({ collector: collector.lastDiscoveryAt, hkjc: hkjc.generatedAt }, now);
+ }
+ 
+-function buildHealth(updatedAtBySource, now = Date.now()) {
+-  const sources = Object.fromEntries(["collector", "hkjc"].map((name) => {
+-    const updatedAt = updatedAtBySource?.[name] ?? null;
+-    const timestamp = Date.parse(updatedAt ?? "");
+-    const ageMs = Number.isFinite(timestamp) ? Math.max(0, now - timestamp) : null;
+-    return [name, { updatedAt, ageMs, stale: ageMs === null || ageMs > DATA_FRESH_MS }];
+-  }));
+-  const staleSources = Object.entries(sources).filter(([, source]) => source.stale).map(([name]) => name);
+-  return { ok: true, dataFresh: staleSources.length === 0, checkedAt: new Date(now).toISOString(), staleSources, sources };
+-}
+-
+-function buildBacktest(snapshots, results, now = Date.now()) {
+-  const stored = mergeSnapshots([], snapshots);
+-  const snapshotQuality = summarizeSnapshotQuality(stored);
+-  const usable = stored.filter((item) => classifySnapshot(item).status === "valid-current");
+-  const rows = results.flatMap((row) => {
+-    const matches = snapshotsForResult(usable, row);
+-    if (matches.length === 0) return { ...row, prediction: "未有賽前快照", hit: null, settlement: null, odds: undefined, chance: undefined, modelVersion: undefined };
+-    return matches.map((snapshot) => {
+-      const settlement = settle(snapshot, row.actual);
+-      return {
+-        ...row,
+-        id: `${row.id ?? `${row.matchId}-${row.market}`}|${snapshotKey(snapshot)}`,
+-        prediction: snapshot.prediction,
+-        line: snapshot.line ?? row.line,
+-        odds: snapshot.odds,
+-        chance: snapshot.chance,
+-        edge: snapshot.edge,
+-        savedAt: snapshot.savedAt,
+-        snapshotStatus: "valid-current",
+-        modelVersion: snapshot.modelVersion,
+-        source: snapshot.source,
+-        settlement,
+-        hit: settlementHit(settlement),
+-      };
+-    });
+-  });
+-  const finished = rows.filter((row) => row.settlement);
+-  return { rows, summary: summarize(finished), byMarket: groupSummary(finished, (row) => row.market), buckets: groupSummary(finished, (row) => bucket(row.chance)), readiness: summarizeReadiness(usable, finished, results, now), snapshotQuality };
+-}
+-
+-function summarizeReadiness(snapshots, finished, results, now) {
+-  const settled = new Set(finished.map(snapshotKey));
+-  const commenceByMatch = new Map(results.filter((item) => item?.matchId && item?.commenceTime).map((item) => [item.matchId, item.commenceTime]));
+-  return [...Map.groupBy(snapshots, (item) => `${item.market}|${item.modelVersion ?? "legacy-v0"}`)].map(([key, items]) => {
+-    const [market, modelVersion] = key.split("|");
+-    const chances = items.map((item) => item.chance).filter(Number.isFinite);
+-    const directions = Object.fromEntries([...Map.groupBy(items, (item) => item.prediction)].map(([direction, matches]) => [direction, matches.length]));
+-    const [dominantDirection, dominantCount] = Object.entries(directions).sort((a, b) => b[1] - a[1])[0] ?? ["", 0];
+-    const settledCount = items.filter((item) => settled.has(snapshotKey(item))).length;
+-    const pendingItems = items.filter((item) => !settled.has(snapshotKey(item)));
+-    const pendingStatus = pendingItems.reduce((status, item) => {
+-      const kickoff = Date.parse(item.commenceTime ?? commenceByMatch.get(item.matchId));
+-      if (!Number.isFinite(kickoff)) status.unknownPending += 1;
+-      else if (now < kickoff) status.upcoming += 1;
+-      else if (now < kickoff + SETTLEMENT_GRACE_MS) status.settling += 1;
+-      else status.overdue += 1;
+-      return status;
+-    }, { upcoming: 0, settling: 0, overdue: 0, unknownPending: 0 });
+-    const allMatchIds = new Set(items.map((item) => item.matchId));
+-    const settledMatchIds = new Set(items.filter((item) => settled.has(snapshotKey(item))).map((item) => item.matchId));
+-    const pendingByMatch = Map.groupBy(pendingItems, (item) => item.matchId);
+-    const pendingMatchStatus = [...pendingByMatch.values()].reduce((status, matchItems) => {
+-      const item = matchItems[0];
+-      const kickoff = Date.parse(item.commenceTime ?? commenceByMatch.get(item.matchId));
+-      if (!Number.isFinite(kickoff)) status.unknownPendingMatches += 1;
+-      else if (now < kickoff) status.upcomingMatches += 1;
+-      else if (now < kickoff + SETTLEMENT_GRACE_MS) status.settlingMatches += 1;
+-      else status.overdueMatches += 1;
+-      return status;
+-    }, { upcomingMatches: 0, settlingMatches: 0, overdueMatches: 0, unknownPendingMatches: 0 });
+-    return {
+-      market, modelVersion, snapshots: items.length, settled: settledCount, pending: items.length - settledCount,
+-      matches: allMatchIds.size, settledMatches: settledMatchIds.size, pendingMatches: pendingByMatch.size,
+-      ...pendingStatus, ...pendingMatchStatus,
+-      priced: items.filter((item) => Number.isFinite(item.odds) && item.odds > 1).length,
+-      chanceCount: chances.length, chanceAverage: chances.length ? chances.reduce((sum, value) => sum + value, 0) / chances.length : null,
+-      chanceMin: chances.length ? Math.min(...chances) : null, chanceMax: chances.length ? Math.max(...chances) : null,
+-      bookmakerCount: items.filter((item) => typeof item.bookmaker === "string" && item.bookmaker).length,
+-      sources: [...new Set(items.map((item) => item.source).filter(Boolean))], directions,
+-      dominantDirection, dominantShare: items.length ? dominantCount / items.length : 0,
+-    };
+-  });
+-}
+-
+-function summarize(rows) {
+-  rows = selectDistinctPerformanceRows(rows);
+-  const hit = rows.filter((row) => row.hit).length;
+-  const miss = rows.filter((row) => row.hit === false).length;
+-  const push = rows.filter((row) => row.settlement === "push").length;
+-  const priced = rows.filter((row) => Number.isFinite(row.odds) && row.odds > 1);
+-  const profit = priced.reduce((total, row) => total + settlementProfit(row.settlement, row.odds), 0);
+-  const roi = priced.length ? profit / priced.length : null;
+-  return { finished: rows.length, hit, miss, push, hitRate: hit + miss ? hit / (hit + miss) : 0, priced: priced.length, profit, roi, yield: roi };
+-}
+-
+-function groupSummary(rows, keyFn) {
+-  rows = selectDistinctPerformanceRows(rows);
+-  return Object.fromEntries([...Map.groupBy(rows, keyFn)].map(([key, items]) => [key, summarize(items)]));
+-}
+-
+-function selectDistinctPerformanceRows(rows) {
+-  const selected = new Map();
+-  const ungrouped = [];
+-
+-  rows.forEach((row, index) => {
+-    if (typeof row.matchId !== "string" || !row.matchId.trim()) {
+-      ungrouped.push({ row, index });
+-      return;
+-    }
+-
+-    const key = `${row.market ?? ""}|${row.modelVersion ?? ""}|${row.matchId}`;
+-    const current = selected.get(key);
+-    if (!current || comparePerformanceRepresentatives(row, index, current.row, current.index) < 0) {
+-      selected.set(key, { row, index });
+-    }
+-  });
+-
+-  return [...selected.values(), ...ungrouped]
+-    .sort((left, right) => left.index - right.index)
+-    .map(({ row }) => row);
+-}
+-
+-function comparePerformanceRepresentatives(left, leftIndex, right, rightIndex) {
+-  const edgeOrder = compareFiniteNumbers(left.edge, right.edge, false);
+-  if (edgeOrder) return edgeOrder;
+-
+-  const savedAtOrder = compareFiniteNumbers(Date.parse(left.savedAt ?? ""), Date.parse(right.savedAt ?? ""), true);
+-  if (savedAtOrder) return savedAtOrder;
+-
+-  const lineOrder = compareFiniteNumbers(left.line, right.line, true);
+-  return lineOrder || leftIndex - rightIndex;
+-}
+-
+-function compareFiniteNumbers(left, right, ascending) {
+-  const leftValid = Number.isFinite(left);
+-  const rightValid = Number.isFinite(right);
+-  if (leftValid !== rightValid) return leftValid ? -1 : 1;
+-  if (!leftValid || left === right) return 0;
+-  return ascending ? left - right : right - left;
+-}
+-
+-function settle(snapshot, actual) {
+-  if (snapshot.market === "主客和") {
+-    const prediction = normalize(snapshot.prediction);
+-    const result = normalize(actual);
+-    return prediction && prediction === result ? "win" : result ? "loss" : null;
+-  }
+-  if (snapshot.market === "亞洲讓球") {
+-    const score = typeof actual === "string" ? actual.match(/(\d+)\s*-\s*(\d+)/) : null;
+-    if (!score || typeof snapshot.line !== "number" || (snapshot.prediction !== "主" && snapshot.prediction !== "客")) return null;
+-    const margin = Number(score[1]) - Number(score[2]);
+-    const returns = asianLines(snapshot.line).map((line) => Math.sign(snapshot.prediction === "主" ? margin + line : -(margin + line)));
+-    return settlementFromReturn(returns.reduce((sum, value) => sum + value, 0) / returns.length);
+-  }
+-  const total = parseFloat(actual);
+-  if (!Number.isFinite(total) || typeof snapshot.line !== "number") return null;
+-  const prediction = normalize(snapshot.prediction);
+-  if (prediction !== "大" && prediction !== "細") return null;
+-  const returns = asianLines(snapshot.line).map((line) => prediction === "大" ? Math.sign(total - line) : Math.sign(line - total));
+-  return settlementFromReturn(returns.reduce((sum, value) => sum + value, 0) / returns.length);
+-}
+-
+-function normalize(value) {
+-  if (typeof value !== "string") return "";
+-  if (value.includes("大")) return "大";
+-  if (value.includes("細")) return "細";
+-  return value === "和" || value === "和局" ? "和局" : value;
+-}
+-
+-function asianLines(line) {
+-  const quarter = Math.round((line - Math.floor(line)) * 4) / 4;
+-  if (quarter === 0.25) return [Math.floor(line), Math.floor(line) + 0.5];
+-  if (quarter === 0.75) return [Math.floor(line) + 0.5, Math.floor(line) + 1];
+-  return [line];
+-}
+-
+-function settlementFromReturn(value) {
+-  if (value === 1) return "win";
+-  if (value === 0.5) return "half-win";
+-  if (value === 0) return "push";
+-  if (value === -0.5) return "half-loss";
+-  return "loss";
+-}
+-
+-function settlementHit(settlement) {
+-  return settlement === "win" || settlement === "half-win" ? true : settlement === "loss" || settlement === "half-loss" ? false : null;
+-}
+-
+-function settlementProfit(settlement, odds) {
+-  if (settlement === "win") return odds - 1;
+-  if (settlement === "half-win") return (odds - 1) / 2;
+-  if (settlement === "half-loss") return -0.5;
+-  if (settlement === "loss") return -1;
+-  return 0;
+-}
+-
+-function bucket(chance) {
+-  if (!Number.isFinite(chance)) return "unknown";
+-  const low = Math.floor((chance * 100) / 5) * 5;
+-  return `${low}-${low + 5}%`;
+-}
+-
+-function isPredictionSnapshot(item) {
+-  return item && typeof item.matchId === "string" && typeof item.market === "string" && typeof item.prediction === "string" && typeof item.savedAt === "string";
+-}
+-
+ function isIncomingPredictionSnapshot(item) {
+   return classifySnapshot(item).status === "valid-current";
+ }
+ 
+ function partitionIncomingSnapshots(incoming) {
+   const snapshots = [];
+   const rejectedByReason = {};
+   for (const item of incoming) {
+     const classification = classifySnapshot(item);
+     if (classification.status === "valid-current") snapshots.push(item);
+     else {
+       const reason = classification.reason ?? classification.status;
+       rejectedByReason[reason] = (rejectedByReason[reason] ?? 0) + 1;
+     }
+   }
+   return { snapshots, rejectedByReason };
+ }
+ 
+-function snapshotKey(item) {
+-  return `${item.matchId}|${item.market}|${Number.isFinite(item.line) ? item.line : ""}|${item.modelVersion ?? "legacy-v0"}`;
+-}
+-
+-function snapshotsForResult(snapshots, result) {
+-  return snapshots.filter((snapshot) =>
+-    snapshot.matchId === result.matchId
+-    && snapshot.market === result.market
+-    && (!Number.isFinite(result.line) || !Number.isFinite(snapshot.line) || snapshot.line === result.line));
+-}
+-
+-function mergeSnapshots(existing, incoming) {
+-  const byKey = new Map();
+-  for (const item of [...existing, ...incoming]) {
+-    if (isPredictionSnapshot(item) && !byKey.has(snapshotKey(item))) {
+-      byKey.set(snapshotKey(item), { ...item, modelVersion: item.modelVersion ?? "legacy-v0" });
+-    }
+-  }
+-  return [...byKey.values()];
+-}
+-
+-function mergeResults(existing, incoming) {
+-  const byKey = new Map();
+-  for (const item of [...existing, ...incoming]) byKey.set(`${item.matchId}|${item.market}`, item);
+-  return [...byKey.values()];
+-}
+-
+ function persistSnapshots(incoming) {
+   const write = snapshotWrite.then(async () => {
+     const existing = await readJsonl(predictionsPath);
+     const merged = mergeSnapshots(existing, incoming);
+     await mkdir(dataDir, { recursive: true });
+     await writeFile(predictionsPath, merged.map((item) => JSON.stringify(item)).join("\n") + (merged.length ? "\n" : ""));
+     return merged.length - mergeSnapshots(existing, []).length;
+   });
+   snapshotWrite = write.catch(() => {});
+   return write;
+ }
+ 
+-function oddsScoreRows(events) {
+-  return (Array.isArray(events) ? events : []).flatMap((event) => {
+-    if (!event?.completed || !Array.isArray(event.scores)) return [];
+-    const home = Number(event.scores.find((score) => score.name === event.home_team)?.score);
+-    const away = Number(event.scores.find((score) => score.name === event.away_team)?.score);
+-    if (!Number.isFinite(home) || !Number.isFinite(away)) return [];
+-    const base = { matchId: event.id, homeTeam: event.home_team, awayTeam: event.away_team, commenceTime: event.commence_time, score: `${home}-${away}`, actual: `${home}-${away}`, prediction: "未有賽前快照", hit: null };
+-    return [
+-      { ...base, id: `${event.id}-odds-hdc-result`, market: "亞洲讓球" },
+-      { ...base, id: `${event.id}-odds-totals-result`, market: "大細波", actual: `${home + away} 球` },
+-    ];
+-  });
+-}
+-
+ function persistResults(incoming) {
+   const write = resultWrite.then(async () => {
+     const existing = await readJsonl(resultArchivePath);
+-    const byId = new Map(existing.map((item) => [item.id ?? `${item.matchId}-${item.market}`, item]));
+-    for (const item of incoming) byId.set(item.id ?? `${item.matchId}-${item.market}`, item);
++    const byId = new Map(existing.map((item) => [liveOddsIdentity(item), item]));
++    for (const item of incoming) byId.set(liveOddsIdentity(item), item);
+     const merged = [...byId.values()];
+     await mkdir(dataDir, { recursive: true });
+     await writeFile(resultArchivePath, merged.map((item) => JSON.stringify(item)).join("\n") + (merged.length ? "\n" : ""));
+     return merged.length - existing.length;
+   });
+   resultWrite = write.catch(() => {});
+   return write;
+ }
+ 
+-function selectBacktestResults(liveResults, archivedResults) {
+-  return archivedResults.length ? archivedResults : liveResults;
+-}
+-
+ async function readHkjc() {
+   return JSON.parse(await readFile(hkjcPath, "utf8"));
+ }
+ 
+ async function readJsonl(file) {
+   try {
+     const text = await readFile(file, "utf8");
+     return text.trim() ? text.trim().split(/\r?\n/).map((line) => JSON.parse(line)) : [];
+   } catch (error) {
+     if (error?.code === "ENOENT") return [];
+# new server/domain/backtest.mjs
+diff --git a/server/domain/backtest.mjs b/server/domain/backtest.mjs
+new file mode 100644
+index 0000000..4b74a30
+--- /dev/null
++++ b/server/domain/backtest.mjs
+@@ -0,0 +1,263 @@
++import { classifySnapshot, summarizeSnapshotQuality } from "../../shared/snapshot-policy.mjs";
++import { resultIdentity, snapshotIdentity } from "./identity.mjs";
++
++const SETTLEMENT_GRACE_MS = 180 * 60_000;
++const DATA_FRESH_MS = 45 * 60_000;
++
++export function flattenLiveCache(cached) {
++  const items = Object.values(cached ?? {});
++  return {
++    h2hEntries: items.flatMap((item) => item?.h2hEntries ?? []),
++    handicapEntries: items.flatMap((item) => item?.handicapEntries ?? item?.entries ?? []),
++    totalEntries: items.flatMap((item) => item?.totalEntries ?? []),
++    cornerEntries: items.flatMap((item) => item?.cornerEntries ?? []),
++  };
++}
++
++export function buildHealth(updatedAtBySource, now = Date.now()) {
++  const sources = Object.fromEntries(["collector", "hkjc"].map((name) => {
++    const updatedAt = updatedAtBySource?.[name] ?? null;
++    const timestamp = Date.parse(updatedAt ?? "");
++    const ageMs = Number.isFinite(timestamp) ? Math.max(0, now - timestamp) : null;
++    return [name, { updatedAt, ageMs, stale: ageMs === null || ageMs > DATA_FRESH_MS }];
++  }));
++  const staleSources = Object.entries(sources).filter(([, source]) => source.stale).map(([name]) => name);
++  return { ok: true, dataFresh: staleSources.length === 0, checkedAt: new Date(now).toISOString(), staleSources, sources };
++}
++
++export function buildBacktest(snapshots, results, now = Date.now()) {
++  const stored = mergeSnapshots([], snapshots);
++  const snapshotQuality = summarizeSnapshotQuality(stored);
++  const usable = stored.filter((item) => classifySnapshot(item).status === "valid-current");
++  const rows = results.flatMap((row) => {
++    const matches = snapshotsForResult(usable, row);
++    if (matches.length === 0) return { ...row, prediction: "未有賽前快照", hit: null, settlement: null, odds: undefined, chance: undefined, modelVersion: undefined };
++    return matches.map((snapshot) => {
++      const settlement = settle(snapshot, row.actual);
++      return {
++        ...row,
++        id: `${row.id ?? `${row.matchId}-${row.market}`}|${snapshotIdentity(snapshot)}`,
++        prediction: snapshot.prediction,
++        line: snapshot.line ?? row.line,
++        odds: snapshot.odds,
++        chance: snapshot.chance,
++        edge: snapshot.edge,
++        savedAt: snapshot.savedAt,
++        snapshotStatus: "valid-current",
++        modelVersion: snapshot.modelVersion,
++        source: snapshot.source,
++        settlement,
++        hit: settlementHit(settlement),
++      };
++    });
++  });
++  const finished = rows.filter((row) => row.settlement);
++  return { rows, summary: summarize(finished), byMarket: groupSummary(finished, (row) => row.market), buckets: groupSummary(finished, (row) => bucket(row.chance)), readiness: summarizeReadiness(usable, finished, results, now), snapshotQuality };
++}
++
++function summarizeReadiness(snapshots, finished, results, now) {
++  const settled = new Set(finished.map(snapshotIdentity));
++  const commenceByMatch = new Map(results.filter((item) => item?.matchId && item?.commenceTime).map((item) => [item.matchId, item.commenceTime]));
++  return [...Map.groupBy(snapshots, (item) => `${item.market}|${item.modelVersion ?? "legacy-v0"}`)].map(([key, items]) => {
++    const [market, modelVersion] = key.split("|");
++    const chances = items.map((item) => item.chance).filter(Number.isFinite);
++    const directions = Object.fromEntries([...Map.groupBy(items, (item) => item.prediction)].map(([direction, matches]) => [direction, matches.length]));
++    const [dominantDirection, dominantCount] = Object.entries(directions).sort((a, b) => b[1] - a[1])[0] ?? ["", 0];
++    const settledCount = items.filter((item) => settled.has(snapshotIdentity(item))).length;
++    const pendingItems = items.filter((item) => !settled.has(snapshotIdentity(item)));
++    const pendingStatus = pendingItems.reduce((status, item) => {
++      const kickoff = Date.parse(item.commenceTime ?? commenceByMatch.get(item.matchId));
++      if (!Number.isFinite(kickoff)) status.unknownPending += 1;
++      else if (now < kickoff) status.upcoming += 1;
++      else if (now < kickoff + SETTLEMENT_GRACE_MS) status.settling += 1;
++      else status.overdue += 1;
++      return status;
++    }, { upcoming: 0, settling: 0, overdue: 0, unknownPending: 0 });
++    const allMatchIds = new Set(items.map((item) => item.matchId));
++    const settledMatchIds = new Set(items.filter((item) => settled.has(snapshotIdentity(item))).map((item) => item.matchId));
++    const pendingByMatch = Map.groupBy(pendingItems, (item) => item.matchId);
++    const pendingMatchStatus = [...pendingByMatch.values()].reduce((status, matchItems) => {
++      const item = matchItems[0];
++      const kickoff = Date.parse(item.commenceTime ?? commenceByMatch.get(item.matchId));
++      if (!Number.isFinite(kickoff)) status.unknownPendingMatches += 1;
++      else if (now < kickoff) status.upcomingMatches += 1;
++      else if (now < kickoff + SETTLEMENT_GRACE_MS) status.settlingMatches += 1;
++      else status.overdueMatches += 1;
++      return status;
++    }, { upcomingMatches: 0, settlingMatches: 0, overdueMatches: 0, unknownPendingMatches: 0 });
++    return {
++      market, modelVersion, snapshots: items.length, settled: settledCount, pending: items.length - settledCount,
++      matches: allMatchIds.size, settledMatches: settledMatchIds.size, pendingMatches: pendingByMatch.size,
++      ...pendingStatus, ...pendingMatchStatus,
++      priced: items.filter((item) => Number.isFinite(item.odds) && item.odds > 1).length,
++      chanceCount: chances.length, chanceAverage: chances.length ? chances.reduce((sum, value) => sum + value, 0) / chances.length : null,
++      chanceMin: chances.length ? Math.min(...chances) : null, chanceMax: chances.length ? Math.max(...chances) : null,
++      bookmakerCount: items.filter((item) => typeof item.bookmaker === "string" && item.bookmaker).length,
++      sources: [...new Set(items.map((item) => item.source).filter(Boolean))], directions,
++      dominantDirection, dominantShare: items.length ? dominantCount / items.length : 0,
++    };
++  });
++}
++
++export function summarize(rows) {
++  rows = selectDistinctPerformanceRows(rows);
++  const hit = rows.filter((row) => row.hit).length;
++  const miss = rows.filter((row) => row.hit === false).length;
++  const push = rows.filter((row) => row.settlement === "push").length;
++  const priced = rows.filter((row) => Number.isFinite(row.odds) && row.odds > 1);
++  const profit = priced.reduce((total, row) => total + settlementProfit(row.settlement, row.odds), 0);
++  const roi = priced.length ? profit / priced.length : null;
++  return { finished: rows.length, hit, miss, push, hitRate: hit + miss ? hit / (hit + miss) : 0, priced: priced.length, profit, roi, yield: roi };
++}
++
++export function groupSummary(rows, keyFn) {
++  rows = selectDistinctPerformanceRows(rows);
++  return Object.fromEntries([...Map.groupBy(rows, keyFn)].map(([key, items]) => [key, summarize(items)]));
++}
++
++function selectDistinctPerformanceRows(rows) {
++  const selected = new Map();
++  const ungrouped = [];
++
++  rows.forEach((row, index) => {
++    if (typeof row.matchId !== "string" || !row.matchId.trim()) {
++      ungrouped.push({ row, index });
++      return;
++    }
++
++    const key = `${row.market ?? ""}|${row.modelVersion ?? ""}|${row.matchId}`;
++    const current = selected.get(key);
++    if (!current || comparePerformanceRepresentatives(row, index, current.row, current.index) < 0) {
++      selected.set(key, { row, index });
++    }
++  });
++
++  return [...selected.values(), ...ungrouped]
++    .sort((left, right) => left.index - right.index)
++    .map(({ row }) => row);
++}
++
++function comparePerformanceRepresentatives(left, leftIndex, right, rightIndex) {
++  const edgeOrder = compareFiniteNumbers(left.edge, right.edge, false);
++  if (edgeOrder) return edgeOrder;
++
++  const savedAtOrder = compareFiniteNumbers(Date.parse(left.savedAt ?? ""), Date.parse(right.savedAt ?? ""), true);
++  if (savedAtOrder) return savedAtOrder;
++
++  const lineOrder = compareFiniteNumbers(left.line, right.line, true);
++  return lineOrder || leftIndex - rightIndex;
++}
++
++function compareFiniteNumbers(left, right, ascending) {
++  const leftValid = Number.isFinite(left);
++  const rightValid = Number.isFinite(right);
++  if (leftValid !== rightValid) return leftValid ? -1 : 1;
++  if (!leftValid || left === right) return 0;
++  return ascending ? left - right : right - left;
++}
++
++function settle(snapshot, actual) {
++  if (snapshot.market === "主客和") {
++    const prediction = normalize(snapshot.prediction);
++    const result = normalize(actual);
++    return prediction && prediction === result ? "win" : result ? "loss" : null;
++  }
++  if (snapshot.market === "亞洲讓球") {
++    const score = typeof actual === "string" ? actual.match(/(\d+)\s*-\s*(\d+)/) : null;
++    if (!score || typeof snapshot.line !== "number" || (snapshot.prediction !== "主" && snapshot.prediction !== "客")) return null;
++    const margin = Number(score[1]) - Number(score[2]);
++    const returns = asianLines(snapshot.line).map((line) => Math.sign(snapshot.prediction === "主" ? margin + line : -(margin + line)));
++    return settlementFromReturn(returns.reduce((sum, value) => sum + value, 0) / returns.length);
++  }
++  const total = parseFloat(actual);
++  if (!Number.isFinite(total) || typeof snapshot.line !== "number") return null;
++  const prediction = normalize(snapshot.prediction);
++  if (prediction !== "大" && prediction !== "細") return null;
++  const returns = asianLines(snapshot.line).map((line) => prediction === "大" ? Math.sign(total - line) : Math.sign(line - total));
++  return settlementFromReturn(returns.reduce((sum, value) => sum + value, 0) / returns.length);
++}
++
++function normalize(value) {
++  if (typeof value !== "string") return "";
++  if (value.includes("大")) return "大";
++  if (value.includes("細")) return "細";
++  return value === "和" || value === "和局" ? "和局" : value;
++}
++
++function asianLines(line) {
++  const quarter = Math.round((line - Math.floor(line)) * 4) / 4;
++  if (quarter === 0.25) return [Math.floor(line), Math.floor(line) + 0.5];
++  if (quarter === 0.75) return [Math.floor(line) + 0.5, Math.floor(line) + 1];
++  return [line];
++}
++
++function settlementFromReturn(value) {
++  if (value === 1) return "win";
++  if (value === 0.5) return "half-win";
++  if (value === 0) return "push";
++  if (value === -0.5) return "half-loss";
++  return "loss";
++}
++
++function settlementHit(settlement) {
++  return settlement === "win" || settlement === "half-win" ? true : settlement === "loss" || settlement === "half-loss" ? false : null;
++}
++
++function settlementProfit(settlement, odds) {
++  if (settlement === "win") return odds - 1;
++  if (settlement === "half-win") return (odds - 1) / 2;
++  if (settlement === "half-loss") return -0.5;
++  if (settlement === "loss") return -1;
++  return 0;
++}
++
++export function bucket(chance) {
++  if (!Number.isFinite(chance)) return "unknown";
++  const low = Math.floor((chance * 100) / 5) * 5;
++  return `${low}-${low + 5}%`;
++}
++
++function isPredictionSnapshot(item) {
++  return item && typeof item.matchId === "string" && typeof item.market === "string" && typeof item.prediction === "string" && typeof item.savedAt === "string";
++}
++
++function snapshotsForResult(snapshots, result) {
++  return snapshots.filter((snapshot) =>
++    snapshot.matchId === result.matchId
++    && snapshot.market === result.market
++    && (!Number.isFinite(result.line) || !Number.isFinite(snapshot.line) || snapshot.line === result.line));
++}
++
++export function mergeSnapshots(existing, incoming) {
++  const byKey = new Map();
++  for (const item of [...existing, ...incoming]) {
++    if (isPredictionSnapshot(item) && !byKey.has(snapshotIdentity(item))) {
++      byKey.set(snapshotIdentity(item), { ...item, modelVersion: item.modelVersion ?? "legacy-v0" });
++    }
++  }
++  return [...byKey.values()];
++}
++
++export function mergeResults(existing, incoming) {
++  const byKey = new Map();
++  for (const item of [...existing, ...incoming]) byKey.set(resultIdentity(item), item);
++  return [...byKey.values()];
++}
++
++export function oddsScoreRows(events) {
++  return (Array.isArray(events) ? events : []).flatMap((event) => {
++    if (!event?.completed || !Array.isArray(event.scores)) return [];
++    const home = Number(event.scores.find((score) => score.name === event.home_team)?.score);
++    const away = Number(event.scores.find((score) => score.name === event.away_team)?.score);
++    if (!Number.isFinite(home) || !Number.isFinite(away)) return [];
++    const base = { matchId: event.id, homeTeam: event.home_team, awayTeam: event.away_team, commenceTime: event.commence_time, score: `${home}-${away}`, actual: `${home}-${away}`, prediction: "未有賽前快照", hit: null };
++    return [
++      { ...base, id: `${event.id}-odds-hdc-result`, market: "亞洲讓球" },
++      { ...base, id: `${event.id}-odds-totals-result`, market: "大細波", actual: `${home + away} 球` },
++    ];
++  });
++}
++
++export function selectBacktestResults(liveResults, archivedResults) {
++  return archivedResults.length ? archivedResults : liveResults;
++}
+# new server/domain/identity.mjs
+diff --git a/server/domain/identity.mjs b/server/domain/identity.mjs
+new file mode 100644
+index 0000000..0e8ff21
+--- /dev/null
++++ b/server/domain/identity.mjs
+@@ -0,0 +1,11 @@
++export function snapshotIdentity(snapshot) {
++  return `${snapshot.matchId}|${snapshot.market}|${Number.isFinite(snapshot.line) ? snapshot.line : ""}|${snapshot.modelVersion ?? "legacy-v0"}`;
++}
++
++export function resultIdentity(result) {
++  return `${result.matchId}|${result.market}`;
++}
++
++export function liveOddsIdentity(entry) {
++  return entry.id ?? `${entry.matchId}-${entry.market}`;
++}
+# new server/domain/backtest.test.mjs
+diff --git a/server/domain/backtest.test.mjs b/server/domain/backtest.test.mjs
+new file mode 100644
+index 0000000..062b9eb
+--- /dev/null
++++ b/server/domain/backtest.test.mjs
+@@ -0,0 +1,193 @@
++import test from "node:test";
++import assert from "node:assert/strict";
++import {
++  bucket,
++  buildBacktest,
++  buildHealth,
++  flattenLiveCache,
++  groupSummary,
++  mergeResults,
++  mergeSnapshots,
++  oddsScoreRows,
++  selectBacktestResults,
++  summarize,
++} from "./backtest.mjs";
++import { liveOddsIdentity, resultIdentity, snapshotIdentity } from "./identity.mjs";
++import { classifySnapshot } from "../../shared/snapshot-policy.mjs";
++
++const NOW = Date.parse("2026-07-11T12:00:00Z");
++const TOTALS = "大細波";
++const HANDICAP = "亞洲讓球";
++const CORNERS = "角球";
++
++function validSnapshot(overrides = {}) {
++  const snapshot = {
++    odds: 2,
++    chance: 0.55,
++    savedAt: "2026-07-11T05:00:00Z",
++    commenceTime: "2026-07-11T06:00:00Z",
++    modelVersion: "self-test-v1",
++    ...overrides,
++  };
++  if (!Number.isFinite(Date.parse(snapshot.savedAt))) snapshot.savedAt = "2026-07-11T05:00:00Z";
++  if (!Number.isFinite(Date.parse(snapshot.commenceTime))) snapshot.commenceTime = "2026-07-11T06:00:00Z";
++  if (!Number.isFinite(snapshot.odds) || snapshot.odds <= 1) snapshot.odds = 2;
++  if (!Number.isFinite(snapshot.chance)) snapshot.chance = 0.55;
++  if (!snapshot.modelVersion) snapshot.modelVersion = "self-test-v1";
++  return snapshot;
++}
++
++test("preserves quarter-line settlement and push denominators", () => {
++  const snapshots = [
++    { matchId: "win", market: TOTALS, prediction: "大", line: 2.25 },
++    { matchId: "half-win", market: TOTALS, prediction: "大", line: 2.75 },
++    { matchId: "push", market: TOTALS, prediction: "大", line: 3 },
++    { matchId: "half-loss", market: TOTALS, prediction: "大", line: 3.25 },
++    { matchId: "loss", market: TOTALS, prediction: "大", line: 3.25 },
++  ].map(validSnapshot);
++  const response = buildBacktest(snapshots, [
++    { matchId: "win", market: TOTALS, actual: "3 球" },
++    { matchId: "half-win", market: TOTALS, actual: "3 球" },
++    { matchId: "push", market: TOTALS, actual: "3 球" },
++    { matchId: "half-loss", market: TOTALS, actual: "3 球" },
++    { matchId: "loss", market: TOTALS, actual: "2 球" },
++  ], NOW);
++
++  assert.deepEqual(response.rows.map((row) => row.settlement), ["win", "half-win", "push", "half-loss", "loss"]);
++  assert.equal(response.summary.hitRate, 3 / 6);
++});
++
++test("preserves every inline-self-test Asian handicap and corner settlement branch", () => {
++  const response = buildBacktest([
++    { matchId: "corner-half-win", market: CORNERS, prediction: "大角", line: 9.75 },
++    { matchId: "corner-half-loss", market: CORNERS, prediction: "大角", line: 9.25 },
++    { matchId: "hdc-half-win", market: HANDICAP, prediction: "主", line: -0.75 },
++    { matchId: "hdc-half-loss", market: HANDICAP, prediction: "主", line: -0.25 },
++    { matchId: "hdc-push", market: HANDICAP, prediction: "主", line: -1 },
++    { matchId: "hdc-away", market: HANDICAP, prediction: "客", line: -0.25 },
++  ].map(validSnapshot), [
++    { matchId: "corner-half-win", market: CORNERS, actual: "10 角球" },
++    { matchId: "corner-half-loss", market: CORNERS, actual: "9 角球" },
++    { matchId: "hdc-half-win", market: HANDICAP, actual: "2-1" },
++    { matchId: "hdc-half-loss", market: HANDICAP, actual: "1-1" },
++    { matchId: "hdc-push", market: HANDICAP, actual: "2-1" },
++    { matchId: "hdc-away", market: HANDICAP, actual: "1-1" },
++  ], NOW);
++
++  assert.deepEqual(response.rows.map((row) => row.settlement), ["half-win", "half-loss", "half-win", "half-loss", "push", "half-win"]);
++});
++
++test("preserves handicap settlement, distinct-match readiness, and valid snapshot classification", () => {
++  const snapshots = [
++    { matchId: "hdc", market: HANDICAP, prediction: "主", line: -0.75 },
++    { matchId: "upcoming", market: TOTALS, prediction: "細", line: 2.5, commenceTime: "2026-07-11T13:00:00Z", modelVersion: "totals-loo-v1" },
++    { matchId: "overdue", market: TOTALS, prediction: "大", line: 2.5, commenceTime: "2026-07-11T06:00:00Z", modelVersion: "totals-loo-v1" },
++    { matchId: "overdue", market: TOTALS, prediction: "大", line: 3, commenceTime: "2026-07-11T06:00:00Z", modelVersion: "totals-loo-v1" },
++  ].map(validSnapshot);
++  snapshots.push(
++    { ...validSnapshot({ matchId: "invalid", market: TOTALS, prediction: "大", line: 2.5 }), commenceTime: undefined },
++    { ...validSnapshot({ matchId: "legacy", market: TOTALS, prediction: "大", line: 2.5 }), modelVersion: undefined },
++  );
++  const response = buildBacktest(snapshots, [
++    { matchId: "hdc", market: HANDICAP, actual: "2-1" },
++    { matchId: "invalid", market: TOTALS, actual: "3 球" },
++    { matchId: "legacy", market: TOTALS, actual: "3 球" },
++  ], NOW);
++  const readiness = response.readiness.find((row) => row.market === TOTALS && row.modelVersion === "totals-loo-v1");
++
++  assert.equal(response.rows[0].settlement, "half-win");
++  assert.deepEqual({ snapshots: readiness.snapshots, matches: readiness.matches, pendingMatches: readiness.pendingMatches, upcoming: readiness.upcoming, overdue: readiness.overdue, upcomingMatches: readiness.upcomingMatches, overdueMatches: readiness.overdueMatches }, { snapshots: 3, matches: 2, pendingMatches: 2, upcoming: 1, overdue: 2, upcomingMatches: 1, overdueMatches: 1 });
++  assert.equal(response.snapshotQuality.validCurrent, 4);
++  assert.equal(response.snapshotQuality.legacy, 1);
++  assert.equal(response.snapshotQuality.invalid, 1);
++  assert.equal(response.rows.filter((row) => row.snapshotStatus === "valid-current").length, 1);
++});
++
++test("freezes versioned identities and result-source priority", () => {
++  const duplicate = validSnapshot({ matchId: "same", market: TOTALS, prediction: "大", line: 2.5, modelVersion: "totals-v1" });
++  const merged = mergeSnapshots([], [duplicate, { ...duplicate, odds: 9 }]);
++
++  assert.equal(merged.length, 1);
++  assert.equal(merged[0].odds, duplicate.odds);
++  assert.equal(snapshotIdentity(duplicate), "same|大細波|2.5|totals-v1");
++  assert.equal(snapshotIdentity({ matchId: "same", market: TOTALS, modelVersion: "totals-v1" }), "same|大細波||totals-v1");
++  assert.equal(snapshotIdentity({ matchId: "same", market: TOTALS, line: 2.5 }), "same|大細波|2.5|legacy-v0");
++  assert.equal(resultIdentity({ matchId: "same", market: TOTALS }), "same|大細波");
++  assert.equal(liveOddsIdentity({ id: "odds-1" }), "odds-1");
++  assert.equal(liveOddsIdentity({ matchId: "same", market: TOTALS }), "same-大細波");
++  assert.equal(mergeResults([{ matchId: "m", market: HANDICAP, actual: "1-0" }], [{ matchId: "m", market: HANDICAP, actual: "2-0" }])[0].actual, "2-0");
++  assert.equal(selectBacktestResults([{ matchId: "live" }], [{ matchId: "archive" }])[0].matchId, "archive");
++});
++
++test("keeps live cache, score conversion, and health shapes", () => {
++  const live = flattenLiveCache({ soccer_test: { h2hEntries: [{ id: "h2h" }], handicapEntries: [{ id: "hdc" }], totalEntries: [{ id: "totals" }], cornerEntries: [{ id: "corners" }] } });
++  const scores = oddsScoreRows([{ id: "odds-1", completed: true, commence_time: "2026-07-11T00:00:00Z", home_team: "A", away_team: "B", scores: [{ name: "A", score: "2" }, { name: "B", score: "1" }] }]);
++  const health = buildHealth({ collector: "2026-07-11T11:40:00Z", hkjc: "2026-07-11T11:50:00Z" }, NOW);
++
++  assert.deepEqual(live, { h2hEntries: [{ id: "h2h" }], handicapEntries: [{ id: "hdc" }], totalEntries: [{ id: "totals" }], cornerEntries: [{ id: "corners" }] });
++  assert.equal(scores[1].actual, "3 球");
++  assert.equal(scores[1].market, TOTALS);
++  assert.deepEqual({ ok: health.ok, dataFresh: health.dataFresh, staleSources: health.staleSources }, { ok: true, dataFresh: true, staleSources: [] });
++  const stale = buildHealth({ collector: "2026-07-11T10:00:00Z" }, NOW);
++  assert.deepEqual({ ok: stale.ok, dataFresh: stale.dataFresh, staleSources: stale.staleSources, collectorStale: stale.sources.collector.stale, hkjcStale: stale.sources.hkjc.stale }, { ok: true, dataFresh: false, staleSources: ["collector", "hkjc"], collectorStale: true, hkjcStale: true });
++});
++
++test("freezes representative selection order, profit, ROI, and chance buckets", () => {
++  const rows = [
++    { matchId: "distinct", market: TOTALS, modelVersion: "totals-v1", prediction: "細", settlement: "loss", hit: false, odds: 2, edge: 0.04, savedAt: "2026-07-09T01:00:00Z", line: 2.5, chance: 0.44 },
++    { matchId: "distinct", market: TOTALS, modelVersion: "totals-v1", prediction: "大", settlement: "win", hit: true, odds: 2, edge: 0.08, savedAt: "2026-07-09T02:00:00Z", line: 3, chance: 0.81 },
++  ];
++  const summary = summarize(rows.slice(0, 2));
++  const grouped = groupSummary(rows.slice(0, 2), (row) => row.market);
++  const buckets = groupSummary(rows.slice(0, 2), (row) => bucket(row.chance));
++
++  assert.deepEqual(summary, { finished: 1, hit: 1, miss: 0, push: 0, hitRate: 1, priced: 1, profit: 1, roi: 1, yield: 1 });
++  assert.deepEqual(grouped[TOTALS], summary);
++  assert.deepEqual(Object.keys(buckets), ["80-85%"]);
++  assert.deepEqual(buckets["80-85%"], summary);
++});
++
++test("freezes equal-edge representative tie-breakers through summary outputs", () => {
++  const common = { matchId: "tie", market: TOTALS, modelVersion: "totals-v1", edge: 0.08 };
++  const bySavedAt = summarize([
++    { ...common, settlement: "win", hit: true, odds: 3, savedAt: "2026-07-09T01:00:00Z", line: 3 },
++    { ...common, settlement: "loss", hit: false, odds: 2, savedAt: "2026-07-09T02:00:00Z", line: 2.5 },
++  ]);
++  const byLine = summarize([
++    { ...common, settlement: "loss", hit: false, odds: 2, savedAt: "2026-07-09T01:00:00Z", line: 2.5 },
++    { ...common, settlement: "win", hit: true, odds: 3, savedAt: "2026-07-09T01:00:00Z", line: 3 },
++  ]);
++  const byInsertionOrder = summarize([
++    { ...common, settlement: "loss", hit: false, odds: 2, savedAt: "2026-07-09T01:00:00Z", line: 2.5 },
++    { ...common, settlement: "win", hit: true, odds: 3, savedAt: "2026-07-09T01:00:00Z", line: 2.5 },
++  ]);
++
++  assert.deepEqual(bySavedAt, { finished: 1, hit: 1, miss: 0, push: 0, hitRate: 1, priced: 1, profit: 2, roi: 2, yield: 2 });
++  assert.deepEqual(byLine, { finished: 1, hit: 0, miss: 1, push: 0, hitRate: 0, priced: 1, profit: -1, roi: -1, yield: -1 });
++  assert.deepEqual(byInsertionOrder, { finished: 1, hit: 0, miss: 1, push: 0, hitRate: 0, priced: 1, profit: -1, roi: -1, yield: -1 });
++});
++
++test("freezes detailed current, legacy, and invalid snapshot classification reasons", () => {
++  const valid = validSnapshot({ matchId: "quality-valid", market: TOTALS, prediction: "大", line: 2.5, edge: 0.04, modelVersion: "totals-loo-v1", source: "test" });
++  const cases = [
++    [{ ...valid, matchId: "" }, "invalid", "missing-match-id"],
++    [{ ...valid, market: "" }, "invalid", "missing-market"],
++    [{ ...valid, prediction: "" }, "invalid", "invalid-prediction"],
++    [{ ...valid, savedAt: "" }, "invalid", "missing-saved-at"],
++    [{ ...valid, modelVersion: undefined }, "legacy", "legacy-model"],
++    [{ ...valid, commenceTime: undefined }, "invalid", "missing-commence-time"],
++    [{ ...valid, savedAt: "not-a-date" }, "invalid", "invalid-saved-at"],
++    [{ ...valid, commenceTime: "not-a-date" }, "invalid", "invalid-commence-time"],
++    [{ ...valid, savedAt: valid.commenceTime }, "invalid", "post-kickoff"],
++    [{ ...valid, odds: 1 }, "invalid", "invalid-odds"],
++    [{ ...valid, chance: 2 }, "invalid", "invalid-chance"],
++    [{ ...valid, edge: Number.NaN }, "invalid", "invalid-edge"],
++    [{ ...valid, line: undefined }, "invalid", "missing-line"],
++    [{ ...valid, line: 2.3 }, "invalid", "invalid-line"],
++  ];
++
++  assert.deepEqual(cases.map(([snapshot, status, reason]) => {
++    const actual = classifySnapshot(snapshot);
++    return [actual.status, actual.reason, status, reason];
++  }), cases.map(([, status, reason]) => [status, reason, status, reason]));
++});

@@ -1,0 +1,11 @@
+:root {
+  --color-bg: #11182b;
+  --color-surface: #182038;
+  --color-primary: #7c83c8;
+  --color-positive: #9ce2cf;
+  --color-warning: #f2c879;
+  --color-text: #f6f7ff;
+  --color-muted: #8e9cba;
+  --radius-card: 16px;
+  --touch-target: 44px;
+}

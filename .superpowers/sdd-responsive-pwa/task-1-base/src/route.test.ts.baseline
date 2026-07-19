@@ -1,0 +1,18 @@
+import { describe, expect, it } from "vitest";
+import { fixtureIdFromHash, pageFromHash } from "./route";
+
+describe("hash route", () => {
+  it("defaults to dashboard and accepts analyzer aliases", () => {
+    expect(pageFromHash("")).toBe("dashboard");
+    expect(pageFromHash("#/analysis")).toBe("analysis");
+    expect(pageFromHash("#analysis")).toBe("analysis");
+    expect(pageFromHash("#/history")).toBe("history");
+    expect(pageFromHash("#/nope")).toBe("dashboard");
+  });
+
+  it("extracts fixture id from dashboard detail hash", () => {
+    expect(fixtureIdFromHash("#/dashboard/game%201")).toBe("game 1");
+    expect(fixtureIdFromHash("#/dashboard")).toBeNull();
+    expect(fixtureIdFromHash("#/analysis")).toBeNull();
+  });
+});

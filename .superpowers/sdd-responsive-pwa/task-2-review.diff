@@ -1,0 +1,422 @@
+﻿Task 2 manual review package (no Git repository; includes contrast fix)
+
+
+===== .superpowers\sdd-responsive-pwa\task-2-base\src\main.tsx -> src\main.tsx =====
+
+warning: in the working copy of '.superpowers\sdd-responsive-pwa\task-2-base\src\main.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src\main.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/.superpowers\\sdd-responsive-pwa\\task-2-base\\src\\main.tsx" "b/src\\main.tsx"
+index 693ac2e..f3978bb 100644
+--- "a/.superpowers\\sdd-responsive-pwa\\task-2-base\\src\\main.tsx"
++++ "b/src\\main.tsx"
+@@ -1,6 +1,8 @@
+ import { StrictMode } from "react";
+ import { createRoot } from "react-dom/client";
+ import App from "./App";
++import "./styles/tokens.css";
++import "./styles/layout.css";
+ import "./styles.css";
+ 
+ createRoot(document.getElementById("root")!).render(
+
+===== .superpowers\sdd-responsive-pwa\task-2-base\src\styles.css -> src\styles.css =====
+
+warning: in the working copy of 'src\styles.css', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/.superpowers\\sdd-responsive-pwa\\task-2-base\\src\\styles.css" "b/src\\styles.css"
+index 0810eb8..6b368a3 100644
+--- "a/.superpowers\\sdd-responsive-pwa\\task-2-base\\src\\styles.css"
++++ "b/src\\styles.css"
+@@ -1,6 +1,6 @@
+ :root {
+-  color: #e5eefb;
+-  background: #07111f;
++  color: var(--color-text);
++  background: var(--color-bg);
+   font-family:
+     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+     sans-serif;
+@@ -13,12 +13,16 @@
+   box-sizing: border-box;
+ }
+ 
++html,
++body {
++  overflow-x: hidden;
++}
++
+ body {
+   min-width: 320px;
+   margin: 0;
+-  background:
+-    radial-gradient(circle at top left, rgba(30, 64, 175, 0.28), transparent 34rem),
+-    #07111f;
++  color: var(--color-text);
++  background: var(--color-bg);
+ }
+ 
+ button,
+
+===== NUL -> src\components\AppShell.tsx =====
+
+warning: in the working copy of 'src\components\AppShell.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/src\\components\\AppShell.tsx" "b/src\\components\\AppShell.tsx"
+new file mode 100644
+index 0000000..daa9187
+--- /dev/null
++++ "b/src\\components\\AppShell.tsx"
+@@ -0,0 +1,53 @@
++import type { ReactNode } from "react";
++import type { Page } from "../route";
++
++const navigationItems = Object.freeze([
++  { route: "dashboard", href: "#/dashboard", label: "值得買" },
++  { route: "fixtures", href: "#/fixtures", label: "全部賽事" },
++  { route: "history", href: "#/history", label: "完場紀錄" },
++  { route: "analysis", href: "#/analysis", label: "模型健康" },
++] as const);
++
++function Navigation(props: { className: string; label: string; route: Page }) {
++  return (
++    <nav className={props.className} aria-label={props.label}>
++      <ul>
++        {navigationItems.map((item) => (
++          <li key={item.route}>
++            <a href={item.href} aria-current={item.route === props.route ? "page" : undefined}>
++              {item.label}
++            </a>
++          </li>
++        ))}
++      </ul>
++    </nav>
++  );
++}
++
++export function AppShell(props: {
++  route: Page;
++  dataWarning?: string;
++  children: ReactNode;
++}): React.ReactElement {
++  const hasWarning = Boolean(props.dataWarning?.trim());
++
++  return (
++    <div className="application-shell">
++      <a className="skip-link" href="#main-content">
++        跳至主要內容
++      </a>
++      <div className="application-shell__content">
++        <Navigation className="app-navigation app-navigation--top" label="主要導覽" route={props.route} />
++        {hasWarning ? (
++          <div className="app-shell__alert" role="alert">
++            {props.dataWarning}
++          </div>
++        ) : null}
++        <main id="main-content" tabIndex={-1}>
++          {props.children}
++        </main>
++      </div>
++      <Navigation className="app-navigation app-navigation--bottom" label="手機導覽" route={props.route} />
++    </div>
++  );
++}
+
+===== NUL -> src\components\AppShell.test.tsx =====
+
+warning: in the working copy of 'src\components\AppShell.test.tsx', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/src\\components\\AppShell.test.tsx" "b/src\\components\\AppShell.test.tsx"
+new file mode 100644
+index 0000000..d073069
+--- /dev/null
++++ "b/src\\components\\AppShell.test.tsx"
+@@ -0,0 +1,136 @@
++// @ts-expect-error Vitest runs this file in Node; the app intentionally has no Node type dependency.
++import { existsSync, readFileSync } from "node:fs";
++import { renderToStaticMarkup } from "react-dom/server";
++import { describe, expect, test } from "vitest";
++import { AppShell } from "./AppShell";
++
++const navigationItems = [
++  ["#/dashboard", "值得買"],
++  ["#/fixtures", "全部賽事"],
++  ["#/history", "完場紀錄"],
++  ["#/analysis", "模型健康"],
++] as const;
++
++function renderShell(
++  route: "dashboard" | "fixtures" | "history" | "analysis" = "dashboard",
++  dataWarning?: string,
++) {
++  return renderToStaticMarkup(
++    <AppShell route={route} dataWarning={dataWarning}>
++      <span>內容測試</span>
++    </AppShell>,
++  );
++}
++
++function anchorTagsFor(markup: string, href: string): string[] {
++  return (markup.match(/<a\b[^>]*>/g) ?? []).filter((tag) => tag.includes(`href="${href}"`));
++}
++
++describe("AppShell contract", () => {
++  test("exports the required AppShell component", () => {
++    const componentUrl = new URL("./AppShell.tsx", import.meta.url);
++
++    expect(existsSync(componentUrl)).toBe(true);
++
++    const source = readFileSync(componentUrl, "utf8");
++
++    expect(source).toContain("export function AppShell");
++  });
++
++  test("renders every exact route and label in both labelled navigations", () => {
++    const markup = renderShell();
++
++    expect(markup.match(/<nav\b[^>]*aria-label="[^"]+"/g) ?? []).toHaveLength(2);
++    for (const [href, label] of navigationItems) {
++      expect(anchorTagsFor(markup, href)).toHaveLength(2);
++      expect(markup.split(`>${label}</a>`)).toHaveLength(3);
++    }
++  });
++
++  test("marks only the active route current in both navigations", () => {
++    const markup = renderShell("fixtures");
++
++    for (const [href] of navigationItems) {
++      const anchors = anchorTagsFor(markup, href);
++      expect(anchors).toHaveLength(2);
++      for (const anchor of anchors) {
++        if (href === "#/fixtures") {
++          expect(anchor).toContain('aria-current="page"');
++        } else {
++          expect(anchor).not.toContain("aria-current");
++        }
++      }
++    }
++  });
++
++  test("provides a skip link and focusable main-content target", () => {
++    const markup = renderShell();
++
++    expect(markup).toContain('href="#main-content"');
++    expect(markup).toMatch(/<main\b[^>]*id="main-content"[^>]*tabindex="-1"/);
++  });
++
++  test("renders exactly one alert for a non-empty data warning", () => {
++    const markup = renderShell("dashboard", "資料暫時過期");
++
++    expect(markup.match(/role="alert"/g) ?? []).toHaveLength(1);
++    expect(markup).toContain("資料暫時過期");
++  });
++
++  test("does not render an alert for blank or missing warnings", () => {
++    for (const warning of [undefined, "", "   "]) {
++      expect(renderShell("dashboard", warning)).not.toContain('role="alert"');
++    }
++  });
++
++  test("renders children inside the main content region", () => {
++    const markup = renderShell();
++    const mainContent = markup.match(/<main\b[^>]*id="main-content"[^>]*>([\s\S]*?)<\/main>/)?.[1];
++
++    expect(mainContent).toBeDefined();
++    expect(mainContent).toContain("<span>內容測試</span>");
++  });
++});
++
++describe("soft-night CSS contract", () => {
++  test("uses accessible colors for the active navigation item", () => {
++    const layoutUrl = new URL("../styles/layout.css", import.meta.url);
++    const layout = readFileSync(layoutUrl, "utf8");
++    const activeRule = layout.match(/\.app-navigation a\[aria-current="page"\]\s*\{([^}]*)\}/)?.[1];
++
++    expect(activeRule).toBeDefined();
++    expect(activeRule).toContain("color: var(--color-bg);");
++    expect(activeRule).toContain("background: var(--color-primary);");
++  });
++
++  test("defines the exact design tokens", () => {
++    const tokensUrl = new URL("../styles/tokens.css", import.meta.url);
++    expect(existsSync(tokensUrl)).toBe(true);
++    const tokens = readFileSync(tokensUrl, "utf8");
++    const expectedTokens = [
++      ["--color-bg", "#11182b"],
++      ["--color-surface", "#182038"],
++      ["--color-primary", "#7c83c8"],
++      ["--color-positive", "#9ce2cf"],
++      ["--color-warning", "#f2c879"],
++      ["--color-text", "#f6f7ff"],
++      ["--color-muted", "#8e9cba"],
++      ["--radius-card", "16px"],
++      ["--touch-target", "44px"],
++    ] as const;
++
++    for (const [name, value] of expectedTokens) {
++      expect(tokens).toContain(`${name}: ${value};`);
++    }
++  });
++
++  test("uses the 720px phone breakpoint, safe area, and touch target", () => {
++    const layoutUrl = new URL("../styles/layout.css", import.meta.url);
++    expect(existsSync(layoutUrl)).toBe(true);
++    const layout = readFileSync(layoutUrl, "utf8");
++
++    expect(layout).toContain("@media (max-width: 720px)");
++    expect(layout).toContain("env(safe-area-inset-bottom)");
++    expect(layout).toContain("min-height: var(--touch-target)");
++  });
++});
+
+===== NUL -> src\styles\tokens.css =====
+
+warning: in the working copy of 'src\styles\tokens.css', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/src\\styles\\tokens.css" "b/src\\styles\\tokens.css"
+new file mode 100644
+index 0000000..93e12ac
+--- /dev/null
++++ "b/src\\styles\\tokens.css"
+@@ -0,0 +1,11 @@
++:root {
++  --color-bg: #11182b;
++  --color-surface: #182038;
++  --color-primary: #7c83c8;
++  --color-positive: #9ce2cf;
++  --color-warning: #f2c879;
++  --color-text: #f6f7ff;
++  --color-muted: #8e9cba;
++  --radius-card: 16px;
++  --touch-target: 44px;
++}
+
+===== NUL -> src\styles\layout.css =====
+
+warning: in the working copy of 'src\styles\layout.css', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/src\\styles\\layout.css" "b/src\\styles\\layout.css"
+new file mode 100644
+index 0000000..25db1ba
+--- /dev/null
++++ "b/src\\styles\\layout.css"
+@@ -0,0 +1,125 @@
++.application-shell {
++  min-height: 100vh;
++  color: var(--color-text);
++  background: var(--color-bg);
++}
++
++.application-shell__content {
++  width: min(100%, 1440px);
++  margin-inline: auto;
++  padding: 24px;
++}
++
++.skip-link {
++  position: fixed;
++  z-index: 30;
++  top: 8px;
++  left: 8px;
++  min-height: var(--touch-target);
++  padding: 10px 14px;
++  transform: translateY(calc(-100% - 16px));
++  border-radius: 8px;
++  color: var(--color-bg);
++  background: var(--color-warning);
++  font-weight: 800;
++}
++
++.skip-link:focus-visible {
++  transform: translateY(0);
++}
++
++.app-navigation ul {
++  display: flex;
++  gap: 8px;
++  margin: 0;
++  padding: 0;
++  list-style: none;
++}
++
++.app-navigation a {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  min-height: var(--touch-target);
++  padding: 8px 14px;
++  border-radius: 999px;
++  color: var(--color-muted);
++  text-decoration: none;
++  font-weight: 800;
++}
++
++.app-navigation a[aria-current="page"] {
++  color: var(--color-bg);
++  background: var(--color-primary);
++}
++
++.app-navigation--top {
++  display: block;
++  margin-bottom: 20px;
++}
++
++.app-navigation--bottom {
++  display: none;
++}
++
++.app-shell__alert[role="alert"] {
++  margin-bottom: 16px;
++  padding: 12px 14px;
++  border: 1px solid var(--color-warning);
++  border-radius: var(--radius-card);
++  color: var(--color-warning);
++  background: var(--color-surface);
++  font-weight: 800;
++}
++
++:focus-visible {
++  outline: 3px solid var(--color-warning);
++  outline-offset: 3px;
++}
++
++@media (prefers-reduced-motion: reduce) {
++  *,
++  *::before,
++  *::after {
++    scroll-behavior: auto !important;
++    animation-duration: 0.01ms !important;
++    animation-iteration-count: 1 !important;
++    transition-duration: 0.01ms !important;
++  }
++}
++
++@media (max-width: 720px) {
++  .application-shell__content {
++    padding: 16px 16px calc(var(--touch-target) + 24px + env(safe-area-inset-bottom));
++  }
++
++  .app-navigation--top {
++    display: none;
++  }
++
++  .app-navigation--bottom {
++    position: fixed;
++    z-index: 20;
++    right: 0;
++    bottom: 0;
++    left: 0;
++    display: block;
++    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
++    border-top: 1px solid var(--color-primary);
++    background: var(--color-surface);
++  }
++
++  .app-navigation--bottom ul {
++    display: grid;
++    grid-template-columns: repeat(4, minmax(0, 1fr));
++    gap: 4px;
++  }
++
++  .app-navigation--bottom a {
++    min-height: var(--touch-target);
++    padding-inline: 4px;
++    border-radius: 10px;
++    font-size: 0.78rem;
++    text-align: center;
++  }
++}

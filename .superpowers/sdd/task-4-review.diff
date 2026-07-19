@@ -1,0 +1,134 @@
+Task 4 review package (updated after reviewer fixes)
+Base: pre-task filesystem snapshot
+Head: current workspace
+
+diff --git a/.superpowers/sdd/task-4-base/fixtureMatch.ts b/src/fixtureMatch.ts
+index 4e126f4..2546cc4 100644
+--- a/.superpowers/sdd/task-4-base/fixtureMatch.ts
++++ b/src/fixtureMatch.ts
+@@ -30,9 +30,22 @@ export function groupByFixture<T extends FixtureLike>(entries: T[]): Map<string,
+ function teamNamesMatch(left: string, right: string): boolean {
+   const a = normalizeTeam(left);
+   const b = normalizeTeam(right);
+-  return Boolean(a && b) && (a === b || a.includes(b) || b.includes(a));
++  return Boolean(a.base && b.base) && a.base === b.base && a.gender === b.gender;
+ }
+ 
+-function normalizeTeam(value: string): string {
+-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\b(fc|afc|cf|bk|if|sk|women|w)\b/g, "").replace(/[^a-z0-9]/g, "");
++const clubSuffixTokens = new Set(["fc", "afc", "cf", "bk", "if", "sk"]);
++const womenTokens = new Set(["women", "w", "ladies", "女足"]);
++
++function normalizeTeam(value: string): { base: string; gender: "men" | "women" } {
++  const tokens = (value
++    .normalize("NFD")
++    .replace(/[\u0300-\u036f]/g, "")
++    .toLowerCase()
++    .match(/(?<![\p{L}\p{N}.])(?:[\p{L}]\.){1,2}[\p{L}](?![\p{L}\p{N}]|\.[\p{L}])|[\p{L}\p{N}]+/gu) ?? [])
++    .map((token) => token.replace(/\./g, ""));
++  const gender = tokens.some((token) => womenTokens.has(token)) ? "women" : "men";
++  const base = tokens
++    .filter((token) => !womenTokens.has(token) && !clubSuffixTokens.has(token))
++    .join("");
++  return { base, gender };
+ }
+
+diff --git "a/.superpowers\\sdd\\task-4-base\\empty-fixtureMatch" b/src/fixtureMatch.test.ts
+index e69de29..3cbd9ef 100644
+--- "a/.superpowers\\sdd\\task-4-base\\empty-fixtureMatch"
++++ b/src/fixtureMatch.test.ts
+@@ -0,0 +1,94 @@
++import { describe, expect, it } from "vitest";
++import { sameFixture } from "./fixtureMatch";
++
++let fixtureSequence = 0;
++const kickoff = Date.parse("2026-07-14T17:00:00Z");
++
++function fixture(homeTeam: string, awayTeam: string, offsetMinutes = 0) {
++  fixtureSequence += 1;
++  return {
++    matchId: `fixture-${fixtureSequence}`,
++    homeTeam,
++    awayTeam,
++    commenceTime: new Date(kickoff + offsetMinutes * 60_000).toISOString(),
++  };
++}
++
++describe("sameFixture", () => {
++  it("does not match a team name that is only a substring of another", () => {
++    expect(sameFixture(
++      fixture("Manchester", "Liverpool"),
++      fixture("Manchester United", "Liverpool"),
++    )).toBe(false);
++  });
++
++  it("preserves women and men as distinct team identities", () => {
++    expect(sameFixture(
++      fixture("Arsenal Women", "Chelsea Women"),
++      fixture("Arsenal", "Chelsea"),
++    )).toBe(false);
++  });
++
++  it("matches accent and club-suffix aliases within kickoff tolerance", () => {
++    expect(sameFixture(
++      fixture("Djurgardens", "Halmstads"),
++      fixture("Djurg\u00e5rdens IF", "Halmstads BK", 5),
++    )).toBe(true);
++  });
++
++  it("matches dotted club-suffix acronyms", () => {
++    expect(sameFixture(
++      fixture("Djurg\u00e5rdens I.F.", "Halmstads B.K."),
++      fixture("Djurgardens", "Halmstads"),
++    )).toBe(true);
++  });
++
++  it("rejects otherwise identical fixtures outside kickoff tolerance", () => {
++    expect(sameFixture(
++      fixture("A", "B"),
++      fixture("A", "B", 11),
++    )).toBe(false);
++  });
++
++  it("recognizes a punctuated standalone W as the women marker", () => {
++    expect(sameFixture(
++      fixture("Arsenal W.", "Chelsea W."),
++      fixture("Arsenal Women", "Chelsea Ladies"),
++    )).toBe(true);
++  });
++
++  it("keeps a punctuated standalone W distinct from a men's team", () => {
++    expect(sameFixture(
++      fixture("Arsenal W.", "Chelsea W."),
++      fixture("Arsenal", "Chelsea"),
++    )).toBe(false);
++  });
++
++  it.each(["Women", "W.", "Ladies"])("matches literal 女足 to %s", (marker) => {
++    expect(sameFixture(
++      fixture("Arsenal 女足", "Chelsea 女足"),
++      fixture(`Arsenal ${marker}`, `Chelsea ${marker}`),
++    )).toBe(true);
++  });
++
++  it("keeps literal 女足 distinct from a men's team", () => {
++    expect(sameFixture(
++      fixture("Arsenal 女足", "Chelsea 女足"),
++      fixture("Arsenal", "Chelsea"),
++    )).toBe(false);
++  });
++
++  it("does not infer the women marker from a W inside another word", () => {
++    expect(sameFixture(
++      fixture("AFC Wimbledon", "West Brom"),
++      fixture("AFC Wimbledon Women", "West Brom Women"),
++    )).toBe(false);
++  });
++
++  it("fails closed for unknown aliases", () => {
++    expect(sameFixture(
++      fixture("Manchester Utd", "Liverpool"),
++      fixture("Manchester United", "Liverpool"),
++    )).toBe(false);
++  });
++});

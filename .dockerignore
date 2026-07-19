@@ -1,0 +1,15 @@
+# Docker build context exclusions (Phase 2).
+# Secrets, archives, and dev-only state must never reach an image layer.
+node_modules
+.git
+.env
+.env.*
+data/
+dist/
+test-results/
+playwright-report/
+.superpowers/
+.hermes/
+.agents/
+*.log
+installed.json.backup

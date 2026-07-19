@@ -1,0 +1,1695 @@
+﻿# modified package.json
+diff --git a/.superpowers/sdd-production-phase1/task-4-base/package.json b/package.json
+index e8bd29a..6151c22 100644
+--- a/.superpowers/sdd-production-phase1/task-4-base/package.json
++++ b/package.json
+@@ -6,20 +6,23 @@
+   "scripts": {
+     "dev": "vite --host 127.0.0.1",
+     "build": "tsc --noEmit -p tsconfig.json && vite build",
+     "test": "vitest run",
+     "test:ui": "npm.cmd run build && playwright test",
+     "test:ui:only": "playwright test",
+     "monitor:odds": "node scripts/odds-monitor.mjs",
+     "monitor:odds:once": "node scripts/odds-monitor.mjs --once",
+     "import:hkjc": "node scripts/hkjc-import.mjs",
+     "check:data": "node scripts/check-data-integrity.mjs",
++    "db:migrate": "node server/db/migrate-cli.mjs",
++    "db:import:legacy": "node scripts/import-legacy-to-postgres.mjs",
++    "db:check:parity": "node scripts/check-postgres-parity.mjs",
+     "server": "node server.mjs",
+     "server:self-test": "node server.mjs --self-test",
+     "preview": "vite preview --host 127.0.0.1"
+   },
+   "dependencies": {
+     "@node-rs/argon2": "^2.0.2",
+     "@vitejs/plugin-react": "^4.3.4",
+     "lucide-react": "^0.468.0",
+     "pg": "^8.22.0",
+     "react": "^19.0.0",
+# modified server/db/snapshot-repository.mjs
+diff --git a/.superpowers/sdd-production-phase1/task-4-base/snapshot-repository.mjs b/server/db/snapshot-repository.mjs
+index 2bf4242..1b7dcb0 100644
+--- a/.superpowers/sdd-production-phase1/task-4-base/snapshot-repository.mjs
++++ b/server/db/snapshot-repository.mjs
+@@ -1,31 +1,31 @@
+ import { classifySnapshot } from "../../shared/snapshot-policy.mjs";
+ import { snapshotIdentity } from "../domain/identity.mjs";
+ import { withTransaction } from "./pool.mjs";
+ 
+-export function createSnapshotRepository(pool) {
++export function createSnapshotRepository(db) {
+   return {
+     async insertBatch(snapshots) {
+       const accepted = [];
+       const rejectedByReason = {};
+ 
+       for (const snapshot of snapshots) {
+         const classification = classifySnapshot(snapshot);
+         if (classification.status === "invalid") {
+           const reason = classification.reason ?? "invalid-snapshot";
+           rejectedByReason[reason] = (rejectedByReason[reason] ?? 0) + 1;
+         } else {
+           accepted.push({ snapshot, classification });
+         }
+       }
+ 
+-      const inserted = await withTransaction(pool, async (client) => {
++      const inserted = await inRepositoryTransaction(db, async (client) => {
+         let count = 0;
+         for (const { snapshot, classification } of accepted) {
+           const result = await client.query(`
+             INSERT INTO prediction_snapshots (
+               identity_key, match_id, market, prediction, line, odds, chance, edge,
+               saved_at, commence_time, model_version, source, snapshot_status,
+               rejection_reason, raw
+             ) VALUES (
+               $1, $2, $3, $4, $5, $6, $7, $8,
+               $9, $10, $11, $12, $13, $14, $15
+@@ -56,39 +56,43 @@ export function createSnapshotRepository(pool) {
+ 
+       return {
+         inserted,
+         duplicate: accepted.length - inserted,
+         rejected: snapshots.length - accepted.length,
+         rejectedByReason,
+       };
+     },
+ 
+     async listAll() {
+-      const result = await pool.query(`
++      const result = await db.query(`
+         SELECT raw
+         FROM prediction_snapshots
+         WHERE snapshot_status IN ('valid-current', 'legacy')
+       `);
+       return result.rows.map(({ raw }) => raw);
+     },
+ 
+     async listCurrent() {
+-      const result = await pool.query(`
++      const result = await db.query(`
+         SELECT raw
+         FROM prediction_snapshots
+         WHERE snapshot_status = 'valid-current'
+       `);
+       return result.rows.map(({ raw }) => raw);
+     },
+   };
+ }
+ 
++function inRepositoryTransaction(db, callback) {
++  return typeof db.release === "function" ? callback(db) : withTransaction(db, callback);
++}
++
+ function finiteOrNull(value) {
+   return Number.isFinite(value) ? value : null;
+ }
+ 
+ function positiveFiniteOrNull(value) {
+   return Number.isFinite(value) && value > 0 ? value : null;
+ }
+ 
+ function probabilityOrNull(value) {
+   return Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
+# modified server/db/result-repository.mjs
+diff --git a/.superpowers/sdd-production-phase1/task-4-base/result-repository.mjs b/server/db/result-repository.mjs
+index 8da8990..5433f51 100644
+--- a/.superpowers/sdd-production-phase1/task-4-base/result-repository.mjs
++++ b/server/db/result-repository.mjs
+@@ -1,17 +1,17 @@
+ import { resultIdentity } from "../domain/identity.mjs";
+ import { withTransaction } from "./pool.mjs";
+ 
+-export function createResultRepository(pool) {
++export function createResultRepository(db) {
+   return {
+     async upsertBatch(results) {
+-      return withTransaction(pool, async (client) => {
++      return inRepositoryTransaction(db, async (client) => {
+         const counts = { inserted: 0, updated: 0, ignored: 0 };
+         for (const row of results) {
+           const outcome = await client.query(`
+             INSERT INTO results (
+               identity_key, match_id, market, actual, source,
+               source_priority, completed_at, raw
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             ON CONFLICT (identity_key) DO UPDATE SET
+               match_id = EXCLUDED.match_id,
+               market = EXCLUDED.market,
+@@ -36,15 +36,19 @@ export function createResultRepository(pool) {
+ 
+           if (outcome.rowCount === 0) counts.ignored += 1;
+           else if (outcome.rows[0].inserted) counts.inserted += 1;
+           else counts.updated += 1;
+         }
+         return counts;
+       });
+     },
+ 
+     async listAll() {
+-      const result = await pool.query("SELECT raw FROM results");
++      const result = await db.query("SELECT raw FROM results");
+       return result.rows.map(({ raw }) => raw);
+     },
+   };
+ }
++
++function inRepositoryTransaction(db, callback) {
++  return typeof db.release === "function" ? callback(db) : withTransaction(db, callback);
++}
+# modified server/db/repositories.test.mjs
+diff --git a/.superpowers/sdd-production-phase1/task-4-base/repositories.test.mjs b/server/db/repositories.test.mjs
+index 121bae5..a4b85f8 100644
+--- a/.superpowers/sdd-production-phase1/task-4-base/repositories.test.mjs
++++ b/server/db/repositories.test.mjs
+@@ -193,20 +193,48 @@ test("a numeric result priority updates a directly stored NULL priority", async
+       seeded.source,
+       seeded.completedAt,
+       seeded,
+     ]);
+ 
+     assert.deepEqual(await repository.upsertBatch([incoming]), { inserted: 0, updated: 1, ignored: 0 });
+     assert.deepEqual((await repository.listAll()).find((row) => row.matchId === incoming.matchId), incoming);
+   });
+ });
+ 
++test("snapshot and result repositories participate in an existing client transaction", async (t) => {
++  await withDatabase(t, async (pool) => {
++    const client = await pool.connect();
++    try {
++      await client.query("BEGIN");
++      const snapshots = createSnapshotRepository(client);
++      const results = createResultRepository(client);
++      assert.deepEqual(await snapshots.insertBatch([currentSnapshot({ matchId: "client-rollback" })]), {
++        inserted: 1,
++        duplicate: 0,
++        rejected: 0,
++        rejectedByReason: {},
++      });
++      assert.deepEqual(await results.upsertBatch([result({ matchId: "client-rollback" })]), {
++        inserted: 1,
++        updated: 0,
++        ignored: 0,
++      });
++      await client.query("ROLLBACK");
++    } finally {
++      client.release();
++    }
++
++    assert.equal((await createSnapshotRepository(pool).listAll()).length, 0);
++    assert.equal((await createResultRepository(pool).listAll()).length, 0);
++  });
++});
++
+ test("live odds replacement is provider-scoped, allows an empty clear, and excludes expiry boundaries", async (t) => {
+   await withDatabase(t, async (pool) => {
+     const repository = createOddsRepository(pool);
+     const observedAt = "2026-07-18T10:00:00.000Z";
+     const p1First = liveEntry({ id: "p1-old" });
+     const p2 = liveEntry({ id: "p2", matchId: "match-2", selection: "away" });
+ 
+     await repository.replaceProviderSnapshot("provider-1", observedAt, [p1First]);
+     await repository.replaceProviderSnapshot("provider-2", observedAt, [p2]);
+     const replacement = liveEntry({ id: "p1-new", selection: "under", line: null });
+# new/current db/migrations/002_import_row_audit.sql
+diff --git a/db/migrations/002_import_row_audit.sql b/db/migrations/002_import_row_audit.sql
+new file mode 100644
+index 0000000..a40bf48
+--- /dev/null
++++ b/db/migrations/002_import_row_audit.sql
+@@ -0,0 +1,17 @@
++ALTER TABLE import_rows
++  DROP CONSTRAINT IF EXISTS import_rows_idempotency_key_key;
++
++ALTER TABLE import_rows
++  ADD COLUMN record_kind text;
++
++UPDATE import_rows
++SET record_kind = CASE WHEN classification = 'result' THEN 'result' ELSE 'snapshot' END
++WHERE record_kind IS NULL;
++
++ALTER TABLE import_rows
++  ALTER COLUMN record_kind SET NOT NULL,
++  ADD CONSTRAINT import_rows_record_kind_valid
++    CHECK (record_kind IN ('snapshot', 'result'));
++
++CREATE INDEX import_rows_idempotency_key_idx
++  ON import_rows (idempotency_key);
+# new/current server/db/migrate-cli.mjs
+diff --git a/server/db/migrate-cli.mjs b/server/db/migrate-cli.mjs
+new file mode 100644
+index 0000000..043120d
+--- /dev/null
++++ b/server/db/migrate-cli.mjs
+@@ -0,0 +1,34 @@
++import path from "node:path";
++import { fileURLToPath } from "node:url";
++
++import { runMigrations } from "./migrate.mjs";
++import { createPool } from "./pool.mjs";
++
++export async function runMigrateCli({
++  databaseUrl = process.env.DATABASE_URL,
++  poolFactory = createPool,
++  migrate = runMigrations,
++  migrationsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../db/migrations"),
++  stdout = console.log,
++  stderr = console.error,
++} = {}) {
++  if (!databaseUrl) throw new Error("missing database");
++  let pool;
++  try {
++    pool = poolFactory(databaseUrl);
++    const applied = await migrate(pool, migrationsDir);
++    await pool.end();
++    pool = undefined;
++    stdout(`migrationsApplied=${applied.length}`);
++    stdout("status=complete");
++    return 0;
++  } catch {
++    if (pool) await pool.end().catch(() => {});
++    stderr("status=failed");
++    return 1;
++  }
++}
++
++if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
++  runMigrateCli().then((code) => { process.exitCode = code; }).catch(() => { console.error("status=failed"); process.exitCode = 1; });
++}
+# new/current scripts/import-legacy-to-postgres.mjs
+diff --git a/scripts/import-legacy-to-postgres.mjs b/scripts/import-legacy-to-postgres.mjs
+new file mode 100644
+index 0000000..a6f19e6
+--- /dev/null
++++ b/scripts/import-legacy-to-postgres.mjs
+@@ -0,0 +1,294 @@
++import { createHash, randomUUID } from "node:crypto";
++import { readFile, realpath } from "node:fs/promises";
++import path from "node:path";
++import { fileURLToPath } from "node:url";
++
++import { createPool } from "../server/db/pool.mjs";
++import { createResultRepository } from "../server/db/result-repository.mjs";
++import { createSnapshotRepository } from "../server/db/snapshot-repository.mjs";
++import { resultIdentity, snapshotIdentity } from "../server/domain/identity.mjs";
++import { classifySnapshot } from "../shared/snapshot-policy.mjs";
++
++export const IMPORTER_VERSION = "phase1-v1";
++export const LEGACY_SOURCES = Object.freeze([
++  Object.freeze({ sourceName: "data/prediction-snapshots.jsonl", recordKind: "snapshot" }),
++  Object.freeze({ sourceName: "data/background-hdc-snapshots.jsonl", recordKind: "snapshot" }),
++  Object.freeze({ sourceName: "data/result-archive.jsonl", recordKind: "result" }),
++  Object.freeze({ sourceName: "data/background-result-archive.jsonl", recordKind: "result" }),
++]);
++
++export async function importLegacyArchives({ pool, sourceRoot, importerVersion = IMPORTER_VERSION }) {
++  if (!pool?.query || !pool?.connect) throw new TypeError("pool is required");
++  if (typeof sourceRoot !== "string" || !sourceRoot.trim()) throw new TypeError("sourceRoot is required");
++
++  const files = [];
++  for (const source of await loadLegacySources(sourceRoot)) {
++    files.push(await importSourceFile(pool, source, importerVersion));
++  }
++  return { status: "complete", files, totals: sumFileCounts(files) };
++}
++
++async function importSourceFile(pool, source, importerVersion) {
++  const { bytes, sourceSha256 } = source;
++  const run = await ensureRun(pool, source.sourceName, sourceSha256, importerVersion);
++
++  if (run.status === "complete") {
++    return emptyFileResult(source, sourceSha256, run.totalRows, "already-complete");
++  }
++
++  let rows;
++  try {
++    rows = parseJsonl(bytes, source.sourceName);
++  } catch (error) {
++    try {
++      await pool.query(`
++        UPDATE import_runs
++        SET status = 'failed', total_rows = $2, accepted_rows = 0,
++            rejected_rows = 0, finished_at = CURRENT_TIMESTAMP
++        WHERE id = $1 AND status IN ('pending', 'failed')
++      `, [run.id, countNonblankLines(bytes)]);
++    } catch (statusUpdateError) {
++      if (error && (typeof error === "object" || typeof error === "function")) error.statusUpdateError = statusUpdateError;
++    }
++    throw error;
++  }
++
++  const client = await pool.connect();
++  let counts;
++  let commitAttempted = false;
++  let releaseError;
++  let clientReleased = false;
++  try {
++    await client.query("BEGIN");
++    const locked = await client.query("SELECT status FROM import_runs WHERE id = $1 FOR UPDATE", [run.id]);
++    if (locked.rows[0]?.status === "complete") {
++      await client.query("ROLLBACK");
++      return emptyFileResult(source, sourceSha256, rows.length, "already-complete");
++    }
++    await client.query("DELETE FROM import_rows WHERE import_run_id = $1", [run.id]);
++    await client.query(`
++      UPDATE import_runs
++      SET status = 'running', total_rows = $2, accepted_rows = 0,
++          rejected_rows = 0, started_at = CURRENT_TIMESTAMP, finished_at = NULL
++      WHERE id = $1
++    `, [run.id, rows.length]);
++
++    const classified = rows.map((row) => classifyImportedRow(row, source));
++    for (const item of classified) {
++      await client.query(`
++        INSERT INTO import_rows (
++          import_run_id, source_row, idempotency_key, classification,
++        rejection_reason, raw, record_kind
++        ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)
++      `, [
++        run.id, item.sourceRow, item.idempotencyKey, item.classification,
++        item.rejectionReason, JSON.stringify(item.raw), source.recordKind,
++      ]);
++    }
++
++    const acceptedSnapshots = classified
++      .filter((item) => source.recordKind === "snapshot" && item.classification !== "invalid")
++      .map((item) => item.raw);
++    const importedResults = classified
++      .filter((item) => source.recordKind === "result" && item.classification !== "invalid")
++      .map((item) => item.raw);
++    const snapshotCounts = acceptedSnapshots.length
++      ? await createSnapshotRepository(client).insertBatch(acceptedSnapshots)
++      : { inserted: 0, duplicate: 0, rejected: 0, rejectedByReason: {} };
++    const resultCounts = importedResults.length
++      ? await createResultRepository(client).upsertBatch(importedResults)
++      : { inserted: 0, updated: 0, ignored: 0 };
++    const rejectedRows = classified.filter((item) => item.classification === "invalid").length;
++    const acceptedRows = classified.length - rejectedRows;
++    await client.query(`
++      UPDATE import_runs
++      SET status = 'complete', total_rows = $2, accepted_rows = $3, rejected_rows = $4,
++          finished_at = CURRENT_TIMESTAMP
++      WHERE id = $1
++    `, [run.id, rows.length, acceptedRows, rejectedRows]);
++    commitAttempted = true;
++    await client.query("COMMIT");
++    counts = {
++      sourceRows: rows.length,
++      auditRowsAdded: rows.length,
++      snapshotInserted: snapshotCounts.inserted,
++      snapshotDuplicate: snapshotCounts.duplicate,
++      snapshotRejected: source.recordKind === "snapshot" ? rejectedRows : 0,
++      resultRejected: source.recordKind === "result" ? rejectedRows : 0,
++      resultInserted: resultCounts.inserted,
++      resultUpdated: resultCounts.updated,
++      resultIgnored: resultCounts.ignored,
++    };
++  } catch (error) {
++    if (commitAttempted) {
++      releaseError = error;
++    } else {
++      try {
++        await client.query("ROLLBACK");
++        await client.query(`
++          UPDATE import_runs SET status = 'failed', finished_at = CURRENT_TIMESTAMP
++          WHERE id = $1 AND status IN ('pending', 'failed')
++        `, [run.id]);
++      } catch (rollbackError) {
++        releaseError = rollbackError;
++        if (error && (typeof error === "object" || typeof error === "function")) error.rollbackError = rollbackError;
++        client.release(releaseError);
++        clientReleased = true;
++      }
++      if (clientReleased) {
++        try {
++          await pool.query(`
++            UPDATE import_runs SET status = 'failed', finished_at = CURRENT_TIMESTAMP
++            WHERE id = $1 AND status IN ('pending', 'failed')
++          `, [run.id]);
++        } catch (statusError) {
++          if (error && (typeof error === "object" || typeof error === "function")) error.statusUpdateError = statusError;
++        }
++      }
++    }
++    throw error;
++  } finally {
++    if (!clientReleased) client.release(releaseError);
++  }
++  return { sourceName: source.sourceName, recordKind: source.recordKind, sourceSha256, status: "complete", ...counts };
++}
++
++async function ensureRun(pool, sourceName, sourceSha256, importerVersion) {
++  const found = await findRun(pool, sourceName, sourceSha256, importerVersion);
++  if (found) return found;
++  const id = randomUUID();
++  const inserted = await pool.query(`
++    INSERT INTO import_runs (
++      id, source_name, source_sha256, importer_version, status,
++      total_rows, accepted_rows, rejected_rows, started_at
++    ) VALUES ($1, $2, $3, $4, 'pending', 0, 0, 0, CURRENT_TIMESTAMP)
++    ON CONFLICT (source_name, source_sha256, importer_version) DO NOTHING
++    RETURNING id, status, total_rows AS "totalRows"
++  `, [id, sourceName, sourceSha256, importerVersion]);
++  if (inserted.rowCount) return inserted.rows[0];
++  return findRun(pool, sourceName, sourceSha256, importerVersion);
++}
++
++async function findRun(pool, sourceName, sourceSha256, importerVersion) {
++  const existing = await pool.query(`
++    SELECT id, status, total_rows AS "totalRows"
++    FROM import_runs
++    WHERE source_name = $1 AND source_sha256 = $2 AND importer_version = $3
++  `, [sourceName, sourceSha256, importerVersion]);
++  return existing.rows[0];
++}
++
++export function parseJsonl(bytes, sourceName) {
++  const physicalLines = bytes.toString("utf8").split(/\r?\n/);
++  const rows = [];
++  for (let index = 0; index < physicalLines.length; index += 1) {
++    const text = physicalLines[index].trim();
++    if (!text) continue;
++    try {
++      rows.push({ sourceRow: index + 1, raw: JSON.parse(text) });
++    } catch {
++      throw new Error(`${sourceName}:${index + 1} contains malformed JSON`);
++    }
++  }
++  return rows;
++}
++
++function countNonblankLines(bytes) {
++  return bytes.toString("utf8").split(/\r?\n/).filter((line) => line.trim()).length;
++}
++
++export function classifyImportedRow({ sourceRow, raw }, source) {
++  const isObject = raw !== null && typeof raw === "object" && !Array.isArray(raw);
++  if (!isObject) {
++    return { sourceRow, raw, idempotencyKey: `audit|${source.recordKind}|${source.sourceName}|${sourceRow}`, classification: "invalid", rejectionReason: `invalid-${source.recordKind}` };
++  }
++  if (source.recordKind === "snapshot") {
++    const classification = classifySnapshot(raw);
++    return {
++      sourceRow,
++      raw,
++      idempotencyKey: snapshotIdentity(raw),
++      classification: classification.status,
++      rejectionReason: classification.reason,
++    };
++  }
++  return {
++    sourceRow,
++    raw,
++    idempotencyKey: resultIdentity(raw),
++    classification: "result",
++    rejectionReason: null,
++  };
++}
++
++export async function loadLegacySources(sourceRoot) {
++  const root = await realpath(path.resolve(sourceRoot));
++  const sources = [];
++  for (const source of LEGACY_SOURCES) {
++    const resolved = await realpath(path.join(root, ...source.sourceName.split("/")));
++    const relative = path.relative(root, resolved);
++    if (!relative || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
++      throw new Error(`source containment failed: ${source.sourceName}`);
++    }
++    const bytes = await readFile(resolved);
++    sources.push({ ...source, bytes, sourceSha256: createHash("sha256").update(bytes).digest("hex") });
++  }
++  return sources;
++}
++
++function emptyFileResult(source, sourceSha256, sourceRows, status) {
++  return {
++    sourceName: source.sourceName,
++    recordKind: source.recordKind,
++    sourceSha256,
++    status,
++    sourceRows,
++    auditRowsAdded: 0,
++    snapshotInserted: 0,
++    snapshotDuplicate: 0,
++    snapshotRejected: 0,
++    resultRejected: 0,
++    resultInserted: 0,
++    resultUpdated: 0,
++    resultIgnored: 0,
++  };
++}
++
++function sumFileCounts(files) {
++  const fields = [
++    "sourceRows", "auditRowsAdded", "snapshotInserted", "snapshotDuplicate",
++    "snapshotRejected", "resultRejected", "resultInserted", "resultUpdated", "resultIgnored",
++  ];
++  return Object.fromEntries(fields.map((field) => [field, files.reduce((sum, file) => sum + file[field], 0)]));
++}
++
++function parseSourceRoot(argv) {
++  const index = argv.indexOf("--source-root");
++  if (index < 0 || !argv[index + 1] || argv[index + 1].startsWith("--")) throw new Error("--source-root is required");
++  return argv[index + 1];
++}
++
++async function main() {
++  const databaseUrl = process.env.DATABASE_URL;
++  if (!databaseUrl) throw new Error("DATABASE_URL is required");
++  const pool = createPool(databaseUrl);
++  try {
++    const outcome = await importLegacyArchives({ pool, sourceRoot: parseSourceRoot(process.argv.slice(2)) });
++    for (const [index, file] of outcome.files.entries()) {
++      console.log(`file${index + 1}Hash=${file.sourceSha256}`);
++      console.log(`file${index + 1}Rows=${file.sourceRows}`);
++      console.log(`file${index + 1}Status=${file.status}`);
++    }
++    for (const [name, count] of Object.entries(outcome.totals)) console.log(`${name}=${count}`);
++    console.log(`status=${outcome.status}`);
++  } finally {
++    await pool.end();
++  }
++}
++
++if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
++  main().catch(() => {
++    console.error("status=failed");
++    process.exitCode = 1;
++  });
++}
+# new/current scripts/check-postgres-parity.mjs
+diff --git a/scripts/check-postgres-parity.mjs b/scripts/check-postgres-parity.mjs
+new file mode 100644
+index 0000000..45b5b53
+--- /dev/null
++++ b/scripts/check-postgres-parity.mjs
+@@ -0,0 +1,180 @@
++import assert from "node:assert/strict";
++import path from "node:path";
++import { fileURLToPath } from "node:url";
++
++import { createPool } from "../server/db/pool.mjs";
++import { createResultRepository } from "../server/db/result-repository.mjs";
++import { createSnapshotRepository } from "../server/db/snapshot-repository.mjs";
++import { buildBacktest } from "../server/domain/backtest.mjs";
++import { resultIdentity, snapshotIdentity } from "../server/domain/identity.mjs";
++import { classifySnapshot } from "../shared/snapshot-policy.mjs";
++import { classifyImportedRow, IMPORTER_VERSION, loadLegacySources, parseJsonl } from "./import-legacy-to-postgres.mjs";
++
++export async function checkPostgresParity({ pool, sourceRoot, importerVersion = IMPORTER_VERSION, now = Date.now() }) {
++  const sources = (await loadLegacySources(path.resolve(sourceRoot))).map((source) => ({ ...source, rows: parseJsonl(source.bytes, source.sourceName) }));
++  const runs = [];
++  for (const source of sources) {
++    const result = await pool.query(`
++      SELECT id, status, total_rows, accepted_rows, rejected_rows
++      FROM import_runs
++      WHERE source_name = $1 AND source_sha256 = $2 AND importer_version = $3
++    `, [source.sourceName, source.sourceSha256, importerVersion]);
++    parityEqual(result.rowCount, 1, "source run count");
++    parityEqual(result.rows[0].status, "complete", "source run status");
++    parityEqual(result.rows[0].total_rows, source.rows.length, "source row count");
++    const classes = source.rows.map((row) => classifyImportedRow(row, source));
++    parityEqual(result.rows[0].accepted_rows, classes.filter((row) => row.classification !== "invalid").length, "accepted row count");
++    parityEqual(result.rows[0].rejected_rows, classes.filter((row) => row.classification === "invalid").length, "rejected row count");
++    runs.push({ ...source, runId: result.rows[0].id });
++  }
++
++  const dbAudit = [];
++  for (const run of runs) {
++    const result = await pool.query(`
++      SELECT source_row, idempotency_key, classification, rejection_reason, record_kind, raw
++      FROM import_rows
++      WHERE import_run_id = $1
++      ORDER BY source_row
++    `, [run.runId]);
++    parityEqual(result.rowCount, run.rows.length, "audit row count");
++    dbAudit.push(...result.rows.map((row) => ({ ...row, sourceName: run.sourceName })));
++  }
++
++  const expectedAudit = sources.flatMap((source) => source.rows.map(({ sourceRow, raw }) => {
++    const classified = classifyImportedRow({ sourceRow, raw }, source);
++    return {
++      sourceName: source.sourceName,
++      source_row: sourceRow,
++      idempotency_key: classified.idempotencyKey,
++      classification: classified.classification,
++      rejection_reason: classified.rejectionReason,
++      record_kind: source.recordKind,
++      raw,
++    };
++  }));
++  parityDeepEqual(dbAudit, expectedAudit, "audit classifications and identities");
++
++  const fileSnapshots = expectedAudit.filter(({ record_kind }) => record_kind === "snapshot").map(({ raw }) => raw);
++  const snapshotAudit = expectedAudit.filter(({ record_kind }) => record_kind === "snapshot");
++  const resultAudit = expectedAudit.filter(({ record_kind }) => record_kind === "result");
++  const auditSnapshots = dbAudit.filter(({ record_kind }) => record_kind === "snapshot").map(({ raw }) => raw);
++  const fileResultRows = expectedAudit.filter(({ record_kind, classification }) => record_kind === "result" && classification !== "invalid").map(({ raw }) => raw);
++  const expectedResults = prioritizeResults(fileResultRows);
++  const dbSnapshots = await createSnapshotRepository(pool).listAll();
++  const dbCurrent = await createSnapshotRepository(pool).listCurrent();
++  const dbResults = await createResultRepository(pool).listAll();
++  const acceptedSnapshots = fileSnapshots.filter((row) => classifySnapshot(row).status !== "invalid");
++  const currentSnapshots = fileSnapshots.filter((row) => classifySnapshot(row).status === "valid-current");
++  const orderedExpectedResults = orderByIdentity(expectedResults, resultIdentity);
++  const orderedDbResults = orderByIdentity(dbResults, resultIdentity);
++
++  parityDeepEqual(sortedIdentities(dbSnapshots, snapshotIdentity), sortedIdentities(acceptedSnapshots, snapshotIdentity), "snapshot identity set");
++  parityDeepEqual(
++    domainRepresentatives(dbSnapshots, snapshotIdentity),
++    domainRepresentatives(acceptedSnapshots, snapshotIdentity),
++    "snapshot domain representatives",
++  );
++  parityDeepEqual(sortedIdentities(dbResults, resultIdentity), sortedIdentities(expectedResults, resultIdentity), "result identity set");
++  parityDeepEqual(orderedDbResults, orderedExpectedResults, "result priority representatives");
++
++  const fileBacktest = buildBacktest(fileSnapshots, orderedExpectedResults, now);
++  const dbBacktest = buildBacktest(auditSnapshots, orderedDbResults, now);
++  parityDeepEqual(dbBacktest.snapshotQuality, fileBacktest.snapshotQuality, "snapshot quality");
++  parityDeepEqual(dbBacktest.summary, fileBacktest.summary, "backtest summary");
++  parityDeepEqual(dbBacktest.byMarket, fileBacktest.byMarket, "market summaries");
++  parityDeepEqual(dbBacktest.buckets, fileBacktest.buckets, "chance buckets");
++  parityDeepEqual(dbBacktest.rows, fileBacktest.rows, "representative backtest rows");
++  parityDeepEqual(dbBacktest.readiness, fileBacktest.readiness, "audit readiness");
++  parityDeepEqual(
++    buildBacktest(orderByIdentity(dbCurrent, snapshotIdentity), orderedDbResults, now).readiness,
++    buildBacktest(orderByIdentity(currentSnapshots, snapshotIdentity), orderedExpectedResults, now).readiness,
++    "repository current readiness",
++  );
++  parityEqual(new Set(dbBacktest.rows.map(({ matchId }) => matchId)).size, new Set(fileBacktest.rows.map(({ matchId }) => matchId)).size, "distinct matches");
++
++  return {
++    status: "ok",
++    snapshotRows: fileSnapshots.length,
++    resultRows: resultAudit.length,
++    resultRejected: resultAudit.filter(({ classification }) => classification === "invalid").length,
++    snapshotValidCurrent: snapshotAudit.filter(({ classification }) => classification === "valid-current").length,
++    snapshotLegacy: snapshotAudit.filter(({ classification }) => classification === "legacy").length,
++    snapshotInvalid: snapshotAudit.filter(({ classification }) => classification === "invalid").length,
++    distinctMatches: new Set(fileBacktest.rows.map(({ matchId }) => matchId)).size,
++    settlements: fileBacktest.summary.finished,
++    sourceHashes: Object.fromEntries(sources.map(({ sourceName, sourceSha256 }) => [sourceName, sourceSha256])),
++  };
++}
++
++function prioritizeResults(rows) {
++  const selected = new Map();
++  for (const row of rows) {
++    const key = resultIdentity(row);
++    const current = selected.get(key);
++    if (!current || (row.sourcePriority ?? 0) > (current.sourcePriority ?? 0)) selected.set(key, row);
++  }
++  return [...selected.values()];
++}
++
++
++function sortedIdentities(rows, identity) {
++  return [...new Set(rows.map(identity))].sort();
++}
++
++function orderByIdentity(rows, identity) {
++  return [...rows].sort((left, right) => identity(left).localeCompare(identity(right)));
++}
++
++function domainRepresentatives(rows, identity) {
++  const selected = new Map();
++  for (const row of rows) {
++    const key = identity(row);
++    if (!selected.has(key)) selected.set(key, row);
++  }
++  return [...selected].sort(([left], [right]) => left.localeCompare(right));
++}
++
++function parityEqual(actual, expected, label) {
++  try {
++    assert.equal(actual, expected);
++  } catch {
++    throw new Error(`parity mismatch: ${label}`);
++  }
++}
++
++function parityDeepEqual(actual, expected, label) {
++  try {
++    assert.deepEqual(actual, expected);
++  } catch {
++    throw new Error(`parity mismatch: ${label}`);
++  }
++}
++
++function parseSourceRoot(argv) {
++  const index = argv.indexOf("--source-root");
++  if (index < 0 || !argv[index + 1] || argv[index + 1].startsWith("--")) throw new Error("--source-root is required");
++  return argv[index + 1];
++}
++
++async function main() {
++  const databaseUrl = process.env.DATABASE_URL;
++  if (!databaseUrl) throw new Error("DATABASE_URL is required");
++  const pool = createPool(databaseUrl);
++  try {
++    const result = await checkPostgresParity({ pool, sourceRoot: parseSourceRoot(process.argv.slice(2)) });
++    let index = 0;
++    for (const hash of Object.values(result.sourceHashes)) console.log(`file${++index}Hash=${hash}`);
++    for (const [name, value] of Object.entries(result)) {
++      if (name !== "sourceHashes") console.log(`${name}=${value}`);
++    }
++  } finally {
++    await pool.end();
++  }
++}
++
++if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
++  main().catch(() => {
++    console.error("status=failed");
++    process.exitCode = 1;
++  });
++}
+# new/current scripts/legacy-import.test.mjs
+diff --git a/scripts/legacy-import.test.mjs b/scripts/legacy-import.test.mjs
+new file mode 100644
+index 0000000..a380f97
+--- /dev/null
++++ b/scripts/legacy-import.test.mjs
+@@ -0,0 +1,357 @@
++import assert from "node:assert/strict";
++import { createHash, randomUUID } from "node:crypto";
++import { mkdtemp, mkdir, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises";
++import os from "node:os";
++import path from "node:path";
++import { fileURLToPath } from "node:url";
++import test from "node:test";
++import pg from "pg";
++
++import { createPool } from "../server/db/pool.mjs";
++import { runMigrations } from "../server/db/migrate.mjs";
++import { importLegacyArchives } from "./import-legacy-to-postgres.mjs";
++import { checkPostgresParity } from "./check-postgres-parity.mjs";
++
++const DATABASE_URL = process.env.DATABASE_URL;
++const EXPECTED_DATABASE_URL = "postgresql://odds_test:odds_test@127.0.0.1:55432/odds_test";
++const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
++const MIGRATIONS_DIR = path.join(PROJECT_ROOT, "db", "migrations");
++const UUID_SCHEMA = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
++
++const current = (overrides = {}) => ({
++  matchId: "current-1", market: "moneyline", prediction: "home", odds: 2,
++  chance: 0.6, edge: 0.1, savedAt: "2026-07-18T10:00:00Z",
++  commenceTime: "2026-07-18T12:00:00Z", modelVersion: "fixture-v1", source: "fixture",
++  ...overrides,
++});
++const result = (overrides = {}) => ({
++  matchId: "current-1", market: "moneyline", actual: "home", source: "low",
++  sourcePriority: 10, completedAt: "2026-07-18T13:00:00Z", ...overrides,
++});
++
++test("imports every physical row into an idempotent audit ledger and preserves source bytes", async (t) => {
++  await withDatabase(t, async (pool) => {
++    const root = await fixtureRoot(t, {
++      "data/prediction-snapshots.jsonl": [
++        current(),
++        { matchId: "legacy-1", market: "moneyline", prediction: "away", savedAt: "2026-07-17T10:00:00Z" },
++        current({ matchId: "invalid-1", odds: 1 }),
++        current({ prediction: "duplicate-does-not-replace" }),
++      ],
++      "data/background-hdc-snapshots.jsonl": [
++        current({ prediction: "cross-file-duplicate" }),
++        current({ matchId: "current-2", prediction: "away" }),
++      ],
++      "data/result-archive.jsonl": [
++        result(),
++        result({ actual: "away", source: "high", sourcePriority: 20 }),
++        result({ matchId: "current-2", actual: "away" }),
++      ],
++      "data/background-result-archive.jsonl": [result({ actual: "draw", sourcePriority: 5 })],
++    }, { blankAfterFirst: true });
++    const before = await sourceHashes(root);
++
++    const first = await importLegacyArchives({ pool, sourceRoot: root });
++    assert.deepEqual(first.totals, {
++      sourceRows: 10, auditRowsAdded: 10, snapshotInserted: 3, snapshotDuplicate: 2,
++      snapshotRejected: 1, resultRejected: 0, resultInserted: 2, resultUpdated: 1, resultIgnored: 1,
++    });
++    assert.deepEqual(await sourceHashes(root), before);
++
++    const audit = await pool.query(`
++      SELECT run.source_name, ir.record_kind, ir.source_row, ir.idempotency_key, ir.classification, ir.rejection_reason
++      FROM import_rows ir JOIN import_runs run ON run.id = ir.import_run_id
++      ORDER BY run.source_name, ir.source_row
++    `);
++    assert.equal(audit.rowCount, 10);
++    assert.equal(audit.rows.filter(({ record_kind }) => record_kind === "snapshot").length, 6);
++    assert.equal(audit.rows.filter(({ record_kind }) => record_kind === "result").length, 4);
++    assert.equal(new Set(audit.rows.map(({ idempotency_key }) => idempotency_key)).size < 10, true);
++    assert.deepEqual(
++      audit.rows.filter(({ source_name }) => source_name === "data/prediction-snapshots.jsonl").map(({ classification, rejection_reason }) => [classification, rejection_reason]),
++      [["valid-current", null], ["legacy", "legacy-model"], ["invalid", "invalid-odds"], ["valid-current", null]],
++    );
++    assert.deepEqual(
++      audit.rows.filter(({ source_name }) => source_name === "data/prediction-snapshots.jsonl").map(({ source_row }) => source_row),
++      [1, 3, 4, 5],
++      "physical line numbers include blank lines",
++    );
++
++    await pool.query(`
++      CREATE FUNCTION reject_completed_run_update() RETURNS trigger LANGUAGE plpgsql AS $$
++      BEGIN RAISE EXCEPTION 'completed run must not update'; END $$
++    `);
++    await pool.query(`
++      CREATE TRIGGER reject_completed_run_update BEFORE UPDATE ON import_runs
++      FOR EACH ROW WHEN (OLD.status = 'complete') EXECUTE FUNCTION reject_completed_run_update()
++    `);
++    await pool.query("CREATE TABLE run_insert_probe (statement_count int NOT NULL DEFAULT 0, row_count int NOT NULL DEFAULT 0)");
++    await pool.query("INSERT INTO run_insert_probe DEFAULT VALUES");
++    await pool.query(`CREATE FUNCTION count_run_insert_statement() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN UPDATE run_insert_probe SET statement_count=statement_count+1; RETURN NULL; END $$`);
++    await pool.query(`CREATE FUNCTION count_run_insert_row() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN UPDATE run_insert_probe SET row_count=row_count+1; RETURN NEW; END $$`);
++    await pool.query("CREATE TRIGGER count_run_insert_statement BEFORE INSERT ON import_runs FOR EACH STATEMENT EXECUTE FUNCTION count_run_insert_statement()");
++    await pool.query("CREATE TRIGGER count_run_insert_row BEFORE INSERT ON import_runs FOR EACH ROW EXECUTE FUNCTION count_run_insert_row()");
++    const second = await importLegacyArchives({ pool, sourceRoot: root });
++    assert.deepEqual(second.totals, {
++      sourceRows: 10, auditRowsAdded: 0, snapshotInserted: 0, snapshotDuplicate: 0,
++      snapshotRejected: 0, resultRejected: 0, resultInserted: 0, resultUpdated: 0, resultIgnored: 0,
++    });
++    assert.equal((await pool.query("SELECT count(*)::int AS count FROM import_rows")).rows[0].count, 10);
++    assert.deepEqual((await pool.query("SELECT statement_count, row_count FROM run_insert_probe")).rows, [{ statement_count: 0, row_count: 0 }]);
++    assert.deepEqual(await sourceHashes(root), before);
++
++    const parity = await checkPostgresParity({ pool, sourceRoot: root, now: Date.parse("2026-07-18T14:00:00Z") });
++    assert.equal(parity.status, "ok");
++    assert.equal(parity.snapshotRows, 6);
++    assert.equal(parity.resultRows, 4);
++
++    const reversedRepositoryPool = {
++      connect: (...args) => pool.connect(...args),
++      async query(sql, parameters) {
++        const response = await pool.query(sql, parameters);
++        if (/FROM\s+(prediction_snapshots|results)/i.test(String(sql))) response.rows.reverse();
++        return response;
++      },
++    };
++    assert.equal(
++      (await checkPostgresParity({ pool: reversedRepositoryPool, sourceRoot: root, now: Date.parse("2026-07-18T14:00:00Z") })).status,
++      "ok",
++      "parity is independent of unordered repository query rows",
++    );
++
++    await pool.query(`
++      UPDATE prediction_snapshots
++      SET raw = jsonb_set(raw, '{prediction}', '"corrupted"'::jsonb)
++      WHERE snapshot_status = 'legacy'
++    `);
++    await assert.rejects(
++      checkPostgresParity({ pool, sourceRoot: root, now: Date.parse("2026-07-18T14:00:00Z") }),
++      /parity mismatch: snapshot domain representatives/,
++    );
++  });
++});
++
++test("a failed file rolls back domain and audit rows, records failure, and retries the same identity", async (t) => {
++  await withDatabase(t, async (pool, scopedUrl) => {
++    const maxOnePool = new pg.Pool({ connectionString: scopedUrl, max: 1 });
++    t.after(() => maxOnePool.end());
++    const root = await fixtureRoot(t, {
++      "data/prediction-snapshots.jsonl": [current({ matchId: "retry-1" }), current({ matchId: "fail-once" })],
++      "data/background-hdc-snapshots.jsonl": [],
++      "data/result-archive.jsonl": [],
++      "data/background-result-archive.jsonl": [],
++    });
++    let releasedWith;
++    const cleanupOrder = [];
++    const clientSideFailure = new Error("injected client-side import failure");
++    const rollbackFailure = new Error("injected rollback failure");
++    const rollbackFailingPool = {
++      async query(sql, parameters) {
++        if (/SET status = 'failed'/.test(String(sql))) {
++          cleanupOrder.push("status");
++          if (!releasedWith) throw new Error("status update attempted before uncertain client release");
++        }
++        return maxOnePool.query(sql, parameters);
++      },
++      async connect() {
++        const client = await maxOnePool.connect();
++        let auditInserts = 0;
++        return {
++          async query(sql, parameters) {
++            if (sql === "ROLLBACK") throw rollbackFailure;
++            if (/INSERT INTO import_rows/.test(String(sql)) && ++auditInserts === 2) throw clientSideFailure;
++            return client.query(sql, parameters);
++          },
++          release(error) {
++            releasedWith = error;
++            cleanupOrder.push("release");
++            client.release(error);
++          },
++        };
++      },
++    };
++    await assert.rejects(importLegacyArchives({ pool: rollbackFailingPool, sourceRoot: root }), (error) => {
++      assert.equal(error, clientSideFailure);
++      assert.equal(error.rollbackError, rollbackFailure);
++      return true;
++    });
++    assert.equal(releasedWith, rollbackFailure);
++    assert.deepEqual(cleanupOrder, ["release", "status"]);
++    assert.equal((await pool.query("SELECT count(*)::int AS count FROM prediction_snapshots")).rows[0].count, 0);
++    assert.equal((await pool.query("SELECT count(*)::int AS count FROM import_rows")).rows[0].count, 0);
++    assert.equal((await pool.query("SELECT status FROM import_runs WHERE source_name = 'data/prediction-snapshots.jsonl'")).rows[0].status, "failed");
++
++    const retry = await importLegacyArchives({ pool, sourceRoot: root });
++    assert.equal(retry.totals.snapshotInserted, 2);
++    assert.equal((await pool.query("SELECT count(*)::int AS count FROM import_rows")).rows[0].count, 2);
++    assert.equal((await pool.query("SELECT status FROM import_runs WHERE source_name = 'data/prediction-snapshots.jsonl'")).rows[0].status, "complete");
++    assert.equal((await pool.query("SELECT count(*)::int AS count FROM import_runs WHERE source_name = 'data/prediction-snapshots.jsonl'")).rows[0].count, 1);
++  });
++});
++
++test("malformed nonblank JSON records one reusable failed run without audit or domain rows", async (t) => {
++  await withDatabase(t, async (pool) => {
++    const root = await fixtureRoot(t, {
++      "data/prediction-snapshots.jsonl": [current({ matchId: "before-malformed" })],
++      "data/background-hdc-snapshots.jsonl": [],
++      "data/result-archive.jsonl": [],
++      "data/background-result-archive.jsonl": [],
++    });
++    const filename = path.join(root, "data", "prediction-snapshots.jsonl");
++    const validBytes = await readFile(filename, "utf8");
++    await writeFile(filename, `${validBytes}{malformed}\n`, "utf8");
++
++    const statusFailure = new Error("injected parse-status failure");
++    const statusFailingPool = {
++      connect: (...args) => pool.connect(...args),
++      async query(sql, parameters) {
++        if (/SET status = 'failed'/.test(String(sql))) throw statusFailure;
++        return pool.query(sql, parameters);
++      },
++    };
++    await assert.rejects(importLegacyArchives({ pool: statusFailingPool, sourceRoot: root }), (error) => {
++      assert.match(error.message, /:2 contains malformed JSON/);
++      assert.equal(error.statusUpdateError, statusFailure);
++      return true;
++    });
++    await assert.rejects(importLegacyArchives({ pool, sourceRoot: root }), /:2 contains malformed JSON/);
++    assert.deepEqual(
++      (await pool.query("SELECT status, total_rows FROM import_runs")).rows,
++      [{ status: "failed", total_rows: 2 }],
++    );
++    assert.equal((await pool.query("SELECT count(*)::int AS count FROM import_rows")).rows[0].count, 0);
++    assert.equal((await pool.query("SELECT count(*)::int AS count FROM prediction_snapshots")).rows[0].count, 0);
++  });
++});
++
++test("concurrent same-file callers execute domain and audit work once", async (t) => {
++  await withDatabase(t, async (pool) => {
++    const root = await fixtureRoot(t, {
++      "data/prediction-snapshots.jsonl": [current({ matchId: "race" })],
++      "data/background-hdc-snapshots.jsonl": [], "data/result-archive.jsonl": [], "data/background-result-archive.jsonl": [],
++    });
++    const outcomes = await Promise.all([importLegacyArchives({ pool, sourceRoot: root }), importLegacyArchives({ pool, sourceRoot: root })]);
++    assert.equal(outcomes.reduce((sum, row) => sum + row.totals.auditRowsAdded, 0), 1);
++    assert.equal(outcomes.reduce((sum, row) => sum + row.totals.snapshotInserted, 0), 1);
++    assert.equal((await pool.query("SELECT count(*)::int count FROM import_rows")).rows[0].count, 1);
++  });
++});
++
++test("ambiguous COMMIT destroys the client and retry observes committed completion", async (t) => {
++  await withDatabase(t, async (pool) => {
++    const root = await fixtureRoot(t, {
++      "data/prediction-snapshots.jsonl": [current({ matchId: "ambiguous" })],
++      "data/background-hdc-snapshots.jsonl": [], "data/result-archive.jsonl": [], "data/background-result-archive.jsonl": [],
++    });
++    const ambiguous = new Error("injected lost commit response");
++    let injected = false;
++    let releasedWith;
++    const wrapper = {
++      query: (...args) => pool.query(...args),
++      async connect() {
++        const client = await pool.connect();
++        return {
++          async query(sql, parameters) {
++            const result = await client.query(sql, parameters);
++            if (sql === "COMMIT" && !injected) { injected = true; throw ambiguous; }
++            return result;
++          },
++          release(error) { releasedWith = error; client.release(error); },
++        };
++      },
++    };
++    await assert.rejects(importLegacyArchives({ pool: wrapper, sourceRoot: root }), ambiguous);
++    assert.equal(releasedWith, ambiguous);
++    assert.deepEqual((await pool.query("SELECT status FROM import_runs")).rows, [{ status: "complete" }]);
++    const retry = await importLegacyArchives({ pool, sourceRoot: root });
++    assert.equal(retry.files[0].status, "already-complete");
++    assert.equal((await pool.query("SELECT count(*)::int count FROM import_rows")).rows[0].count, 1);
++  });
++});
++
++test("valid JSON primitives are audited exactly and rejected from both domains", async (t) => {
++  await withDatabase(t, async (pool) => {
++    const primitives = [null, "text", 42, [1, 2]];
++    const root = await fixtureRoot(t, {
++      "data/prediction-snapshots.jsonl": primitives,
++      "data/background-hdc-snapshots.jsonl": [],
++      "data/result-archive.jsonl": primitives,
++      "data/background-result-archive.jsonl": [],
++    });
++    const imported = await importLegacyArchives({ pool, sourceRoot: root });
++    assert.equal(imported.totals.snapshotRejected, 4);
++    assert.equal(imported.totals.resultRejected, 4);
++    const audit = await pool.query("SELECT raw, classification, rejection_reason FROM import_rows ORDER BY record_kind, source_row");
++    assert.equal(audit.rowCount, 8);
++    assert.ok(audit.rows.every((row) => row.classification === "invalid"));
++    assert.deepEqual(audit.rows.slice(0, 4).map((row) => row.raw), primitives);
++    assert.deepEqual(audit.rows.slice(4).map((row) => row.raw), primitives);
++    assert.equal((await pool.query("SELECT count(*)::int count FROM prediction_snapshots")).rows[0].count, 0);
++    assert.equal((await pool.query("SELECT count(*)::int count FROM results")).rows[0].count, 0);
++    const primitiveParity = await checkPostgresParity({ pool, sourceRoot: root });
++    assert.equal(primitiveParity.status, "ok");
++    assert.deepEqual({ snapshotInvalid: primitiveParity.snapshotInvalid, resultRejected: primitiveParity.resultRejected }, { snapshotInvalid: 4, resultRejected: 4 });
++  });
++});
++
++test("resolved allowlisted paths cannot escape source root", async (t) => {
++  const root = await fixtureRoot(t, {
++    "data/prediction-snapshots.jsonl": [], "data/background-hdc-snapshots.jsonl": [],
++    "data/result-archive.jsonl": [], "data/background-result-archive.jsonl": [],
++  });
++  const outside = await mkdtemp(path.join(os.tmpdir(), "odds-outside-"));
++  t.after(() => rm(outside, { recursive: true, force: true }));
++  const target = path.join(root, "data", "prediction-snapshots.jsonl");
++  const escaped = path.join(outside, "escaped.jsonl");
++  await writeFile(escaped, "\n", "utf8");
++  await unlink(target);
++  try { await symlink(escaped, target, "file"); }
++  catch (error) { if (error.code === "EPERM") return t.skip("symlink privilege unavailable"); throw error; }
++  await assert.rejects(importLegacyArchives({ pool: { query() {}, connect() {} }, sourceRoot: root }), /containment failed/);
++});
++
++async function fixtureRoot(t, files, options = {}) {
++  const root = await mkdtemp(path.join(os.tmpdir(), "odds-import-"));
++  t.after(() => rm(root, { recursive: true, force: true }));
++  for (const [relative, rows] of Object.entries(files)) {
++    const filename = path.join(root, ...relative.split("/"));
++    await mkdir(path.dirname(filename), { recursive: true });
++    const lines = rows.map((row) => JSON.stringify(row));
++    if (options.blankAfterFirst && lines.length > 1) lines.splice(1, 0, "");
++    await writeFile(filename, `${lines.join("\n")}${lines.length ? "\n" : ""}`, "utf8");
++  }
++  return root;
++}
++
++async function sourceHashes(root) {
++  const relatives = [
++    "data/prediction-snapshots.jsonl", "data/background-hdc-snapshots.jsonl",
++    "data/result-archive.jsonl", "data/background-result-archive.jsonl",
++  ];
++  return Object.fromEntries(await Promise.all(relatives.map(async (relative) => {
++    const bytes = await readFile(path.join(root, ...relative.split("/")));
++    return [relative, createHash("sha256").update(bytes).digest("hex")];
++  })));
++}
++
++async function withDatabase(t, callback) {
++  assert.equal(DATABASE_URL, EXPECTED_DATABASE_URL, "DATABASE_URL must exactly match the disposable odds_test database");
++  const schema = randomUUID();
++  assert.match(schema, UUID_SCHEMA);
++  const quoted = `"${schema}"`;
++  const admin = createPool(DATABASE_URL);
++  let pool;
++  t.after(async () => {
++    let firstError;
++    try { if (pool) await pool.end(); } catch (error) { firstError = error; }
++    try { assert.match(schema, UUID_SCHEMA); await admin.query(`DROP SCHEMA IF EXISTS ${quoted} CASCADE`); } catch (error) { firstError ??= error; }
++    try { await admin.end(); } catch (error) { firstError ??= error; }
++    if (firstError) throw firstError;
++  });
++  await admin.query(`CREATE SCHEMA ${quoted}`);
++  const scoped = new URL(DATABASE_URL);
++  scoped.searchParams.set("options", `-c search_path=${quoted}`);
++  pool = createPool(scoped.toString());
++  await runMigrations(pool, MIGRATIONS_DIR);
++  await callback(pool, scoped.toString());
++}
+# full current server/db/migrate.test.mjs
+diff --git a/server/db/migrate.test.mjs b/server/db/migrate.test.mjs
+new file mode 100644
+index 0000000..9a6897b
+--- /dev/null
++++ b/server/db/migrate.test.mjs
+@@ -0,0 +1,557 @@
++import assert from "node:assert/strict";
++import { randomUUID } from "node:crypto";
++import { spawnSync } from "node:child_process";
++import { mkdtemp, rm, writeFile } from "node:fs/promises";
++import { tmpdir } from "node:os";
++import path from "node:path";
++import { fileURLToPath } from "node:url";
++import test from "node:test";
++
++import { loadServerConfig } from "../config.mjs";
++import { createPool, withTransaction } from "./pool.mjs";
++import { runMigrations } from "./migrate.mjs";
++import { runMigrateCli } from "./migrate-cli.mjs";
++
++const DATABASE_URL = process.env.DATABASE_URL;
++const EXPECTED_TEST_DATABASE_URL = "postgresql://odds_test:odds_test@127.0.0.1:55432/odds_test";
++const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
++const INITIAL_MIGRATIONS_DIR = path.join(PROJECT_ROOT, "db", "migrations");
++const VALID_ENV = Object.freeze({
++  DATABASE_URL: DATABASE_URL ?? EXPECTED_TEST_DATABASE_URL,
++  SESSION_SECRET: "test-only-session-secret-32-bytes-minimum",
++  PUBLIC_ORIGIN: "https://odds.ballballchu.com.hk",
++});
++
++test("loadServerConfig accepts the complete production-shaped environment", () => {
++  assert.deepEqual(loadServerConfig(VALID_ENV), {
++    databaseUrl: VALID_ENV.DATABASE_URL,
++    sessionSecret: VALID_ENV.SESSION_SECRET,
++    publicOrigin: VALID_ENV.PUBLIC_ORIGIN,
++  });
++});
++
++test("loadServerConfig rejects missing and invalid required values without echoing secrets", () => {
++  const cases = [
++    ["DATABASE_URL", undefined, /DATABASE_URL/],
++    ["DATABASE_URL", "not-a-database-url", /DATABASE_URL/],
++    ["DATABASE_URL", "mysql://user:password@localhost/database", /DATABASE_URL/],
++    ["SESSION_SECRET", undefined, /SESSION_SECRET/],
++    ["SESSION_SECRET", "too-short", /SESSION_SECRET/],
++    ["PUBLIC_ORIGIN", undefined, /PUBLIC_ORIGIN/],
++    ["PUBLIC_ORIGIN", "not-an-origin", /PUBLIC_ORIGIN/],
++    ["PUBLIC_ORIGIN", "http://odds.ballballchu.com.hk", /PUBLIC_ORIGIN/],
++    ["PUBLIC_ORIGIN", "https://odds.ballballchu.com.hk/api", /PUBLIC_ORIGIN/],
++  ];
++
++  for (const [name, value, expectedMessage] of cases) {
++    const env = { ...VALID_ENV, [name]: value };
++    assert.throws(() => loadServerConfig(env), (error) => {
++      assert.match(error.message, expectedMessage);
++      if (typeof value === "string" && name === "SESSION_SECRET") {
++        assert.equal(error.message.includes(value), false);
++      }
++      if (typeof value === "string" && name === "DATABASE_URL" && value.includes("user:password")) {
++        assert.equal(error.message.includes(value), false);
++        assert.equal(error.message.includes("user:password"), false);
++      }
++      return true;
++    });
++  }
++});
++
++test("migration CLI sanitizes construction, connection, and cleanup failures", () => {
++  const secretUrl = "postgresql://review_user:review_password@127.0.0.1:1/review_db";
++  const child = spawnSync(process.execPath, [path.join(PROJECT_ROOT, "server", "db", "migrate-cli.mjs")], {
++    cwd: PROJECT_ROOT, encoding: "utf8", env: { ...process.env, DATABASE_URL: secretUrl }, timeout: 10_000,
++  });
++  const output = `${child.stdout}${child.stderr}`;
++  assert.notEqual(child.status, 0);
++  assert.match(output, /^status=failed\s*$/);
++  for (const forbidden of [secretUrl, "review_user", "review_password", "Error:", PROJECT_ROOT]) assert.equal(output.includes(forbidden), false);
++});
++
++test("migration CLI reports failure when cleanup fails after a successful migration", async () => {
++  const output = [];
++  const errors = [];
++  const cleanupError = new Error("secret cleanup stack");
++  const code = await runMigrateCli({
++    databaseUrl: "postgresql://hidden_user:hidden_password@hidden/db",
++    poolFactory: () => ({ end: async () => { throw cleanupError; } }),
++    migrate: async () => ["001.sql"],
++    stdout: (line) => output.push(line),
++    stderr: (line) => errors.push(line),
++  });
++  assert.equal(code, 1);
++  assert.deepEqual(output, []);
++  assert.deepEqual(errors, ["status=failed"]);
++});
++
++test("withTransaction commits returned work and rolls back thrown work", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    await pool.query("CREATE TABLE transaction_probe (value integer NOT NULL)");
++
++    const result = await withTransaction(pool, async (client) => {
++      await client.query("INSERT INTO transaction_probe (value) VALUES ($1)", [1]);
++      return "committed";
++    });
++    assert.equal(result, "committed");
++
++    await assert.rejects(
++      withTransaction(pool, async (client) => {
++        await client.query("INSERT INTO transaction_probe (value) VALUES ($1)", [2]);
++        throw new Error("force rollback");
++      }),
++      /force rollback/,
++    );
++
++    const values = await pool.query("SELECT value FROM transaction_probe ORDER BY value");
++    assert.deepEqual(values.rows, [{ value: 1 }]);
++  });
++});
++
++test("withTransaction preserves the original error if rollback also fails", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    let releasedWith;
++    const rollbackFailingPool = {
++      async connect() {
++        const realClient = await pool.connect();
++        return {
++          async query(sql, parameters) {
++            if (sql === "ROLLBACK") throw new Error("injected rollback failure");
++            return realClient.query(sql, parameters);
++          },
++          release(error) {
++            releasedWith = error;
++            realClient.release(error);
++          },
++        };
++      },
++    };
++
++    await assert.rejects(
++      withTransaction(rollbackFailingPool, async (client) => {
++        await client.query("SELECT 1");
++        throw new Error("original transaction failure");
++      }),
++      (error) => {
++        assert.equal(error.message, "original transaction failure");
++        assert.equal(error.rollbackError?.message, "injected rollback failure");
++        return true;
++      },
++    );
++    assert.equal(releasedWith?.message, "injected rollback failure");
++  });
++});
++
++test("runMigrations applies SQL files in lexical order and records SHA-256 checksums", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    await withTempMigrations([
++      ["010_second.sql", "INSERT INTO migration_order (position) VALUES (2);"],
++      ["002_first.sql", "CREATE TABLE migration_order (position integer NOT NULL); INSERT INTO migration_order (position) VALUES (1);"],
++      ["README.txt", "This is not a migration."],
++    ], async (directory) => {
++      const applied = await runMigrations(pool, directory);
++      assert.deepEqual(applied, ["002_first.sql", "010_second.sql"]);
++
++      const values = await pool.query("SELECT position FROM migration_order ORDER BY position");
++      assert.deepEqual(values.rows, [{ position: 1 }, { position: 2 }]);
++
++      const ledger = await pool.query("SELECT version, checksum_sha256 FROM schema_migrations ORDER BY version");
++      assert.deepEqual(ledger.rows.map(({ version }) => version), ["002_first.sql", "010_second.sql"]);
++      assert.ok(ledger.rows.every(({ checksum_sha256 }) => /^[a-f0-9]{64}$/.test(checksum_sha256)));
++    });
++  });
++});
++
++test("runMigrations is idempotent and rejects changed content for an applied version", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    await withTempMigrations([
++      ["001_counter.sql", "CREATE TABLE migration_counter (value integer NOT NULL); INSERT INTO migration_counter (value) VALUES (1);"],
++    ], async (directory) => {
++      assert.deepEqual(await runMigrations(pool, directory), ["001_counter.sql"]);
++      assert.deepEqual(await runMigrations(pool, directory), []);
++
++      const counter = await pool.query("SELECT value FROM migration_counter");
++      assert.deepEqual(counter.rows, [{ value: 1 }]);
++
++      await writeFile(path.join(directory, "001_counter.sql"), "SELECT 2;", "utf8");
++      await assert.rejects(runMigrations(pool, directory), /checksum.*001_counter\.sql|001_counter\.sql.*checksum/i);
++
++      const ledger = await pool.query("SELECT count(*)::integer AS count FROM schema_migrations");
++      assert.deepEqual(ledger.rows, [{ count: 1 }]);
++    });
++  });
++});
++
++test("runMigrations rejects recorded migration history whose SQL file is missing", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    await withTempMigrations([
++      ["001_then_deleted.sql", "CREATE TABLE deleted_migration_probe (id integer);"],
++    ], async (directory) => {
++      assert.deepEqual(await runMigrations(pool, directory), ["001_then_deleted.sql"]);
++      await rm(path.join(directory, "001_then_deleted.sql"));
++
++      await assert.rejects(
++        runMigrations(pool, directory),
++        /recorded migration 001_then_deleted\.sql.*missing/i,
++      );
++
++      const ledger = await pool.query("SELECT version FROM schema_migrations ORDER BY version");
++      assert.deepEqual(ledger.rows, [{ version: "001_then_deleted.sql" }]);
++    });
++  });
++});
++
++test("runMigrations destroys the client after an ambiguous advisory-lock acquisition failure", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    let releasedWith;
++    const acquisitionFailure = new Error("injected lost advisory-lock response");
++    const uncertainLockPool = {
++      async connect() {
++        const realClient = await pool.connect();
++        return {
++          async query(sql, parameters) {
++            const result = await realClient.query(sql, parameters);
++            if (sql === "SELECT pg_advisory_lock($1)") throw acquisitionFailure;
++            return result;
++          },
++          release(error) {
++            releasedWith = error;
++            realClient.release(error);
++          },
++        };
++      },
++    };
++
++    await withTempMigrations([], async (directory) => {
++      await assert.rejects(runMigrations(uncertainLockPool, directory), acquisitionFailure);
++      assert.equal(releasedWith, acquisitionFailure);
++    });
++  });
++});
++
++test("runMigrations destroys the client after an ambiguous BEGIN failure", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    let releasedWith;
++    const beginFailure = new Error("injected lost BEGIN response");
++    const uncertainBeginPool = {
++      async connect() {
++        const realClient = await pool.connect();
++        return {
++          async query(sql, parameters) {
++            const result = await realClient.query(sql, parameters);
++            if (sql === "BEGIN") throw beginFailure;
++            return result;
++          },
++          release(error) {
++            releasedWith = error;
++            realClient.release(error);
++          },
++        };
++      },
++    };
++
++    await withTempMigrations([
++      ["001_ambiguous_begin.sql", "CREATE TABLE must_not_run_after_ambiguous_begin (id integer);"],
++    ], async (directory) => {
++      await assert.rejects(runMigrations(uncertainBeginPool, directory), beginFailure);
++      assert.equal(releasedWith, beginFailure);
++    });
++  });
++});
++
++test("runMigrations serializes concurrent runners", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    await withTempMigrations([
++      ["001_concurrent.sql", "SELECT pg_sleep(0.1); CREATE TABLE concurrent_probe (id integer);"],
++    ], async (directory) => {
++      const results = await Promise.all([
++        runMigrations(pool, directory),
++        runMigrations(pool, directory),
++      ]);
++      assert.deepEqual(results.sort((left, right) => right.length - left.length), [["001_concurrent.sql"], []]);
++
++      const ledger = await pool.query("SELECT count(*)::integer AS count FROM schema_migrations");
++      assert.deepEqual(ledger.rows, [{ count: 1 }]);
++    });
++  });
++});
++
++test("runMigrations rejects a new migration that predates recorded history", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    await withTempMigrations([
++      ["010_later.sql", "CREATE TABLE lexical_history (id integer);"],
++    ], async (directory) => {
++      assert.deepEqual(await runMigrations(pool, directory), ["010_later.sql"]);
++      await writeFile(path.join(directory, "005_earlier.sql"), "SELECT 5;", "utf8");
++
++      await assert.rejects(
++        runMigrations(pool, directory),
++        /005_earlier\.sql.*before.*010_later\.sql/i,
++      );
++
++      const ledger = await pool.query("SELECT version FROM schema_migrations ORDER BY version");
++      assert.deepEqual(ledger.rows, [{ version: "010_later.sql" }]);
++    });
++  });
++});
++
++test("runMigrations destroys the client if advisory unlock fails after a migration error", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    let releasedWith;
++    const unlockFailure = new Error("injected advisory unlock failure");
++    const unlockFailingPool = {
++      async connect() {
++        const realClient = await pool.connect();
++        return {
++          async query(sql, parameters) {
++            if (sql === "SELECT pg_advisory_unlock($1)") throw unlockFailure;
++            return realClient.query(sql, parameters);
++          },
++          release(error) {
++            releasedWith = error;
++            realClient.release(error);
++          },
++        };
++      },
++    };
++
++    await withTempMigrations([
++      ["001_fails_and_unlock_fails.sql", "SELECT * FROM another_table_that_does_not_exist;"],
++    ], async (directory) => {
++      await assert.rejects(runMigrations(unlockFailingPool, directory), (error) => {
++        assert.match(error.message, /another_table_that_does_not_exist/);
++        assert.equal(error.unlockError, unlockFailure);
++        return true;
++      });
++      assert.equal(releasedWith, unlockFailure);
++    });
++  });
++});
++
++test("a failed SQL migration is rolled back and is never marked applied", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    await withTempMigrations([
++      ["001_fails.sql", "CREATE TABLE must_be_rolled_back (id integer); SELECT * FROM table_that_does_not_exist;"],
++    ], async (directory) => {
++      await assert.rejects(runMigrations(pool, directory), /table_that_does_not_exist/);
++
++      const table = await pool.query("SELECT to_regclass('must_be_rolled_back') AS name");
++      assert.deepEqual(table.rows, [{ name: null }]);
++      const ledger = await pool.query("SELECT version FROM schema_migrations WHERE version = $1", ["001_fails.sql"]);
++      assert.deepEqual(ledger.rows, []);
++    });
++  });
++});
++
++test("the project migrations create the exact table, audit, and uniqueness boundaries", async (t) => {
++  requireDatabaseUrl();
++  await withIsolatedSchema(t, async (pool) => {
++    assert.deepEqual(await runMigrations(pool, INITIAL_MIGRATIONS_DIR), ["001_initial.sql", "002_import_row_audit.sql"]);
++    assert.deepEqual(await runMigrations(pool, INITIAL_MIGRATIONS_DIR), []);
++
++    const tables = await pool.query(`
++      SELECT table_name
++      FROM information_schema.tables
++      WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'
++      ORDER BY table_name
++    `);
++    assert.deepEqual(tables.rows.map(({ table_name }) => table_name), [
++      "collector_state",
++      "import_rows",
++      "import_runs",
++      "live_odds",
++      "login_attempts",
++      "owners",
++      "prediction_snapshots",
++      "results",
++      "schema_migrations",
++      "sessions",
++    ]);
++
++    const uniqueConstraints = await pool.query(`
++      SELECT relation.relname AS table_name,
++             array_agg(attribute.attname::text ORDER BY key.ordinality) AS columns
++      FROM pg_constraint AS constraint_record
++      JOIN pg_class AS relation ON relation.oid = constraint_record.conrelid
++      JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
++      CROSS JOIN LATERAL unnest(constraint_record.conkey) WITH ORDINALITY AS key(attribute_number, ordinality)
++      JOIN pg_attribute AS attribute
++        ON attribute.attrelid = relation.oid AND attribute.attnum = key.attribute_number
++      WHERE namespace.nspname = current_schema() AND constraint_record.contype = 'u'
++      GROUP BY relation.relname, constraint_record.conname
++      ORDER BY relation.relname, constraint_record.conname
++    `);
++    assert.deepEqual(uniqueConstraints.rows, [
++      { table_name: "import_runs", columns: ["source_name", "source_sha256", "importer_version"] },
++      { table_name: "live_odds", columns: ["identity_key"] },
++      { table_name: "owners", columns: ["username"] },
++      { table_name: "prediction_snapshots", columns: ["identity_key"] },
++      { table_name: "results", columns: ["identity_key"] },
++      { table_name: "sessions", columns: ["token_hash"] },
++    ]);
++
++    const foreignKeys = await pool.query(`
++      SELECT source.relname AS table_name,
++             array_agg(source_attribute.attname::text ORDER BY source_key.ordinality) AS columns,
++             target.relname AS referenced_table,
++             array_agg(target_attribute.attname::text ORDER BY source_key.ordinality) AS referenced_columns
++      FROM pg_constraint AS constraint_record
++      JOIN pg_class AS source ON source.oid = constraint_record.conrelid
++      JOIN pg_class AS target ON target.oid = constraint_record.confrelid
++      JOIN pg_namespace AS namespace ON namespace.oid = source.relnamespace
++      CROSS JOIN LATERAL unnest(constraint_record.conkey) WITH ORDINALITY AS source_key(attribute_number, ordinality)
++      JOIN pg_attribute AS source_attribute
++        ON source_attribute.attrelid = source.oid AND source_attribute.attnum = source_key.attribute_number
++      JOIN pg_attribute AS target_attribute
++        ON target_attribute.attrelid = target.oid
++       AND target_attribute.attnum = constraint_record.confkey[source_key.ordinality]
++      WHERE namespace.nspname = current_schema() AND constraint_record.contype = 'f'
++      GROUP BY source.relname, target.relname, constraint_record.conname
++      ORDER BY source.relname, constraint_record.conname
++    `);
++    assert.deepEqual(foreignKeys.rows, [
++      { table_name: "import_rows", columns: ["import_run_id"], referenced_table: "import_runs", referenced_columns: ["id"] },
++      { table_name: "sessions", columns: ["owner_id"], referenced_table: "owners", referenced_columns: ["id"] },
++    ]);
++
++    const columns = await pool.query(`
++      SELECT table_name, column_name, data_type, is_nullable
++      FROM information_schema.columns
++      WHERE table_schema = current_schema()
++      ORDER BY table_name, ordinal_position
++    `);
++    assert.deepEqual(columns.rows, expectedInitialColumns());
++
++    const auditIndex = await pool.query(`
++      SELECT indexdef
++      FROM pg_indexes
++      WHERE schemaname = current_schema() AND indexname = 'import_rows_idempotency_key_idx'
++    `);
++    assert.equal(auditIndex.rowCount, 1);
++    assert.equal(auditIndex.rows[0].indexdef.includes("UNIQUE"), false);
++
++    const runId = randomUUID();
++    await pool.query(`
++      INSERT INTO import_runs (id, source_name, source_sha256, importer_version)
++      VALUES ($1, 'fixture', 'hash', 'version')
++    `, [runId]);
++    await pool.query(`
++      INSERT INTO import_rows (import_run_id, source_row, idempotency_key, classification, raw, record_kind)
++      VALUES ($1, 1, 'duplicate-key', 'valid-current', '{}', 'snapshot'),
++             ($1, 2, 'duplicate-key', 'result', '{}', 'result')
++    `, [runId]);
++    await assert.rejects(
++      pool.query(`
++        INSERT INTO import_rows (import_run_id, source_row, raw, record_kind)
++        VALUES ($1, 3, '{}', 'unknown')
++      `, [runId]),
++      /check constraint/i,
++    );
++
++    await assert.rejects(
++      pool.query("INSERT INTO prediction_snapshots (identity_key, odds, raw) VALUES ($1, $2, $3)", ["bad-zero-odds", 0, {}]),
++      /check constraint/i,
++    );
++    await assert.rejects(
++      pool.query("INSERT INTO prediction_snapshots (identity_key, odds, raw) VALUES ($1, $2, $3)", ["bad-infinite-odds", Number.POSITIVE_INFINITY, {}]),
++      /check constraint/i,
++    );
++    await assert.rejects(
++      pool.query("INSERT INTO prediction_snapshots (identity_key, odds, raw) VALUES ($1, $2, $3)", ["bad-nan-odds", Number.NaN, {}]),
++      /check constraint/i,
++    );
++    await assert.rejects(
++      pool.query("INSERT INTO prediction_snapshots (identity_key, chance, raw) VALUES ($1, $2, $3)", ["bad-chance", 1.01, {}]),
++      /check constraint/i,
++    );
++    await assert.rejects(
++      pool.query("INSERT INTO prediction_snapshots (identity_key, chance, raw) VALUES ($1, $2, $3)", ["bad-nan-chance", Number.NaN, {}]),
++      /check constraint/i,
++    );
++    await assert.rejects(
++      pool.query("INSERT INTO live_odds (identity_key, odds, raw) VALUES ($1, $2, $3)", ["bad-live-odds", Number.POSITIVE_INFINITY, {}]),
++      /check constraint/i,
++    );
++    await assert.rejects(
++      pool.query("INSERT INTO live_odds (identity_key, odds, raw) VALUES ($1, $2, $3)", ["bad-live-nan-odds", Number.NaN, {}]),
++      /check constraint/i,
++    );
++  });
++});
++
++function expectedInitialColumns() {
++  const timestamp = "timestamp with time zone";
++  const definitions = {
++    collector_state: [["state_key", "text", "NO"], ["state", "jsonb", "NO"], ["updated_at", timestamp, "NO"]],
++    import_rows: [["import_run_id", "uuid", "NO"], ["source_row", "integer", "NO"], ["idempotency_key", "text", "YES"], ["classification", "text", "YES"], ["rejection_reason", "text", "YES"], ["raw", "jsonb", "NO"], ["record_kind", "text", "NO"]],
++    import_runs: [["id", "uuid", "NO"], ["source_name", "text", "YES"], ["source_sha256", "text", "YES"], ["importer_version", "text", "YES"], ["status", "text", "YES"], ["total_rows", "integer", "YES"], ["accepted_rows", "integer", "YES"], ["rejected_rows", "integer", "YES"], ["started_at", timestamp, "YES"], ["finished_at", timestamp, "YES"]],
++    live_odds: [["id", "bigint", "NO"], ["identity_key", "text", "NO"], ["entry_id", "text", "YES"], ["provider", "text", "YES"], ["match_id", "text", "YES"], ["home_team", "text", "YES"], ["away_team", "text", "YES"], ["commence_time", timestamp, "YES"], ["market", "text", "YES"], ["selection", "text", "YES"], ["line", "double precision", "YES"], ["odds", "double precision", "YES"], ["observed_at", timestamp, "YES"], ["expires_at", timestamp, "YES"], ["raw", "jsonb", "NO"]],
++    login_attempts: [["scope_key", "text", "NO"], ["failed_count", "integer", "YES"], ["window_started_at", timestamp, "YES"], ["blocked_until", timestamp, "YES"]],
++    owners: [["id", "uuid", "NO"], ["username", "text", "NO"], ["password_hash", "text", "NO"], ["disabled_at", timestamp, "YES"], ["created_at", timestamp, "NO"]],
++    prediction_snapshots: [["id", "bigint", "NO"], ["identity_key", "text", "NO"], ["match_id", "text", "YES"], ["market", "text", "YES"], ["prediction", "text", "YES"], ["line", "double precision", "YES"], ["odds", "double precision", "YES"], ["chance", "double precision", "YES"], ["edge", "double precision", "YES"], ["saved_at", timestamp, "YES"], ["commence_time", timestamp, "YES"], ["model_version", "text", "YES"], ["source", "text", "YES"], ["snapshot_status", "text", "YES"], ["rejection_reason", "text", "YES"], ["raw", "jsonb", "NO"]],
++    results: [["id", "bigint", "NO"], ["identity_key", "text", "NO"], ["match_id", "text", "YES"], ["market", "text", "YES"], ["actual", "text", "YES"], ["source", "text", "YES"], ["source_priority", "integer", "YES"], ["completed_at", timestamp, "YES"], ["raw", "jsonb", "NO"]],
++    schema_migrations: [["version", "text", "NO"], ["checksum_sha256", "text", "NO"], ["applied_at", timestamp, "NO"]],
++    sessions: [["id", "uuid", "NO"], ["owner_id", "uuid", "YES"], ["token_hash", "bytea", "NO"], ["csrf_hash", "bytea", "NO"], ["created_at", timestamp, "YES"], ["last_seen_at", timestamp, "YES"], ["idle_expires_at", timestamp, "YES"], ["absolute_expires_at", timestamp, "YES"], ["revoked_at", timestamp, "YES"]],
++  };
++
++  return Object.entries(definitions).flatMap(([table_name, tableColumns]) => (
++    tableColumns.map(([column_name, data_type, is_nullable]) => ({ table_name, column_name, data_type, is_nullable }))
++  ));
++}
++
++function requireDatabaseUrl() {
++  assert.equal(
++    DATABASE_URL === EXPECTED_TEST_DATABASE_URL,
++    true,
++    "DATABASE_URL must be the controller-provided disposable odds_test database",
++  );
++}
++
++async function withIsolatedSchema(t, callback) {
++  const adminPool = createPool(DATABASE_URL);
++  const schema = `task2_${randomUUID().replaceAll("-", "")}`;
++  const quotedSchema = `"${schema}"`;
++  let pool;
++
++  t.after(async () => {
++    let firstError;
++    try { if (pool) await pool.end(); } catch (error) { firstError = error; }
++    try {
++      assert.match(schema, /^task2_[0-9a-f]{32}$/);
++      await adminPool.query(`DROP SCHEMA IF EXISTS ${quotedSchema} CASCADE`);
++    } catch (error) { firstError ??= error; }
++    try { await adminPool.end(); } catch (error) { firstError ??= error; }
++    if (firstError) throw firstError;
++  });
++
++  await adminPool.query(`CREATE SCHEMA ${quotedSchema}`);
++  const scopedUrl = new URL(DATABASE_URL);
++  scopedUrl.searchParams.set("options", `-c search_path=${schema}`);
++  pool = createPool(scopedUrl.toString());
++
++  await callback(pool);
++}
++
++async function withTempMigrations(files, callback) {
++  const directory = await mkdtemp(path.join(tmpdir(), "odds-migrations-"));
++  try {
++    for (const [filename, contents] of files) {
++      await writeFile(path.join(directory, filename), contents, "utf8");
++    }
++    await callback(directory);
++  } finally {
++    await rm(directory, { recursive: true, force: true });
++  }
++}

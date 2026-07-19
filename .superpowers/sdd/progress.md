@@ -1,0 +1,5 @@
+Task 1: complete (inline TDD; 8 focused tests pass; build pass; no Git commits available)
+Task 2: complete (subagent TDD; server/check-data/full-suite pass; independent review clean; no Git commits available)
+Task 3: complete (subagent TDD; 76/76 tests and build pass; independent review clean; no Git commits available)
+Task 4: complete (subagent TDD; 89/89 tests pass; reviewer fixes for literal 女足 and dotted suffix; re-review approved; pre-existing input-order grouping risk recorded; no Git commits available)
+Task 5: complete (subagent TDD; failed-reload state clearing and strict snapshot-quality guard; 106/106 tests and build pass; independent re-review approved; controller browser/API black-box checks pass; no Git commits available)

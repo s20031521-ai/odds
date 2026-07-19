@@ -1,0 +1,125 @@
+.application-shell {
+  min-height: 100vh;
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+.application-shell__content {
+  width: min(100%, 1440px);
+  margin-inline: auto;
+  padding: 24px;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 30;
+  top: 8px;
+  left: 8px;
+  min-height: var(--touch-target);
+  padding: 10px 14px;
+  transform: translateY(calc(-100% - 16px));
+  border-radius: 8px;
+  color: var(--color-bg);
+  background: var(--color-warning);
+  font-weight: 800;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+.app-navigation ul {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-navigation a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-target);
+  padding: 8px 14px;
+  border-radius: 999px;
+  color: var(--color-muted);
+  text-decoration: none;
+  font-weight: 800;
+}
+
+.app-navigation a[aria-current="page"] {
+  color: var(--color-bg);
+  background: var(--color-primary);
+}
+
+.app-navigation--top {
+  display: block;
+  margin-bottom: 20px;
+}
+
+.app-navigation--bottom {
+  display: none;
+}
+
+.app-shell__alert[role="alert"] {
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-card);
+  color: var(--color-warning);
+  background: var(--color-surface);
+  font-weight: 800;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-warning);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .application-shell__content {
+    padding: 16px 16px calc(var(--touch-target) + 24px + env(safe-area-inset-bottom));
+  }
+
+  .app-navigation--top {
+    display: none;
+  }
+
+  .app-navigation--bottom {
+    position: fixed;
+    z-index: 20;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: block;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--color-primary);
+    background: var(--color-surface);
+  }
+
+  .app-navigation--bottom ul {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .app-navigation--bottom a {
+    min-height: var(--touch-target);
+    padding-inline: 4px;
+    border-radius: 10px;
+    font-size: 0.78rem;
+    text-align: center;
+  }
+}

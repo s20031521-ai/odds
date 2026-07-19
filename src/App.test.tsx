@@ -7,12 +7,12 @@ describe("App integration source", () => {
     const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 
     expect(source).toContain('import { AppShell } from "./components/AppShell"');
-    expect(source).toContain('import { BuyDashboard } from "./pages/BuyDashboard"');
+    expect(source).toContain('import { DashboardPage } from "./pages/DashboardPage"');
     expect(source).toContain('import { AllFixtures } from "./pages/AllFixtures"');
     expect(source).toContain('import { LoginPage } from "./pages/LoginPage"');
     expect(source).toContain('createApiClient');
     expect(source).toContain("<AppShell");
-    expect(source).toContain("<BuyDashboard");
+    expect(source).toContain("<DashboardPage");
     expect(source).toContain("<AllFixtures");
     expect(source).not.toContain('className="topbar"');
     expect(source).not.toContain('className="page-tabs"');

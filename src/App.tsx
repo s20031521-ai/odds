@@ -22,7 +22,7 @@ import { bestH2hPick } from "./picks";
 import { AppShell } from "./components/AppShell";
 import { buildBuyCandidates } from "./buyCandidates";
 import { BUY_EDGE_THRESHOLD, candidateSelectionRuntime, selectBuyOpportunities } from "./buyOpportunities";
-import { BuyDashboard } from "./pages/BuyDashboard";
+import { DashboardPage } from "./pages/DashboardPage";
 import { AllFixtures } from "./pages/AllFixtures";
 import { canShowActiveOpportunities, useConnectivityState } from "./pwa";
 import { ApiError, createApiClient, type SessionState } from "./apiClient";
@@ -440,7 +440,7 @@ function App() {
         content={(
         <>
       {page === "dashboard" ? (
-        <BuyDashboard opportunities={buyOpportunities} generatedAt={lastSuccessfulSync} dataFresh={opportunitiesTrusted} />
+        <DashboardPage opportunities={buyOpportunities} generatedAt={lastSuccessfulSync} dataFresh={opportunitiesTrusted} />
       ) : null}
       {page === "history" ? <h1 className="page-heading">完場對比</h1> : null}
       {page === "analysis" ? <h1 className="page-heading">模型表現分析</h1> : null}

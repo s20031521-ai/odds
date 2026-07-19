@@ -8,3 +8,4 @@ Task 3: complete (commits e20e54b..75a4c84, review clean)
 Minor: click-write path untestable under renderToStaticMarkup; UMD-global React type usage
 Task 4: complete (commits 75a4c84..4e4cf0d, review clean; App.test.tsx 2 wiring assertions rewired 1:1)
 ALL TASKS COMPLETE — pending final whole-branch review (merge-base 645f22a)
+MERGED to master (ff 645f22a..4e4cf0d); tests on merged result 183/183 green; branch deleted

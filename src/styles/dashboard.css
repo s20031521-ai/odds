@@ -289,3 +289,27 @@
     flex-direction: column;
   }
 }
+
+.dashboard-mode-bar {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.dashboard-mode-bar button {
+  min-height: var(--touch-target);
+  padding: 8px 14px;
+  border: 1px solid var(--color-primary);
+  border-radius: 999px;
+  color: var(--color-text);
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.dashboard-mode-bar button[aria-pressed="true"] {
+  color: var(--color-bg);
+  background: var(--color-primary);
+}

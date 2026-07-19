@@ -1,128 +1,49 @@
-# Task 2 Report: Backend snapshot quality enforcement
+# Task 2 Report — `SimpleDashboard` 極簡卡片 view
 
-## Status
+**Status:** DONE_WITH_CONCERNS(一處 brief 內部矛盾,已按 TDD 原則處理,詳見下文)
+**Branch:** `feature/simple-dashboard-mode`
+**Commit:** `e20e54b` — `feat: add minimal simple dashboard view`
 
-Complete. Backend writes now accept only `valid-current` prediction snapshots, backtests classify all stored snapshots but settle/readiness-count only valid-current snapshots, and the data-integrity audit prints the canonical snapshot quality summary without modifying archive files.
+## 做咗咩
 
-## Scope and files
+1. **Step 1 — failing test**:逐字建立 `src/pages/SimpleDashboard.test.tsx`(6 個 test,同 brief 一字不差)。
+2. **Step 2 — 確認 fail**:
+   `node node_modules/vitest/vitest.mjs run src/pages/SimpleDashboard.test.tsx`
+   → FAIL,`Cannot find module './SimpleDashboard'`(同 brief 預期嘅 resolve error 等價)。
+3. **Step 3 — 實作**:建立 `src/pages/SimpleDashboard.tsx`,結構、props、CSS class 全部按 brief(`simple-dashboard`、`simple-dashboard__header`、`__sync`、`__grid`、`__empty`、`simple-card`、`simple-card__link`、`__meta`、`__picks` 齊晒)。helper(`formatSelection` / `formatOdds` / `formatDate` / `pickKey`)喺檔案內部自己寫,冇掂 `BuyDashboard.tsx`。
+4. **Step 4 — 確認 pass**:同一指令 → **6/6 passed**。
+5. **Step 5 — CSS**:用 `cat >>` append 落 `src/styles/dashboard.css` 尾。`git diff --stat` 顯示 **98 insertions, 0 deletions**,原有 193 行一字未郁(193 → 291 行)。
+6. **Step 6 — Commit**:`e20e54b`,淨係 add 咗 brief 指定嘅三個檔案。
 
-- Modified `server.mjs`.
-- Modified `scripts/check-data-integrity.mjs`.
-- Consumed the existing canonical policy from `shared/snapshot-policy.mjs` without changing it.
-- Did not edit any JSON or JSONL archive.
-- Did not call any paid API.
+## 額外驗證
 
-## TDD evidence
+- 全套測試:`node node_modules/vitest/vitest.mjs run` → **27 files / 179 tests 全過**(包括現有 `BuyDashboard.test.tsx` 9 個,無 regression)。
+- 類型檢查:`node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json` → 通過(`React.ReactElement` 無 import 都用得,同 BuyDashboard 一樣,因 @types/react 有全局 namespace)。
 
-### Initial required RED
+## ⚠️ Concern:Brief 內部矛盾,偏離咗一處實作 code
 
-Command: `npm.cmd run server:self-test`
+Brief 嘅測試同實作 code **互相矛盾,兩者唔可以同時逐字照用**:
 
-Result: exit 1. The first failure was the expected missing read-time quality output:
+- 測試(brief line 58–59)期望:`大細波 · 大 2.5` 同 `角球 · 細角 9.5` —— **無 `+` 號**。
+- 但 brief 嘅 `formatLine`(同 BuyDashboard 嗰份一樣)係 `` `${line > 0 ? "+" : ""}...` `` —— 會輸出 `大 +2.5` / `細角 +9.5`,測試必 fail。
 
-```text
-TypeError: Cannot read properties of undefined (reading 'validCurrent')
-at server.mjs:93:42
-```
+**處理方式(按 TDD 原則,test 係 executable spec):**
+- 測試檔 **逐字保留,一字未改**。
+- `SimpleDashboard.tsx` 嘅 `formatLine` 拎走咗 `line > 0 ? "+" : ""` 前綴,改為:
+  ```ts
+  function formatLine(line: number): string {
+    return `${Number.isInteger(line) ? line.toFixed(1) : line}`;
+  }
+  ```
+- 影響:極簡模式下,line 顯示為 `2.5` / `9.5` 而唔係 `+2.5` / `+9.5`。淨係影響 SimpleDashboard 內部顯示;`BuyDashboard.tsx` 完全無郁,Task 3 依賴嘅 props signature 同 CSS class 全部不受影響。
+- 如果 parent 認為應該反過來(實作保留 `+`、改測試),改動範圍好細,話我知即改。
 
-This confirmed that `buildBacktest()` did not yet expose `snapshotQuality`/`snapshotStatus`.
+## Self-review checklist
 
-### Write-policy RED
-
-After adding direct classification and partial-acceptance assertions, the same command failed with:
-
-```text
-ReferenceError: partitionIncomingSnapshots is not defined
-at server.mjs:90:27
-```
-
-This confirmed that reason-counted write partitioning was not yet implemented.
-
-### GREEN
-
-The minimal implementation was then added. The next server self-test exposed old synthetic fixtures with deliberately incomplete fields; those fixtures were converted to valid-current fixtures so existing settlement scenarios remained meaningful under the new policy. No production archive row was rewritten.
-
-## Implementation details
-
-### Read-time classification and backtest filtering
-
-- Imported `classifySnapshot()` and `summarizeSnapshotQuality()`.
-- `buildBacktest()` now merges once into `stored`, summarizes `stored`, and filters `usable` to `status === "valid-current"`.
-- Only `usable` snapshots participate in settlement and readiness.
-- Unmatched result rows remain present and receive no prediction attachment.
-- Settled rows copy `edge`, `savedAt`, and `snapshotStatus: "valid-current"`.
-- The returned backtest payload includes `snapshotQuality`.
-
-### Write validation
-
-- Every incoming `POST /api/predictions` row is classified by the canonical policy.
-- Only valid-current rows are persisted.
-- Rejections are counted by canonical reason in `rejectedByReason`.
-- Partial acceptance returns `{ saved, rejected, rejectedByReason }`.
-- An all-rejected request returns HTTP 400 with `saved: 0`, the rejected count, and reason counts.
-- Snapshot merge identity and first-write-wins behavior were not changed.
-
-### Read-only quality audit
-
-`scripts/check-data-integrity.mjs` now prints:
-
-```text
-snapshotQualityValidCurrent=<n>
-snapshotQualityLegacy=<n>
-snapshotQualityInvalid=<n>
-snapshotQualityInvalidReasons=<json>
-```
-
-The script continues to read files only.
-
-## Verification
-
-### Task-specific checks
-
-`npm.cmd run server:self-test` passed:
-
-```text
-[server] self-test passed
-```
-
-`npm.cmd run check:data` passed and reported:
-
-```text
-snapshots=183
-results=853
-lateSnapshots=0
-duplicateSnapshotKeys=0
-duplicateResultKeys=0
-negativeScores=0
-snapshotsMissingCommenceTime=180 (legacy/backfilled rows may be expected)
-snapshotQualityValidCurrent=3
-snapshotQualityLegacy=93
-snapshotQualityInvalid=87
-snapshotQualityInvalidReasons={"missing-commence-time":87}
-```
-
-All 180 missing-commence snapshots are excluded from valid-current: 93 are canonical legacy snapshots and 87 are invalid current-model snapshots.
-
-### Broader regression check
-
-`npm.cmd run test` passed after rerunning outside the restricted test sandbox:
-
-```text
-Test Files  13 passed (13)
-Tests       63 passed (63)
-```
-
-## Self-review
-
-- Requirements checked line by line against `.superpowers/sdd/task-2-brief.md`.
-- Invalid and legacy snapshots cannot settle or enter readiness summaries.
-- Partial and total rejection paths preserve canonical reasons.
-- Existing archive merge identity remains unchanged.
-- The integrity script performs no writes.
-- No unrelated source files were changed.
-
-## Concerns and limitations
-
-- No material implementation concern remains.
-- The live HTTP persistence path was not exercised with a real POST because doing so would modify the prediction archive, which this task explicitly prohibited. The partitioning behavior and response counts are covered by the server self-test, and the route uses that tested helper directly.
-- This workspace is not a valid Git repository (`fatal: not a git repository`), so no commit was created and commit-based diff/status evidence is unavailable.
+- [x] 測試先寫、確認 fail、再實作、確認 pass(TDD 次序)
+- [x] `BuyDashboard.tsx` / `BuyDashboard.test.tsx` 無掂過(`git show --stat HEAD` 得三個檔案)
+- [x] `dashboard.css` 純 append,0 deletions
+- [x] 無 bookmaker / chance / edge / KPI 喺極簡 view 輸出(test 3 把關)
+- [x] stale 時隱藏所有 card;`generatedAt=null` 顯示「未有成功同步」
+- [x] 全套測試 + tsc 通過
+- [x] vitest 用 `node node_modules/vitest/vitest.mjs`(npx 唔喺 PATH)

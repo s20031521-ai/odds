@@ -1,5 +1,10 @@
-Task 1: complete (inline TDD; 8 focused tests pass; build pass; no Git commits available)
-Task 2: complete (subagent TDD; server/check-data/full-suite pass; independent review clean; no Git commits available)
-Task 3: complete (subagent TDD; 76/76 tests and build pass; independent review clean; no Git commits available)
-Task 4: complete (subagent TDD; 89/89 tests pass; reviewer fixes for literal 女足 and dotted suffix; re-review approved; pre-existing input-order grouping risk recorded; no Git commits available)
-Task 5: complete (subagent TDD; failed-reload state clearing and strict snapshot-quality guard; 106/106 tests and build pass; independent re-review approved; controller browser/API black-box checks pass; no Git commits available)
+# SDD progress — simple-dashboard-mode (2026-07-19)
+Plan: docs/superpowers/plans/2026-07-19-simple-dashboard-mode.md
+Task 1: complete (commits 645f22a..3d8480c, review clean)
+Minor: storage-key literal untested; LF/CRLF warning noise — .gitattributes someday
+Task 2: complete (commits 3d8480c..e20e54b, review clean; plan-mandated helper duplication accepted by owner 2A; formatLine drops + per approved mockup)
+Minor: formatDate locale-dependent; empty-state lacks role=status; negative-guard tests brittle to format changes
+Task 3: complete (commits e20e54b..75a4c84, review clean)
+Minor: click-write path untestable under renderToStaticMarkup; UMD-global React type usage
+Task 4: complete (commits 75a4c84..4e4cf0d, review clean; App.test.tsx 2 wiring assertions rewired 1:1)
+ALL TASKS COMPLETE — pending final whole-branch review (merge-base 645f22a)

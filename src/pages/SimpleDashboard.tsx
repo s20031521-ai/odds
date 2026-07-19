@@ -1,9 +1,11 @@
 import type { BuyOpportunity, BuyPick } from "../buyOpportunities";
+import { TeamLogo, type TeamLogoMap } from "../components/TeamLogo";
 
 export function SimpleDashboard(props: {
   opportunities: BuyOpportunity[];
   generatedAt: string | null;
   dataFresh: boolean;
+  logos: TeamLogoMap;
 }): React.ReactElement {
   const activeOpportunities = props.dataFresh ? props.opportunities : [];
 
@@ -21,7 +23,7 @@ export function SimpleDashboard(props: {
       ) : (
         <div className="simple-dashboard__grid">
           {activeOpportunities.map((opportunity) => (
-            <SimpleCard key={opportunity.matchId} opportunity={opportunity} />
+            <SimpleCard key={opportunity.matchId} opportunity={opportunity} logos={props.logos} />
           ))}
         </div>
       )}
@@ -29,7 +31,7 @@ export function SimpleDashboard(props: {
   );
 }
 
-function SimpleCard({ opportunity }: { opportunity: BuyOpportunity }): React.ReactElement {
+function SimpleCard({ opportunity, logos }: { opportunity: BuyOpportunity; logos: TeamLogoMap }): React.ReactElement {
   const picks = [opportunity.primary, ...opportunity.alternatives];
   const league = opportunity.leagueZh ?? opportunity.league;
 
@@ -39,7 +41,11 @@ function SimpleCard({ opportunity }: { opportunity: BuyOpportunity }): React.Rea
         <p className="simple-card__meta">
           {league ? `${league} · ` : ""}<time dateTime={opportunity.commenceTime}>{formatDate(opportunity.commenceTime)}</time>
         </p>
-        <h2>{opportunity.homeTeamZh ?? opportunity.homeTeam} <span>vs</span> {opportunity.awayTeamZh ?? opportunity.awayTeam}</h2>
+        <h2 className="match-teams">
+          <TeamLogo teamName={opportunity.homeTeam} logos={logos} />
+          {opportunity.homeTeamZh ?? opportunity.homeTeam} <span>vs</span> {opportunity.awayTeamZh ?? opportunity.awayTeam}
+          <TeamLogo teamName={opportunity.awayTeam} logos={logos} />
+        </h2>
         <ul className="simple-card__picks">
           {picks.map((pick) => (
             <li key={pickKey(pick)}>

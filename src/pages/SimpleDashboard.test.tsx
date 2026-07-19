@@ -1,7 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { BuyOpportunity } from "../buyOpportunities";
+import type { TeamLogoMap } from "../components/TeamLogo";
 import { SimpleDashboard } from "./SimpleDashboard";
+
+const testLogos: TeamLogoMap = {
+  Home: { id: 1, logo: "/team-logos/1.png" },
+};
 
 const opportunities: BuyOpportunity[] = [
   {
@@ -31,7 +36,7 @@ const opportunities: BuyOpportunity[] = [
 
 describe("SimpleDashboard", () => {
   it("renders one card per qualifying match with every qualifying pick as its own row", () => {
-    const markup = renderToStaticMarkup(<SimpleDashboard opportunities={opportunities} generatedAt="2026-07-16T12:34:00Z" dataFresh />);
+    const markup = renderToStaticMarkup(<SimpleDashboard opportunities={opportunities} generatedAt="2026-07-16T12:34:00Z" dataFresh logos={testLogos} />);
 
     expect(markup.match(/<article/g) ?? []).toHaveLength(2);
     // match-1 有 2 個過關盤、match-2 有 1 個:合共 3 行,一行都唔多唔少
@@ -45,17 +50,17 @@ describe("SimpleDashboard", () => {
   });
 
   it("renders Chinese league and team names with English fallback, plus kickoff time", () => {
-    const markup = renderToStaticMarkup(<SimpleDashboard opportunities={opportunities} generatedAt="now" dataFresh />);
+    const markup = renderToStaticMarkup(<SimpleDashboard opportunities={opportunities} generatedAt="now" dataFresh logos={testLogos} />);
 
     expect(markup).toContain("英格蘭超級聯賽");
     expect(markup).toContain("Liga MX");
-    expect(markup).toContain("<h2>主隊 <span>vs</span> 客隊</h2>");
-    expect(markup).toContain("<h2>Second Home <span>vs</span> Second Away</h2>");
+    expect(markup).toContain("主隊 <span>vs</span> 客隊");
+    expect(markup).toContain("Second Home <span>vs</span> Second Away");
     expect(markup).toContain('dateTime="2026-07-17T12:00:00Z"');
   });
 
   it("shows no detail numbers: no bookmaker, chance or edge anywhere", () => {
-    const markup = renderToStaticMarkup(<SimpleDashboard opportunities={opportunities} generatedAt="now" dataFresh />);
+    const markup = renderToStaticMarkup(<SimpleDashboard opportunities={opportunities} generatedAt="now" dataFresh logos={testLogos} />);
 
     expect(markup).not.toContain("Alpha");
     expect(markup).not.toContain("52.00%");
@@ -64,14 +69,14 @@ describe("SimpleDashboard", () => {
   });
 
   it("renders the minimal empty state without the all-fixtures link", () => {
-    const markup = renderToStaticMarkup(<SimpleDashboard opportunities={[]} generatedAt="now" dataFresh />);
+    const markup = renderToStaticMarkup(<SimpleDashboard opportunities={[]} generatedAt="now" dataFresh logos={testLogos} />);
 
     expect(markup).toContain("暫時冇場次過關");
     expect(markup).not.toContain("#/fixtures");
   });
 
   it("hides all picks when data is stale", () => {
-    const markup = renderToStaticMarkup(<SimpleDashboard opportunities={opportunities} generatedAt="now" dataFresh={false} />);
+    const markup = renderToStaticMarkup(<SimpleDashboard opportunities={opportunities} generatedAt="now" dataFresh={false} logos={testLogos} />);
 
     expect(markup).toContain("資料未更新，暫停顯示買盤。");
     expect(markup).not.toContain("<article");
@@ -79,10 +84,21 @@ describe("SimpleDashboard", () => {
 
   it("keeps the sync line and discloses when no sync has succeeded", () => {
     const markup = renderToStaticMarkup(
-      <SimpleDashboard opportunities={[]} generatedAt={null} dataFresh={false} />,
+      <SimpleDashboard opportunities={[]} generatedAt={null} dataFresh={false} logos={testLogos} />,
     );
 
     expect(markup).toContain("同步時間");
     expect(markup).toContain("未有成功同步");
+  });
+
+  it("renders an img logo for mapped teams and a badge for unmapped teams", () => {
+    const markup = renderToStaticMarkup(
+      <SimpleDashboard opportunities={opportunities} generatedAt="now" dataFresh logos={testLogos} />,
+    );
+
+    expect(markup).toContain('src="/team-logos/1.png"');
+    expect(markup).toContain("team-logo--badge");
+    // "Away" 冇 mapping → 徽章;兩隊英文名做 key,唔係中文名
+    expect(markup).not.toContain('src="/team-logos/2.png"');
   });
 });

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { BuyMarket, BuyOpportunity, BuyPick } from "../buyOpportunities";
+import { TeamLogo, type TeamLogoMap } from "../components/TeamLogo";
 
 const MARKET_FILTERS = ["全部市場", "主客和", "大細波", "角球", "亞洲讓球"] as const;
 type MarketFilter = (typeof MARKET_FILTERS)[number];
@@ -17,6 +18,7 @@ export function BuyDashboard(props: {
   opportunities: BuyOpportunity[];
   generatedAt: string | null;
   dataFresh: boolean;
+  logos: TeamLogoMap;
 }): React.ReactElement {
   const [market, setMarket] = useState<MarketFilter>("全部市場");
   const activeOpportunities = props.dataFresh ? props.opportunities : [];
@@ -71,7 +73,11 @@ export function BuyDashboard(props: {
             <article className="dashboard-card" key={opportunity.matchId}>
               <a className="dashboard-card__link" href={`#/fixtures/${encodeURIComponent(opportunity.matchId)}`}>
                 <time dateTime={opportunity.commenceTime}>{formatDate(opportunity.commenceTime)}</time>
-                <h2>{opportunity.homeTeamZh ?? opportunity.homeTeam} <span>vs</span> {opportunity.awayTeamZh ?? opportunity.awayTeam}</h2>
+                <h2 className="match-teams">
+                  <TeamLogo teamName={opportunity.homeTeam} logos={props.logos} />
+                  {opportunity.homeTeamZh ?? opportunity.homeTeam} <span>vs</span> {opportunity.awayTeamZh ?? opportunity.awayTeam}
+                  <TeamLogo teamName={opportunity.awayTeam} logos={props.logos} />
+                </h2>
                 {opportunity.leagueZh ?? opportunity.league ? <p className="dashboard-card__league">{opportunity.leagueZh ?? opportunity.league}</p> : null}
                 <PickDetails pick={opportunity.primary} />
               </a>

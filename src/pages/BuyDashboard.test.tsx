@@ -1,7 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { BuyOpportunity } from "../buyOpportunities";
+import type { TeamLogoMap } from "../components/TeamLogo";
 import { BuyDashboard, filterOpportunitiesByMarket } from "./BuyDashboard";
+
+const testLogos: TeamLogoMap = {
+  Home: { id: 1, logo: "/team-logos/1.png" },
+};
 
 const opportunities: BuyOpportunity[] = [
   {
@@ -31,7 +36,7 @@ const opportunities: BuyOpportunity[] = [
 
 describe("BuyDashboard", () => {
   it("renders populated KPIs, one article per match and compact alternatives", () => {
-    const markup = renderToStaticMarkup(<BuyDashboard opportunities={opportunities} generatedAt="2026-07-16T12:34:00Z" dataFresh />);
+    const markup = renderToStaticMarkup(<BuyDashboard opportunities={opportunities} generatedAt="2026-07-16T12:34:00Z" dataFresh logos={testLogos} />);
 
     expect(markup).toContain("值得買 Dashboard");
     expect(markup).toContain("2026-07-16T12:34:00Z");
@@ -51,14 +56,14 @@ describe("BuyDashboard", () => {
   });
 
   it("renders the league line when present and omits it cleanly when missing", () => {
-    const markup = renderToStaticMarkup(<BuyDashboard opportunities={opportunities} generatedAt="now" dataFresh />);
+    const markup = renderToStaticMarkup(<BuyDashboard opportunities={opportunities} generatedAt="now" dataFresh logos={testLogos} />);
 
     expect(markup).toContain('class="dashboard-card__league"');
     expect(markup.match(/dashboard-card__league/g) ?? []).toHaveLength(2);
   });
 
   it("renders the Chinese league name when present and falls back to the English canonical name", () => {
-    const markup = renderToStaticMarkup(<BuyDashboard opportunities={opportunities} generatedAt="now" dataFresh />);
+    const markup = renderToStaticMarkup(<BuyDashboard opportunities={opportunities} generatedAt="now" dataFresh logos={testLogos} />);
 
     expect(markup).toContain('<p class="dashboard-card__league">英格蘭超級聯賽</p>');
     expect(markup).toContain('<p class="dashboard-card__league">Liga MX</p>');
@@ -66,14 +71,14 @@ describe("BuyDashboard", () => {
   });
 
   it("renders Chinese display names when present and falls back to English canonical names", () => {
-    const markup = renderToStaticMarkup(<BuyDashboard opportunities={opportunities} generatedAt="now" dataFresh />);
+    const markup = renderToStaticMarkup(<BuyDashboard opportunities={opportunities} generatedAt="now" dataFresh logos={testLogos} />);
 
-    expect(markup).toContain("<h2>主隊 <span>vs</span> 客隊</h2>");
-    expect(markup).toContain("<h2>Second Home <span>vs</span> Second Away</h2>");
+    expect(markup).toContain("主隊 <span>vs</span> 客隊");
+    expect(markup).toContain("Second Home <span>vs</span> Second Away");
   });
 
   it("renders the exact fresh-empty copy and all-fixtures link", () => {
-    const markup = renderToStaticMarkup(<BuyDashboard opportunities={[]} generatedAt="now" dataFresh />);
+    const markup = renderToStaticMarkup(<BuyDashboard opportunities={[]} generatedAt="now" dataFresh logos={testLogos} />);
 
     expect(markup).toContain("暫時未有賽事達到 3% Edge。");
     expect(markup).toContain('href="#/fixtures"');
@@ -81,7 +86,7 @@ describe("BuyDashboard", () => {
   });
 
   it("renders the stale copy and no active opportunity articles", () => {
-    const markup = renderToStaticMarkup(<BuyDashboard opportunities={opportunities} generatedAt="now" dataFresh={false} />);
+    const markup = renderToStaticMarkup(<BuyDashboard opportunities={opportunities} generatedAt="now" dataFresh={false} logos={testLogos} />);
 
     expect(markup).toContain("資料未更新，暫停顯示買盤。");
     expect(markup).not.toContain("<article");
@@ -89,7 +94,7 @@ describe("BuyDashboard", () => {
 
   it("discloses when no HKJC or HDC load has succeeded yet", () => {
     const markup = renderToStaticMarkup(
-      <BuyDashboard opportunities={[]} generatedAt={null as unknown as string} dataFresh={false} />,
+      <BuyDashboard opportunities={[]} generatedAt={null as unknown as string} dataFresh={false} logos={testLogos} />,
     );
 
     expect(markup).toContain("未有成功同步");
@@ -107,11 +112,20 @@ describe("BuyDashboard", () => {
   });
 
   it("renders all exact market filter labels with all markets selected by default", () => {
-    const markup = renderToStaticMarkup(<BuyDashboard opportunities={opportunities} generatedAt="now" dataFresh />);
+    const markup = renderToStaticMarkup(<BuyDashboard opportunities={opportunities} generatedAt="now" dataFresh logos={testLogos} />);
 
     for (const label of ["全部市場", "主客和", "大細波", "角球", "亞洲讓球"]) {
       expect(markup).toContain(`>${label}</button>`);
     }
     expect(markup).toMatch(/aria-pressed="true"[^>]*>全部市場<\/button>/);
+  });
+
+  it("renders an img logo for mapped teams and a badge for unmapped teams", () => {
+    const markup = renderToStaticMarkup(
+      <BuyDashboard opportunities={opportunities} generatedAt="now" dataFresh logos={testLogos} />,
+    );
+
+    expect(markup).toContain('src="/team-logos/1.png"');
+    expect(markup).toContain("team-logo--badge");
   });
 });

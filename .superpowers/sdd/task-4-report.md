@@ -1,48 +1,47 @@
-# Task 4 Report: 接入 `App.tsx` + 全套驗證
+# Task 4 Report: `DashboardPage` 透傳 + `App.tsx` fetch + PWA ignore
 
-**Status:** DONE
-**Commit:** `4e4cf0d5a21663d623680f266e219f9037915fac`(`feat: route dashboard through simple/pro mode page`)
-**Branch:** `feature/simple-dashboard-mode`
+Commit: `a5b90e3` — `feat: load team logo map and pass through dashboard modes`
 
 ## 做咗咩
 
-1. **Grep 確認** `BuyDashboard` 喺 `src/App.tsx` 只出現兩處:第 25 行 import、第 443 行渲染。
-2. **Step 1 — 改 import**(第 25 行):
-   `import { BuyDashboard } from "./pages/BuyDashboard";` → `import { DashboardPage } from "./pages/DashboardPage";`
-3. **Step 2 — 改渲染**(第 443 行):
-   `<BuyDashboard opportunities={buyOpportunities} generatedAt={lastSuccessfulSync} dataFresh={opportunitiesTrusted} />` → `<DashboardPage ... />`(props 完全一致,無改動)。
-   兩處都用 Edit 工具精準修改,冇重寫檔案;目標行本身係 LF,無 CRLF 問題。
-4. **Step 3 — 全套測試**:`node node_modules/vitest/vitest.mjs run` → **28 files / 183 tests 全部通過**(包括原有 `BuyDashboard.test.tsx` 9 tests、改咗嘅 `App.test.tsx` 12 tests、`DashboardPage.test.tsx` 4 tests)。
-5. **Step 4 — Build**:`tsc --noEmit` 零 error;`vite build` 成功(index bundle 254.36 kB,PWA SW 生成正常)。
-6. **Step 5 — Commit**:`git add src/App.tsx src/App.test.tsx && git commit`。
+1. **`src/pages/DashboardPage.test.tsx`(Step 1,測試先行)**
+   - 加 `import type { TeamLogoMap } from "../components/TeamLogo";`
+   - 加 `const testLogos: TeamLogoMap = {};`,4 個現有 render 呼叫全部加 `logos={testLogos}`
+   - 加新 test `passes logos through to the active dashboard`,用 `{ Home: { id: 1, logo: "/team-logos/1.png" } }` 斷言 markup 有 `src="/team-logos/1.png"`
 
-## App.test.tsx 改動同理由
+2. **確認 fail(Step 2)** — `DashboardPage.test.tsx` 4 failed / 1 passed(缺 `logos` prop,runtime 抛錯),符合 TDD red。
 
-`App.test.tsx` **需要改**,改咗兩行 assertion(第一個 test「wires the shell and both new pages...」入面):
+3. **`src/pages/DashboardPage.tsx`(Step 3)**
+   - import `TeamLogoMap`;props type 加 required `logos: TeamLogoMap;`
+   - `BuyDashboard` 同 `SimpleDashboard` 兩個 render 分支都加 `logos={props.logos}`
 
-- `expect(source).toContain('import { BuyDashboard } from "./pages/BuyDashboard"')` → `import { DashboardPage } from "./pages/DashboardPage"`
-- `expect(source).toContain("<BuyDashboard")` → `"<DashboardPage"`
+4. **確認 pass(Step 4)** — 5 個 test 全過。
 
-**理由:** 呢個 test 係 source-string wiring assertion,唔係行為斷言 — 佢唔係斷言「值得買 Dashboard」標題或專業模式內容,而係確認 App.tsx 有正確 import 同渲染對應頁面組件。Task 4 嘅目的本身就係將 wiring 由 BuyDashboard 換成 DashboardPage,所以將 assertion 更新為新嘅 wiring 係**邏輯上等價嘅收緊**(仍然強制 dashboard route 必須經指定頁面組件),唔係放水。其餘 10 個 tests 完全無改動,全部照過。
+5. **`src/App.tsx`(Step 5,Edit 精準改,冇重寫成個 CRLF 大檔)**
+   - import 區加 `import type { TeamLogoMap } from "./components/TeamLogo";`
+   - `apiStatus` state 後面加 `teamLogos` state + mount effect:fetch `/team-logos.json`,`response.ok` 先 parse,`payload?.teams` 係 object 先 set,catch 靜默失敗(空 map → 全部隊用徽章,唔阻 render),cleanup 設 `cancelled` flag
+   - 渲染行加 `logos={teamLogos}`
 
-`BuyDashboard.tsx` 同 `BuyDashboard.test.tsx` 完全無掂過。
+6. **`vite.config.ts`(Step 6)** — `globIgnores` 跟現有格式加 `"**/team-logos/**"`。
+
+## `App.test.tsx` 有冇需要改
+
+**冇。** 全套測試一次過全綠,`App.test.tsx` 冇 wiring 斷言受影響(`logos` 係新 prop,fetch 失敗/未 load 完都唔會改變現有斷言嘅 markup),所以零改動,唔存在放水問題。
 
 ## 指令同結果
 
 | 指令 | 結果 |
 |---|---|
-| `node node_modules/vitest/vitest.mjs run` | 28 files, 183 tests passed |
-| `node node_modules/vitest/vitest.mjs run src/App.test.tsx` | 12 tests passed |
-| `node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json` | 零 error |
-| `node node_modules/vite/bin/vite.js build` | 成功,dist 生成 + PWA SW |
+| `node node_modules/vitest/vitest.mjs run src/pages/DashboardPage.test.tsx`(改 component 前) | 4 failed / 1 passed(預期 red) |
+| `node node_modules/vitest/vitest.mjs run src/pages/DashboardPage.test.tsx`(改 component 後) | 5 passed |
+| `node node_modules/vitest/vitest.mjs run`(全套) | **29 files / 192 tests 全綠** |
+| `node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json` | 零 error(TS2741 已消失) |
+| `node node_modules/vite/bin/vite.js build` | 成功;PWA precache 9 entries,`team-logos` 唔喺入面 |
 
 ## Self-review
 
-- Grep 複查:`src/App.tsx` 而家只有 `DashboardPage` 兩處(import + 渲染),`BuyDashboard` 零殘留。
-- Commit diff 只有 4 insertions / 4 deletions,恰好係 brief 要求嘅兩行 App.tsx + 兩行 App.test.tsx。
-- 無觸碰 `BuyDashboard.tsx` / `BuyDashboard.test.tsx`;git status 確認 commit 只含兩個檔案。
-- Commit 時 git 提示 LF→CRLF 警告,係 repo 既有 autocrlf 行為,唔影響內容。
-
-## Concerns
-
-無。
+- 全部改動同 brief 指定嘅 code 一致;`App.tsx` 只用 3 次精準 Edit(import / state+effect / 渲染行),冇重寫。
+- fetch effect 防禦齊:`!response.ok` → null、非 object payload 唔 set、network error catch 靜默、unmount 後唔 setState。
+- 新測試真係行到 `SimpleDashboard` 嘅 logo 渲染路徑(red 階段佢係 1 個未 fail 嘅 test 因為 runtime 抛錯;green 階段斷言 `src="/team-logos/1.png"` 通過)。
+- **注意:`public/team-logos.json` 同 `public/team-logos/` 而家未存在**(預計係後續 task 產生)。fetch 會 404 → 靜默用空 map,行為正確,但部署前要有呢個檔先會真係顯示 logo。
+- commit 範圍乾淨:只含 brief 指定嘅 4 個檔,冇混入 `.superpowers` 或 webbridge 雜檔。

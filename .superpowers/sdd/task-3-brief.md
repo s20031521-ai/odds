@@ -1,181 +1,80 @@
-### Task 3: `DashboardPage` — toggle wrapper
+### Task 3: `BuyDashboard`(專業 mode)接 logo
 
 **Files:**
-- Create: `src/pages/DashboardPage.tsx`
-- Test: `src/pages/DashboardPage.test.tsx`
-- Modify: `src/styles/dashboard.css`(append toggle styles)
+- Modify: `src/pages/BuyDashboard.tsx`
+- Modify: `src/pages/BuyDashboard.test.tsx`
 
 **Interfaces:**
-- Consumes:
-  - `readDashboardMode(storage?: StorageLike): DashboardMode`、`writeDashboardMode(mode, storage?): void`、`type DashboardMode`、`type StorageLike` from `src/dashboardMode.ts`(Task 1)
-  - `SimpleDashboard(props)` from `src/pages/SimpleDashboard.tsx`(Task 2)
-  - `BuyDashboard(props)` from `src/pages/BuyDashboard.tsx`(唔改佢)
-- Produces(Task 4 會用):
-  - `DashboardPage(props: { opportunities: BuyOpportunity[]; generatedAt: string | null; dataFresh: boolean; storage?: StorageLike }): React.ReactElement`
-  - CSS class:`dashboard-mode-bar`
+- Consumes: `TeamLogo`、`TeamLogoMap` from `src/components/TeamLogo.tsx`(Task 1)
+- Produces: `BuyDashboard(props: { opportunities; generatedAt: string | null; dataFresh: boolean; logos: TeamLogoMap })`
 
-設計說明:toggle 係一條右齊嘅模式欄,擺喺兩個 view 上面;專業 mode 會見到 BuyDashboard 自己嘅完整 header(標題 + 同步時間),極簡 mode 見到 SimpleDashboard 嘅精簡 header。`storage` prop 係 dependency injection,俾測試(node 冇 localStorage)可以模擬已儲存嘅模式;browser 入面唔傳就用預設 localStorage。
+注意:上次 feature 嘅「BuyDashboard 唔准改」constraint 已過期 — 今個 feature 明確要改佢,但**只准加 logo 相關改動**,KPI/篩選/明細邏輯唔准郁。
 
-- [ ] **Step 1: 寫 failing test** — 建立 `src/pages/DashboardPage.test.tsx`:
+- [ ] **Step 1: 改測試先** — `src/pages/BuyDashboard.test.tsx`:
+
+  1. 頂部 import 加 `import type { TeamLogoMap } from "../components/TeamLogo";`
+  2. 加共用 map,並將所有現有 render 呼叫加 `logos={testLogos}`:
 
 ```tsx
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
-import type { BuyOpportunity } from "../buyOpportunities";
-import { DASHBOARD_MODE_STORAGE_KEY, type StorageLike } from "../dashboardMode";
-import { DashboardPage } from "./DashboardPage";
+const testLogos: TeamLogoMap = {
+  Home: { id: 1, logo: "/team-logos/1.png" },
+};
+```
 
-const opportunities: BuyOpportunity[] = [
-  {
-    matchId: "match-1",
-    homeTeam: "Home",
-    awayTeam: "Away",
-    commenceTime: "2026-07-17T12:00:00Z",
-    primary: { market: "主客和", selection: "主隊", odds: 2.1, chance: 0.52, edge: 0.092, bookmaker: "Alpha" },
-    alternatives: [],
-  },
-];
+  3. 加新 test:
 
-function storageWith(value: string): StorageLike {
-  return {
-    getItem: (key) => (key === DASHBOARD_MODE_STORAGE_KEY ? value : null),
-    setItem: () => {},
-  };
-}
-
-describe("DashboardPage", () => {
-  it("defaults to simple mode when nothing is stored", () => {
-    const markup = renderToStaticMarkup(<DashboardPage opportunities={opportunities} generatedAt="now" dataFresh />);
-
-    expect(markup).toContain("simple-dashboard");
-    expect(markup).not.toContain("buy-dashboard__kpis");
-    expect(markup).toMatch(/aria-pressed="true"[^>]*>極簡<\/button>/);
-    expect(markup).toMatch(/aria-pressed="false"[^>]*>專業<\/button>/);
-  });
-
-  it("renders the pro dashboard when pro is stored", () => {
+```tsx
+  it("renders an img logo for mapped teams and a badge for unmapped teams", () => {
     const markup = renderToStaticMarkup(
-      <DashboardPage opportunities={opportunities} generatedAt="now" dataFresh storage={storageWith("pro")} />,
+      <BuyDashboard opportunities={opportunities} generatedAt="now" dataFresh logos={testLogos} />,
     );
 
-    expect(markup).toContain("buy-dashboard__kpis");
-    expect(markup).toContain("值得買 Dashboard");
-    expect(markup).not.toContain("simple-dashboard");
-    expect(markup).toMatch(/aria-pressed="true"[^>]*>專業<\/button>/);
+    expect(markup).toContain('src="/team-logos/1.png"');
+    expect(markup).toContain("team-logo--badge");
   });
-
-  it("treats invalid stored values as simple", () => {
-    const markup = renderToStaticMarkup(
-      <DashboardPage opportunities={opportunities} generatedAt="now" dataFresh storage={storageWith("junk")} />,
-    );
-
-    expect(markup).toContain("simple-dashboard");
-  });
-
-  it("keeps the toggle available in the stale state", () => {
-    const markup = renderToStaticMarkup(<DashboardPage opportunities={[]} generatedAt={null} dataFresh={false} />);
-
-    expect(markup).toContain("dashboard-mode-bar");
-    expect(markup).toContain("資料未更新，暫停顯示買盤。");
-  });
-});
 ```
 
 - [ ] **Step 2: 行測試確認 fail**
 
-Run: `npx vitest run src/pages/DashboardPage.test.tsx`
-Expected: FAIL,`Failed to resolve import "./DashboardPage"`
+Run: `node node_modules/vitest/vitest.mjs run src/pages/BuyDashboard.test.tsx`
+Expected: FAIL(冇 `logos` prop)
 
-- [ ] **Step 3: 實作** — 建立 `src/pages/DashboardPage.tsx`:
+- [ ] **Step 3: 改 component** — `src/pages/BuyDashboard.tsx`:
+
+  1. import 加:
 
 ```tsx
-import { useState } from "react";
-import type { BuyOpportunity } from "../buyOpportunities";
-import {
-  readDashboardMode,
-  writeDashboardMode,
-  type DashboardMode,
-  type StorageLike,
-} from "../dashboardMode";
-import { BuyDashboard } from "./BuyDashboard";
-import { SimpleDashboard } from "./SimpleDashboard";
+import { TeamLogo, type TeamLogoMap } from "../components/TeamLogo";
+```
 
-const MODE_ORDER = ["simple", "pro"] as const;
-const MODE_LABELS: Record<DashboardMode, string> = { simple: "極簡", pro: "專業" };
+  2. props type 加 `logos: TeamLogoMap;`
+  3. 卡入面嘅 `<h2>`(第 74 行附近)由:
 
-export function DashboardPage(props: {
-  opportunities: BuyOpportunity[];
-  generatedAt: string | null;
-  dataFresh: boolean;
-  storage?: StorageLike;
-}): React.ReactElement {
-  const [mode, setMode] = useState<DashboardMode>(() => readDashboardMode(props.storage));
+```tsx
+<h2>{opportunity.homeTeamZh ?? opportunity.homeTeam} <span>vs</span> {opportunity.awayTeamZh ?? opportunity.awayTeam}</h2>
+```
 
-  function selectMode(next: DashboardMode): void {
-    setMode(next);
-    writeDashboardMode(next, props.storage);
-  }
+  改做:
 
-  return (
-    <div className="dashboard-page">
-      <div className="dashboard-mode-bar" role="group" aria-label="顯示模式">
-        {MODE_ORDER.map((value) => (
-          <button
-            aria-pressed={mode === value}
-            key={value}
-            onClick={() => selectMode(value)}
-            type="button"
-          >
-            {MODE_LABELS[value]}
-          </button>
-        ))}
-      </div>
-      {mode === "pro" ? (
-        <BuyDashboard opportunities={props.opportunities} generatedAt={props.generatedAt} dataFresh={props.dataFresh} />
-      ) : (
-        <SimpleDashboard opportunities={props.opportunities} generatedAt={props.generatedAt} dataFresh={props.dataFresh} />
-      )}
-    </div>
-  );
-}
+```tsx
+<h2 className="match-teams">
+  <TeamLogo teamName={opportunity.homeTeam} logos={props.logos} />
+  {opportunity.homeTeamZh ?? opportunity.homeTeam} <span>vs</span> {opportunity.awayTeamZh ?? opportunity.awayTeam}
+  <TeamLogo teamName={opportunity.awayTeam} logos={props.logos} />
+</h2>
 ```
 
 - [ ] **Step 4: 行測試確認 pass**
 
-Run: `npx vitest run src/pages/DashboardPage.test.tsx`
-Expected: PASS,4 個 test 全過
+Run: `node node_modules/vitest/vitest.mjs run src/pages/BuyDashboard.test.tsx`
+Expected: PASS,10 個 test 全過
 
-- [ ] **Step 5: 加 toggle CSS** — append 落 `src/styles/dashboard.css` 尾:
-
-```css
-.dashboard-mode-bar {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  margin-bottom: 16px;
-}
-
-.dashboard-mode-bar button {
-  min-height: var(--touch-target);
-  padding: 8px 14px;
-  border: 1px solid var(--color-primary);
-  border-radius: 999px;
-  color: var(--color-text);
-  background: transparent;
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.dashboard-mode-bar button[aria-pressed="true"] {
-  color: var(--color-bg);
-  background: var(--color-primary);
-}
-```
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/pages/DashboardPage.tsx src/pages/DashboardPage.test.tsx src/styles/dashboard.css
-git commit -m "feat: add simple/pro mode toggle wrapper"
+git add src/pages/BuyDashboard.tsx src/pages/BuyDashboard.test.tsx
+git commit -m "feat: show team logos on pro dashboard cards"
 ```
+
+---
+

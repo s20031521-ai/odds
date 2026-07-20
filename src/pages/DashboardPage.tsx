@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { BuyOpportunity } from "../buyOpportunities";
+import type { TeamLogoMap } from "../components/TeamLogo";
 import {
   readDashboardMode,
   writeDashboardMode,
@@ -17,6 +18,7 @@ export function DashboardPage(props: {
   generatedAt: string | null;
   dataFresh: boolean;
   storage?: StorageLike;
+  logos: TeamLogoMap;
 }): React.ReactElement {
   const [mode, setMode] = useState<DashboardMode>(() => readDashboardMode(props.storage));
 
@@ -40,9 +42,9 @@ export function DashboardPage(props: {
         ))}
       </div>
       {mode === "pro" ? (
-        <BuyDashboard opportunities={props.opportunities} generatedAt={props.generatedAt} dataFresh={props.dataFresh} />
+        <BuyDashboard opportunities={props.opportunities} generatedAt={props.generatedAt} dataFresh={props.dataFresh} logos={props.logos} />
       ) : (
-        <SimpleDashboard opportunities={props.opportunities} generatedAt={props.generatedAt} dataFresh={props.dataFresh} />
+        <SimpleDashboard opportunities={props.opportunities} generatedAt={props.generatedAt} dataFresh={props.dataFresh} logos={props.logos} />
       )}
     </div>
   );

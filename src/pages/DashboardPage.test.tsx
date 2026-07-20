@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { BuyOpportunity } from "../buyOpportunities";
+import type { TeamLogoMap } from "../components/TeamLogo";
 import { DASHBOARD_MODE_STORAGE_KEY, type StorageLike } from "../dashboardMode";
 import { DashboardPage } from "./DashboardPage";
 
@@ -15,6 +16,8 @@ const opportunities: BuyOpportunity[] = [
   },
 ];
 
+const testLogos: TeamLogoMap = {};
+
 function storageWith(value: string): StorageLike {
   return {
     getItem: (key) => (key === DASHBOARD_MODE_STORAGE_KEY ? value : null),
@@ -24,7 +27,9 @@ function storageWith(value: string): StorageLike {
 
 describe("DashboardPage", () => {
   it("defaults to simple mode when nothing is stored", () => {
-    const markup = renderToStaticMarkup(<DashboardPage opportunities={opportunities} generatedAt="now" dataFresh />);
+    const markup = renderToStaticMarkup(
+      <DashboardPage opportunities={opportunities} generatedAt="now" dataFresh logos={testLogos} />,
+    );
 
     expect(markup).toContain("simple-dashboard");
     expect(markup).not.toContain("buy-dashboard__kpis");
@@ -34,7 +39,13 @@ describe("DashboardPage", () => {
 
   it("renders the pro dashboard when pro is stored", () => {
     const markup = renderToStaticMarkup(
-      <DashboardPage opportunities={opportunities} generatedAt="now" dataFresh storage={storageWith("pro")} />,
+      <DashboardPage
+        opportunities={opportunities}
+        generatedAt="now"
+        dataFresh
+        storage={storageWith("pro")}
+        logos={testLogos}
+      />,
     );
 
     expect(markup).toContain("buy-dashboard__kpis");
@@ -45,16 +56,33 @@ describe("DashboardPage", () => {
 
   it("treats invalid stored values as simple", () => {
     const markup = renderToStaticMarkup(
-      <DashboardPage opportunities={opportunities} generatedAt="now" dataFresh storage={storageWith("junk")} />,
+      <DashboardPage
+        opportunities={opportunities}
+        generatedAt="now"
+        dataFresh
+        storage={storageWith("junk")}
+        logos={testLogos}
+      />,
     );
 
     expect(markup).toContain("simple-dashboard");
   });
 
   it("keeps the toggle available in the stale state", () => {
-    const markup = renderToStaticMarkup(<DashboardPage opportunities={[]} generatedAt={null} dataFresh={false} />);
+    const markup = renderToStaticMarkup(
+      <DashboardPage opportunities={[]} generatedAt={null} dataFresh={false} logos={testLogos} />,
+    );
 
     expect(markup).toContain("dashboard-mode-bar");
     expect(markup).toContain("資料未更新，暫停顯示買盤。");
+  });
+
+  it("passes logos through to the active dashboard", () => {
+    const logos: TeamLogoMap = { Home: { id: 1, logo: "/team-logos/1.png" } };
+    const markup = renderToStaticMarkup(
+      <DashboardPage opportunities={opportunities} generatedAt="now" dataFresh logos={logos} />,
+    );
+
+    expect(markup).toContain('src="/team-logos/1.png"');
   });
 });

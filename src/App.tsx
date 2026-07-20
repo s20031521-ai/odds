@@ -23,6 +23,7 @@ import { AppShell } from "./components/AppShell";
 import { buildBuyCandidates } from "./buyCandidates";
 import { BUY_EDGE_THRESHOLD, candidateSelectionRuntime, selectBuyOpportunities } from "./buyOpportunities";
 import { DashboardPage } from "./pages/DashboardPage";
+import type { TeamLogoMap } from "./components/TeamLogo";
 import { AllFixtures } from "./pages/AllFixtures";
 import { canShowActiveOpportunities, useConnectivityState } from "./pwa";
 import { ApiError, createApiClient, type SessionState } from "./apiClient";
@@ -148,6 +149,18 @@ function App() {
     type: "idle",
     message: "API key 留空都可以用手動輸入。",
   });
+  const [teamLogos, setTeamLogos] = useState<TeamLogoMap>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/team-logos.json")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((payload) => {
+        if (!cancelled && payload?.teams && typeof payload.teams === "object") setTeamLogos(payload.teams);
+      })
+      .catch(() => { /* logo map 係 progressive enhancement,失敗就用徽章 */ });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -440,7 +453,7 @@ function App() {
         content={(
         <>
       {page === "dashboard" ? (
-        <DashboardPage opportunities={buyOpportunities} generatedAt={lastSuccessfulSync} dataFresh={opportunitiesTrusted} />
+        <DashboardPage opportunities={buyOpportunities} generatedAt={lastSuccessfulSync} dataFresh={opportunitiesTrusted} logos={teamLogos} />
       ) : null}
       {page === "history" ? <h1 className="page-heading">完場對比</h1> : null}
       {page === "analysis" ? <h1 className="page-heading">模型表現分析</h1> : null}

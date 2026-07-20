@@ -50,6 +50,7 @@ export default defineConfig({
           "**/icons/icon-maskable-512.png",
           "**/data/**",
           "**/archives/**",
+          "**/team-logos/**",
           "**/*result*",
         ],
         navigateFallback: "index.html",

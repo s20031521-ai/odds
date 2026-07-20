@@ -87,6 +87,27 @@ test("buildTeamLogos writes local-path entries, downloads PNGs and is idempotent
   assert.deepEqual(again.misses, ["Liverpool"]);
 });
 
+test("buildTeamLogos stops at maxCalls and reports remaining teams", async (t) => {
+  const root = await fixtureRoot(t);
+  const calls = [];
+  const fetchImpl = fakeFetch([
+    ["search=Arsenal", apiPayload([{ id: 42, name: "Arsenal", logo: "https://cdn/42.png" }])],
+    ["search=Chelsea", apiPayload([{ id: 49, name: "Chelsea", logo: "https://cdn/49.png" }])],
+    ["search=Liverpool", apiPayload([{ id: 50, name: "Liverpool", logo: "https://cdn/50.png" }])],
+    ["https://cdn/42.png", null, true],
+  ], calls);
+
+  const summary = await buildTeamLogos({ root, apiKey: "test-key", fetchImpl, sleepImpl: async () => {}, maxCalls: 1 });
+
+  assert.equal(calls.filter((call) => call.url.includes("search=")).length, 1);
+  assert.equal(summary.written, 1);
+  assert.deepEqual(summary.remaining, ["Chelsea", "Liverpool"]);
+  const written = JSON.parse(await readFile(path.join(root, "public", "team-logos.json"), "utf8"));
+  assert.deepEqual(written.teams.Arsenal, { id: 42, logo: "/team-logos/42.png" });
+  assert.equal(written.teams.Chelsea, undefined);
+  assert.equal(written.teams.Liverpool, undefined);
+});
+
 test("buildTeamLogos skips entries whose logo download fails and keeps going", async (t) => {
   const root = await fixtureRoot(t);
   const fetchImpl = fakeFetch([

@@ -48,7 +48,7 @@ TeamLogo component(SimpleDashboard + BuyDashboard 共用)
 - 第一個結果名唔完全一致(例如 `Arsenal` vs `Arsenal FC`)→ 照用但標 `"needsReview": true`,owner 肉眼核對。
 - 搜尋冇結果 → 唔寫入 JSON(前端 fallback 徽章)。
 - 前端 lookup 用**英文 canonical 名**(`homeTeam`/`awayTeam`)做 key;中文名只係 display,唔做 key。
-- Script 失敗(網絡/quota)記低並繼續,唔會閃退;exit code 維持 0 除非冇任何 entry 寫成。
+- Script 淨係喺災難性失敗(例如冇 API key)先 exit 1;部分失敗會記低落 summary 繼續。
 
 ## UI 規格
 
@@ -76,6 +76,8 @@ TeamLogo component(SimpleDashboard + BuyDashboard 共用)
 ## Deploy
 
 同 2026-07-19 次一樣:本地跑 script 產生 JSON → owner 過目 `needsReview` 嘅隊 → commit → 上 VM `/opt/odds-tool/build/` → `pg_dump` 備份 + tag rollback → 重建 caddy → `up -d --no-deps caddy` → runbook §2 smoke checks。
+
+首次跑有大約 320 隊要搜;API-Football 免費 tier 每日 ~90 calls 同 collector 共用,建議用 `--max-calls` 分幾日跑,script idempotent 會接上。
 
 ## 範圍外(YAGNI)
 

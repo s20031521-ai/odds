@@ -12,6 +12,7 @@
     "monitor:odds": "node scripts/odds-monitor.mjs",
     "monitor:odds:once": "node scripts/odds-monitor.mjs --once",
     "import:hkjc": "node scripts/hkjc-import.mjs",
+    "logos:build": "node scripts/build-team-logos.mjs",
     "check:data": "node scripts/check-data-integrity.mjs",
     "db:migrate": "node server/db/migrate-cli.mjs",
     "db:import:legacy": "node scripts/import-legacy-to-postgres.mjs",

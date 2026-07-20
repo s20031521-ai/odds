@@ -54,6 +54,7 @@ export async function buildTeamLogos({
   fetchImpl = fetch,
   sleepImpl = defaultSleep,
   refresh = false,
+  maxCalls,
 } = {}) {
   if (!apiKey) throw new Error("API_FOOTBALL_KEY missing (.env.local)");
   const publicDir = path.join(root, "public");
@@ -64,10 +65,21 @@ export async function buildTeamLogos({
   const existing = await readExisting(jsonPath);
   const names = await collectTeamNames(root);
   const pending = refresh ? names : names.filter((name) => !existing[name]);
-  const summary = { written: 0, skipped: names.length - pending.length, misses: [], needsReview: [], downloadFailed: [] };
+  const summary = { written: 0, skipped: names.length - pending.length, misses: [], needsReview: [], downloadFailed: [], remaining: [] };
 
-  for (const name of pending) {
+  console.log(`[team-logos] pending=${pending.length} maxCalls=${typeof maxCalls === "number" ? maxCalls : "unlimited"}`);
+
+  let callsUsed = 0;
+  let stoppedAtMaxCalls = false;
+  for (let index = 0; index < pending.length; index += 1) {
+    if (typeof maxCalls === "number" && callsUsed >= maxCalls) {
+      summary.remaining = pending.slice(index);
+      stoppedAtMaxCalls = true;
+      break;
+    }
+    const name = pending[index];
     await sleepImpl();
+    callsUsed += 1;
     let picked = null;
     try {
       const url = `${API_FOOTBALL_ENDPOINT}/teams?search=${encodeURIComponent(name)}`;
@@ -100,6 +112,9 @@ export async function buildTeamLogos({
     summary.written += 1;
   }
 
+  if (stoppedAtMaxCalls) {
+    console.log(`[team-logos] stopped at maxCalls; remaining=${summary.remaining.length} — 聽日再跑會繼續`);
+  }
   const sorted = Object.fromEntries(Object.entries(existing).sort(([a], [b]) => (a < b ? -1 : 1)));
   await writeFile(jsonPath, `${JSON.stringify({ generatedAt: new Date().toISOString(), teams: sorted }, null, 2)}\n`);
   console.log(`[team-logos] written=${summary.written} skipped=${summary.skipped} misses=${summary.misses.length} downloadFailed=${summary.downloadFailed.length} needsReview=${summary.needsReview.length}`);
@@ -120,6 +135,13 @@ function defaultSleep() {
   return new Promise((resolve) => setTimeout(resolve, 120));
 }
 
+function parseMaxCalls(argv) {
+  const index = argv.indexOf("--max-calls");
+  if (index === -1) return undefined;
+  const value = Number.parseInt(argv[index + 1], 10);
+  return Number.isNaN(value) ? undefined : value;
+}
+
 const isMain = process.argv[1] ? import.meta.url === pathToFileURL(process.argv[1]).href : false;
 if (isMain) {
   try {
@@ -127,7 +149,7 @@ if (isMain) {
   } catch {
     // .env.local 唔存在就用 process.env 現有值
   }
-  buildTeamLogos({ refresh: process.argv.includes("--refresh") }).catch((error) => {
+  buildTeamLogos({ refresh: process.argv.includes("--refresh"), maxCalls: parseMaxCalls(process.argv) }).catch((error) => {
     console.error(`[team-logos] failed: ${error.message}`);
     process.exitCode = 1;
   });

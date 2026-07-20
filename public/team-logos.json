@@ -1,0 +1,38 @@
+{
+  "generatedAt": "2026-07-20T07:27:41.146Z",
+  "teams": {
+    "AC Oulu": {
+      "id": 2077,
+      "logo": "/team-logos/2077.png"
+    },
+    "AEK Larnaca": {
+      "id": 614,
+      "logo": "/team-logos/614.png"
+    },
+    "APIA Leichhardt": {
+      "id": 3764,
+      "logo": "/team-logos/3764.png",
+      "needsReview": true
+    },
+    "Aalesund": {
+      "id": 757,
+      "logo": "/team-logos/757.png"
+    },
+    "Ajax": {
+      "id": 194,
+      "logo": "/team-logos/194.png"
+    },
+    "Albion FC": {
+      "id": 2378,
+      "logo": "/team-logos/2378.png"
+    },
+    "Altona Magic": {
+      "id": 3797,
+      "logo": "/team-logos/3797.png"
+    },
+    "America Mineiro": {
+      "id": 125,
+      "logo": "/team-logos/125.png"
+    }
+  }
+}

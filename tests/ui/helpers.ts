@@ -6,32 +6,32 @@ const PAST_KICKOFF = "2020-07-17T12:00:00.000Z";
 
 export type Scenario = "authenticated" | "guest" | "empty" | "live-failed" | "backtest-failed" | "many-picks";
 
-export function entry(id: string, matchId: string, homeTeam: string, awayTeam: string, bookmaker: string, odds: { home: number; draw: number; away: number }, commenceTime = FUTURE_KICKOFF) {
-  return { id, matchId, homeTeam, awayTeam, commenceTime, bookmaker, odds };
+export function entry(id: string, matchId: string, homeTeam: string, awayTeam: string, bookmaker: string, odds: { home: number; draw: number; away: number }, commenceTime = FUTURE_KICKOFF, league?: string) {
+  return { id, matchId, homeTeam, awayTeam, commenceTime, bookmaker, odds, ...(league ? { league } : {}) };
 }
 
-export function total(id: string, matchId: string, homeTeam: string, awayTeam: string, bookmaker: string, overOdds: number, underOdds: number) {
-  return { id, matchId, homeTeam, awayTeam, commenceTime: FUTURE_KICKOFF, bookmaker, line: 2.5, overOdds, underOdds };
+export function total(id: string, matchId: string, homeTeam: string, awayTeam: string, bookmaker: string, overOdds: number, underOdds: number, league?: string) {
+  return { id, matchId, homeTeam, awayTeam, commenceTime: FUTURE_KICKOFF, bookmaker, line: 2.5, overOdds, underOdds, ...(league ? { league } : {}) };
 }
 
 export const h2hEntries = [
-  entry("value-a", "match-value", "Value United", "Signal City", "Book A", { home: 2.4, draw: 3.2, away: 3.0 }),
-  entry("value-b", "match-value", "Value United", "Signal City", "Book B", { home: 1.8, draw: 3.6, away: 4.8 }),
-  entry("boundary-a", "match-boundary", "Boundary FC", "Threshold Town", "Book A", { home: 2.0, draw: 3.5, away: 4.0 }),
-  entry("boundary-b", "match-boundary", "Boundary FC", "Threshold Town", "Book B", { home: 2.0, draw: 3.5, away: 4.0 }),
-  entry("below-a", "match-below", "Below United", "No Buy Rovers", "Book A", { home: 2.0, draw: 3.5, away: 4.0 }),
-  entry("below-b", "match-below", "Below United", "No Buy Rovers", "Book B", { home: 2.0, draw: 3.5, away: 4.0 }),
-  entry("past-a", "match-past", "Past High Edge", "Expired City", "Book A", { home: 10, draw: 2, away: 2 }, PAST_KICKOFF),
-  entry("past-b", "match-past", "Past High Edge", "Expired City", "Book B", { home: 1.1, draw: 10, away: 10 }, PAST_KICKOFF),
+  entry("value-a", "match-value", "Value United", "Signal City", "Book A", { home: 2.4, draw: 3.2, away: 3.0 }, FUTURE_KICKOFF, "Premier League"),
+  entry("value-b", "match-value", "Value United", "Signal City", "Book B", { home: 1.8, draw: 3.6, away: 4.8 }, FUTURE_KICKOFF, "Premier League"),
+  entry("boundary-a", "match-boundary", "Boundary FC", "Threshold Town", "Book A", { home: 2.0, draw: 3.5, away: 4.0 }, FUTURE_KICKOFF, "Premier League"),
+  entry("boundary-b", "match-boundary", "Boundary FC", "Threshold Town", "Book B", { home: 2.0, draw: 3.5, away: 4.0 }, FUTURE_KICKOFF, "Premier League"),
+  entry("below-a", "match-below", "Below United", "No Buy Rovers", "Book A", { home: 2.0, draw: 3.5, away: 4.0 }, FUTURE_KICKOFF, "Serie A"),
+  entry("below-b", "match-below", "Below United", "No Buy Rovers", "Book B", { home: 2.0, draw: 3.5, away: 4.0 }, FUTURE_KICKOFF, "Serie A"),
+  entry("past-a", "match-past", "Past High Edge", "Expired City", "Book A", { home: 10, draw: 2, away: 2 }, PAST_KICKOFF, "Serie A"),
+  entry("past-b", "match-past", "Past High Edge", "Expired City", "Book B", { home: 1.1, draw: 10, away: 10 }, PAST_KICKOFF, "Serie A"),
 ];
 
 export const totalEntries = [
-  total("value-total-a", "match-value", "Value United", "Signal City", "Book A", 2.2, 1.7),
-  total("value-total-b", "match-value", "Value United", "Signal City", "Book B", 1.8, 2.05),
-  total("boundary-total-a", "match-boundary", "Boundary FC", "Threshold Town", "Book A", 2.06, 2.06),
-  total("boundary-total-b", "match-boundary", "Boundary FC", "Threshold Town", "Book B", 2.0, 2.0),
-  total("below-total-a", "match-below", "Below United", "No Buy Rovers", "Book A", 2.0598, 2.0598),
-  total("below-total-b", "match-below", "Below United", "No Buy Rovers", "Book B", 2.0, 2.0),
+  total("value-total-a", "match-value", "Value United", "Signal City", "Book A", 2.2, 1.7, "Premier League"),
+  total("value-total-b", "match-value", "Value United", "Signal City", "Book B", 1.8, 2.05, "Premier League"),
+  total("boundary-total-a", "match-boundary", "Boundary FC", "Threshold Town", "Book A", 2.06, 2.06, "Premier League"),
+  total("boundary-total-b", "match-boundary", "Boundary FC", "Threshold Town", "Book B", 2.0, 2.0, "Premier League"),
+  total("below-total-a", "match-below", "Below United", "No Buy Rovers", "Book A", 2.0598, 2.0598, "Serie A"),
+  total("below-total-b", "match-below", "Below United", "No Buy Rovers", "Book B", 2.0, 2.0, "Serie A"),
 ];
 
 // 六場各自有 edge ≥ 3% 主客和值博盤(賠率組合同 match-value 一樣),
@@ -145,7 +145,50 @@ export async function mockApi(
         contentType: "application/json",
         body: JSON.stringify(scenario === "backtest-failed"
           ? { error: "unavailable" }
-          : { rows: [], readiness: [], snapshotQuality: null }),
+          : {
+            rows: [{
+              id: "match-finished-主客和|match-finished|主客和||consensus-v1",
+              matchId: "match-finished",
+              homeTeam: "Finished United",
+              awayTeam: "Settled City",
+              commenceTime: PAST_KICKOFF,
+              score: "2-1",
+              market: "主客和",
+              prediction: "主勝",
+              actual: "主勝",
+              hit: true,
+              settlement: "win",
+              odds: 2.1,
+              chance: 0.52,
+              edge: 0.09,
+              savedAt: "2020-07-17T10:00:00.000Z",
+              snapshotStatus: "valid-current",
+              modelVersion: "consensus-v1",
+              source: "market-consensus",
+            }],
+            readiness: [
+              { market: "主客和", modelVersion: "consensus-v1", settledMatches: 12, pendingMatches: 1 },
+              { market: "大細波", modelVersion: "totals-loo-v1", settledMatches: 30, pendingMatches: 0 },
+              { market: "角球", modelVersion: "corner-loo-v1", settledMatches: 7, pendingMatches: 0 },
+              { market: "亞洲讓球", modelVersion: "hdc-loo-v2", settledMatches: 0, pendingMatches: 0 },
+            ],
+            pending: [{
+              id: "match-value|主客和||consensus-v1",
+              matchId: "match-value",
+              market: "主客和",
+              prediction: "主勝",
+              line: null,
+              odds: 1.8,
+              chance: 0.6,
+              edge: 0.08,
+              commenceTime: FUTURE_KICKOFF,
+              savedAt: "2030-07-17T10:00:00.000Z",
+              modelVersion: "consensus-v1",
+              source: "market-consensus",
+              status: "upcoming",
+            }],
+            snapshotQuality: null,
+          }),
       });
       return;
     }

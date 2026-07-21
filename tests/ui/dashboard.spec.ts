@@ -74,6 +74,9 @@ test("responsive navigation, touch targets, fixtures, and detail work", async ({
 
   await nav.getByRole("link", { name: "紀錄" }).click();
   await expect(page).toHaveURL(/#\/history$/);
+  // 等紀錄頁專屬內容出現先度按鈕 — hash 轉 URL 後 React 未切頁,
+  // 即刻 evaluateAll 有機會量到舊頁已 detached 嘅按鈕(height 0)。
+  await expect(page.locator(".model-readiness")).toBeVisible();
   if (touchLayout) await expectMinimumHeight(page.getByRole("button"), 44, true);
 
   await nav.getByRole("link", { name: "分析" }).click();
@@ -138,6 +141,39 @@ test("production PWA exposes its manifest and registers a service worker", async
   expect(manifest.body.display).toBe("standalone");
 
   await expect.poll(() => page.evaluate(async () => Boolean(await navigator.serviceWorker.getRegistration()))).toBe(true);
+});
+
+test("fixtures toolbar filters by league chip and team search, and marks buy fixtures", async ({ page }) => {
+  await page.goto("/#/fixtures");
+
+  await expect(page.locator(".fixture-row")).toHaveCount(3);
+  // buyMatchIds 同 buy dashboard 一致:match-value + match-boundary 兩場有貨。
+  await expect(page.locator(".fixture-row__buy-dot")).toHaveCount(2);
+
+  await page.getByRole("button", { name: "Serie A" }).click();
+  await expect(page.locator(".fixture-row")).toHaveCount(1);
+  await expect(page.locator(".fixture-row")).toContainText("Below United");
+
+  await page.getByRole("button", { name: "Serie A" }).click();
+  await page.getByLabel("搜尋球隊").fill("Boundary");
+  await expect(page.locator(".fixture-row")).toHaveCount(1);
+  await expect(page.locator(".fixture-row")).toContainText("Boundary FC");
+});
+
+test("history shows model readiness plus pending and settled groups", async ({ page }) => {
+  await page.goto("/#/history");
+
+  await expect(page.locator(".model-readiness__item")).toHaveCount(4);
+  await expect(page.locator(".model-readiness")).toContainText("12/30 場");
+
+  const groups = page.locator(".history-group");
+  await expect(groups.nth(0)).toContainText("等緊開賽");
+  await expect(page.locator(".pending-card")).toHaveCount(1);
+  await expect(page.locator(".pending-card")).toContainText("Value United vs Signal City");
+
+  await expect(groups.nth(1)).toContainText("已完場");
+  await expect(groups.nth(1).locator(".fixture-card")).toHaveCount(1);
+  await expect(groups.nth(1)).toContainText("Finished United vs Settled City");
 });
 
 async function expectNoDocumentOverflow(page: Page) {

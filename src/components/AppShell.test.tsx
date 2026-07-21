@@ -120,6 +120,7 @@ describe("soft-night CSS contract", () => {
       ["--color-bg", "#FFF8F0"],
       ["--color-surface", "#FFFEFC"],
       ["--color-primary", "#5E9FD4"],
+      ["--color-primary-text", "#2E6DA4"],
       ["--color-positive", "#7FCFA9"],
       ["--color-negative", "#F2A0A0"],
       ["--color-warning", "#E8B45A"],

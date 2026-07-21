@@ -51,7 +51,7 @@ button {
 
 .eyebrow {
   margin: 0 0 5px;
-  color: var(--color-primary);
+  color: var(--color-primary-text);
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0;
@@ -414,7 +414,7 @@ h3 {
 }
 
 .field span {
-  color: var(--color-primary);
+  color: var(--color-primary-text);
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -612,7 +612,7 @@ select:focus {
 
 .fixture-day h3 {
   margin: 10px 0 0;
-  color: var(--color-primary);
+  color: var(--color-primary-text);
   font-size: 0.95rem;
 }
 
@@ -660,7 +660,7 @@ select:focus {
 }
 
 .back-link {
-  color: var(--color-primary);
+  color: var(--color-primary-text);
   text-decoration: none;
 }
 
@@ -1093,7 +1093,7 @@ input[type="datetime-local"] {
 
 .login-kicker {
   font-family: var(--font-rounded);
-  color: var(--color-primary);
+  color: var(--color-primary-text);
   font-weight: 700;
   letter-spacing: 0.04em;
   margin: 0 0 4px;

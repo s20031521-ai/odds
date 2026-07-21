@@ -1,81 +1,50 @@
-### Task 2: `SimpleDashboard` 接 logo
+### Task 2: AppShell nav labels 改名
 
 **Files:**
-- Modify: `src/pages/SimpleDashboard.tsx`
-- Modify: `src/pages/SimpleDashboard.test.tsx`
+- Modify: `src/components/AppShell.tsx:5-10`
+- Test: `src/components/AppShell.test.tsx`
 
 **Interfaces:**
-- Consumes: `TeamLogo`、`TeamLogoMap` from `src/components/TeamLogo.tsx`(Task 1)
-- Produces: `SimpleDashboard(props: { opportunities; generatedAt: string | null; dataFresh: boolean; logos: TeamLogoMap })`(`logos` 係新 required prop,Task 4 嘅 DashboardPage 會傳)
+- Consumes: Task 1 嘅 `Page` type。
+- Produces: nav items `今日 #/today`、`賽程 #/fixtures`、`分析 #/analysis`、`紀錄 #/history`（呢個順序）。Playwright `dashboard.spec.ts` 用 `getByRole("link", { name })` 會受影響（Task 11 處理）。
 
-注意:lookup 用英文 canonical 名(`opportunity.homeTeam`/`awayTeam`),唔係 `homeTeamZh`。
+- [ ] **Step 1: 改 test（RED）**
 
-- [ ] **Step 1: 改測試先(TDD)** — `src/pages/SimpleDashboard.test.tsx`:
+`src/components/AppShell.test.tsx:7-12` 嘅 expected array 改做：
 
-  1. 頂部 import 加 `import type { TeamLogoMap } from "../components/TeamLogo";`
-  2. 加一個共用 map 同埋將**所有現有** `renderToStaticMarkup(<SimpleDashboard ... />)` 呼叫加 `logos={testLogos}` prop(冇 logo 嘅隊會出徽章,唔影響現有斷言):
-
-```tsx
-const testLogos: TeamLogoMap = {
-  Home: { id: 1, logo: "/team-logos/1.png" },
-};
+```ts
+["#/today", "今日"],
+["#/fixtures", "賽程"],
+["#/analysis", "分析"],
+["#/history", "紀錄"],
 ```
 
-  3. 加新 test:
+- [ ] **Step 2: 跑 test 確認 fail**
 
-```tsx
-  it("renders an img logo for mapped teams and a badge for unmapped teams", () => {
-    const markup = renderToStaticMarkup(
-      <SimpleDashboard opportunities={opportunities} generatedAt="now" dataFresh logos={testLogos} />,
-    );
+Run: `node node_modules/vitest/vitest.mjs run src/components/AppShell.test.tsx`
+Expected: FAIL（舊 labels `值得買/全部賽事/完場紀錄/模型健康` 唔 match）
 
-    expect(markup).toContain('src="/team-logos/1.png"');
-    expect(markup).toContain("team-logo--badge");
-    // "Away" 冇 mapping → 徽章;兩隊英文名做 key,唔係中文名
-    expect(markup).not.toContain('src="/team-logos/2.png"');
-  });
+- [ ] **Step 3: 改 `src/components/AppShell.tsx:5-10`（GREEN）**
+
+```ts
+const navigationItems = Object.freeze([
+  { route: "today", href: "#/today", label: "今日" },
+  { route: "fixtures", href: "#/fixtures", label: "賽程" },
+  { route: "analysis", href: "#/analysis", label: "分析" },
+  { route: "history", href: "#/history", label: "紀錄" },
+] as const);
 ```
 
-- [ ] **Step 2: 行測試確認 fail**
+- [ ] **Step 4: 跑 test 確認 pass**
 
-Run: `node node_modules/vitest/vitest.mjs run src/pages/SimpleDashboard.test.tsx`
-Expected: FAIL(TypeScript 話冇 `logos` prop / 新 test fail)
-
-- [ ] **Step 3: 改 component** — `src/pages/SimpleDashboard.tsx`:
-
-  1. import 加:
-
-```tsx
-import { TeamLogo, type TeamLogoMap } from "../components/TeamLogo";
-```
-
-  2. props type 加 `logos: TeamLogoMap;`
-  3. `SimpleCard` 嘅 `<h2>` 由:
-
-```tsx
-<h2>{opportunity.homeTeamZh ?? opportunity.homeTeam} <span>vs</span> {opportunity.awayTeamZh ?? opportunity.awayTeam}</h2>
-```
-
-  改做(`SimpleCard` 加 `logos` prop,由 map 傳入 `logos={props.logos}`):
-
-```tsx
-<h2 className="match-teams">
-  <TeamLogo teamName={opportunity.homeTeam} logos={logos} />
-  {opportunity.homeTeamZh ?? opportunity.homeTeam} <span>vs</span> {opportunity.awayTeamZh ?? opportunity.awayTeam}
-  <TeamLogo teamName={opportunity.awayTeam} logos={logos} />
-</h2>
-```
-
-- [ ] **Step 4: 行測試確認 pass**
-
-Run: `node node_modules/vitest/vitest.mjs run src/pages/SimpleDashboard.test.tsx`
-Expected: PASS,7 個 test 全過
+Run: `node node_modules/vitest/vitest.mjs run src/components/AppShell.test.tsx`
+Expected: PASS
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/pages/SimpleDashboard.tsx src/pages/SimpleDashboard.test.tsx
-git commit -m "feat: show team logos on simple dashboard cards"
+git add src/components/AppShell.tsx src/components/AppShell.test.tsx
+git commit -m "feat: rename nav labels to 今日/賽程/分析/紀錄"
 ```
 
 ---

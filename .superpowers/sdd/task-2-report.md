@@ -1,39 +1,99 @@
-# Task 2 Report: `SimpleDashboard` 接 logo
+# Task 2 Report: AppShell nav labels 改名
 
-## 做咗咩
+## Status: DONE_WITH_CONCERNS (one minor, non-blocking type note — see Concerns)
 
-按 `.superpowers/sdd/task-2-brief.md` 用 TDD 完成:
+## What was implemented
 
-1. **改測試先**(`src/pages/SimpleDashboard.test.tsx`):
-   - 頂部加 `import type { TeamLogoMap } from "../components/TeamLogo";`
-   - 加共用 `testLogos: TeamLogoMap = { Home: { id: 1, logo: "/team-logos/1.png" } }`
-   - 全部 6 個現有 `renderToStaticMarkup(<SimpleDashboard .../>)` 呼叫補上 `logos={testLogos}`
-   - 加新 test:`renders an img logo for mapped teams and a badge for unmapped teams`
-2. **確認 fail**:新 test fail(`src="/team-logos/1.png"` 未出現),其餘 6 個 pass。
-3. **改 component**(`src/pages/SimpleDashboard.tsx`):
-   - import `TeamLogo, type TeamLogoMap`
-   - props type 加 required `logos: TeamLogoMap`
-   - `SimpleCard` 加 `logos` prop,由 map 傳入
-   - `<h2>` 改做 `<h2 className="match-teams">`,主隊名前放 `<TeamLogo teamName={opportunity.homeTeam} logos={logos} />`,客隊名後放 `<TeamLogo teamName={opportunity.awayTeam} logos={logos} />`(lookup 用英文 canonical 名)
-4. **確認 pass** → commit。
+Renamed the four AppShell navigation items to the new Today-first routes/labels,
+in the exact order and values specified by the brief:
 
-## 指令同測試結果
+| route     | href          | label |
+|-----------|---------------|-------|
+| today     | `#/today`     | 今日  |
+| fixtures  | `#/fixtures`  | 賽程  |
+| analysis  | `#/analysis`  | 分析  |
+| history   | `#/history`   | 紀錄  |
 
-- `node node_modules/vitest/vitest.mjs run src/pages/SimpleDashboard.test.tsx`
-  - Step 2(改 component 前):**1 failed | 6 passed**(新 logo test fail,符合預期)
-  - Step 4(改 component 後):**7 passed (7)** ✅
-- `node node_modules/typescript/bin/tsc --noEmit`:1 個預期之內嘅 error ——
-  `src/pages/DashboardPage.tsx(45,10): error TS2741: Property 'logos' is missing ...`
-  呢個係 Task 4(DashboardPage 傳 logos)嘅範圍,本 task 唔郁 DashboardPage。
+The expected array in `AppShell.test.tsx` was updated to the same values first
+(TDD RED), then the component was changed (GREEN).
 
-## Commit
+## TDD evidence
 
-- `2df07da` — `feat: show team logos on simple dashboard cards`(branch `feature/team-logos`,淨係 add 咗 brief 指定嘅兩個檔案)
+### RED (Step 1–2)
 
-## Self-review
+Changed `src/components/AppShell.test.tsx:7-12` expected array to the new
+`#/today 今日 / #/fixtures 賽程 / #/analysis 分析 / #/history 紀錄` values.
 
-- ✅ TDD 次序正確:測試先 fail、後 pass,有截圖式輸出佐證(見上)。
-- ✅ lookup key 用 `opportunity.homeTeam`/`awayTeam`(英文),唔係中文名;新 test 明確驗證 `Home` 出 img、`Away` 出 badge、`/team-logos/2.png` 唔出現。
-- ✅ 冇改 brief 範圍外嘅檔案(DashboardPage 留畀 Task 4)。
-- ⚠️ **Brief 偏差一處**:brief 話「冇 logo 嘅隊會出徽章,唔影響現有斷言」,但其實現有 test 入面 `expect(markup).toContain("<h2>主隊 <span>vs</span> 客隊</h2>")` 同 `"<h2>Second Home <span>vs</span> Second Away</h2>"` 兩句會因為 `<h2>` 加咗 `className="match-teams"` 同入面插咗 logo 元素而必然 fail。已將呢兩句放寬為 `toContain("主隊 <span>vs</span> 客隊")` / `toContain("Second Home <span>vs</span> Second Away")`(斷言本體唔變,只係唔再綁死成個 `<h2>` wrapper)。其餘全部照 brief。
-- ⚠️ Repo 而家 `tsc --noEmit` 有 1 個 error(DashboardPage 未傳 `logos`),屬預期,Task 4 會解決;vitest 唔 type-check,所以測試全綠。
+Command:
+```
+node node_modules/vitest/vitest.mjs run src/components/AppShell.test.tsx
+```
+
+Result: **FAIL — 2 failed | 9 passed (11)**, exactly as expected:
+- `renders every exact route and label in both labelled navigations` —
+  `expected [] to have a length of 2 but got +0` at line 45 (no `#/today`
+  anchors exist yet; old labels `值得買/全部賽事/完場紀錄/模型健康` no longer match).
+- `marks only the active route current in both navigations` —
+  same `+0` anchors failure at line 55.
+
+Failure is expected because the component still rendered the old
+`#/dashboard 值得買` nav; the new href/labels were not yet implemented.
+
+### GREEN (Step 3–4)
+
+Changed `src/components/AppShell.tsx:5-10` `navigationItems` to the brief's
+verbatim block (`Object.freeze([...] as const)` with route `today` first).
+
+Command:
+```
+node node_modules/vitest/vitest.mjs run src/components/AppShell.test.tsx
+```
+
+Result: **PASS — Test Files 1 passed (1), Tests 11 passed (11)**
+(`✓ src/components/AppShell.test.tsx (11 tests) 12ms`, Vitest v4.1.10).
+
+### Commit (Step 5)
+
+```
+77da717 feat: rename nav labels to 今日/賽程/分析/紀錄
+2 files changed, 8 insertions(+), 8 deletions(-)
+```
+
+Only `src/components/AppShell.tsx` and `src/components/AppShell.test.tsx`
+were staged and committed, per the brief's exact `git add` command.
+
+## Files changed
+
+- `src/components/AppShell.tsx` — `navigationItems` rewritten (lines 5–10).
+- `src/components/AppShell.test.tsx` — expected `navigationItems` array
+  rewritten (lines 7–12).
+
+`git show HEAD` diff verified: changes are byte-for-byte the brief's specified
+values; no other hunks.
+
+## Self-review findings
+
+1. Diff matches the brief verbatim — order (today → fixtures → analysis →
+   history), hrefs, and labels all correct. ✔
+2. Scope respected: only the two permitted files touched; Playwright
+   `dashboard.spec.ts` label updates deliberately left for Task 11. ✔
+3. All 11 tests in the focused file pass, including the unrelated CSS/token
+   contract tests — no collateral damage. ✔
+4. `tsc --noEmit` was not run / not gated on, per task context. ✔
+5. Working tree otherwise untouched (pre-existing untracked data/script files
+   remain unstaged). ✔
+
+## Concerns
+
+- **Stale route names in the test helper (minor, non-blocking):**
+  `AppShell.test.tsx:15` still types `renderShell` as
+  `route: "dashboard" | "fixtures" | "history" | "analysis"` with default
+  `"dashboard"`, and two call sites pass `"dashboard"`. Since Task 1 narrowed
+  `Page` to `"today" | "fixtures" | "analysis" | "history"`, `tsc` will flag
+  this test file (`"dashboard"` not assignable to `Page`). Vitest does not
+  type-check, so the suite passes, and the brief's Step 1 explicitly scoped the
+  test change to the expected array only — so I left it as instructed. Runtime
+  behavior is unaffected (a non-matching route simply renders no
+  `aria-current`, which none of the assertions depend on). Suggest a later
+  task sweep the `"dashboard"` route references in test/helpers when pages are
+  renamed.

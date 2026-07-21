@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Page } from "../route";
+import { KawaiiDecor, Mascot } from "./Kawaii";
 
 const navigationItems = Object.freeze([
   { route: "dashboard", href: "#/dashboard", label: "值得買" },
@@ -48,6 +49,8 @@ export function AppShell(props: {
         <main id="main-content" tabIndex={-1}>
           {props.children}
         </main>
+        <KawaiiDecor />
+        <Mascot pose="chiikawa-corner" />
         <aside aria-label="安裝提示" className="pwa-install-hint">
           iPhone / iPad：Safari 分享 → 加入主畫面
         </aside>

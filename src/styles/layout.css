@@ -49,8 +49,9 @@
 }
 
 .app-navigation a[aria-current="page"] {
-  color: var(--color-bg);
-  background: var(--color-primary);
+  background: var(--color-accent-pink);
+  color: var(--color-text);
+  border-radius: 999px;
 }
 
 .app-navigation--top {

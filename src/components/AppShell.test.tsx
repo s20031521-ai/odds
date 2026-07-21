@@ -108,8 +108,8 @@ describe("soft-night CSS contract", () => {
     const activeRule = layout.match(/\.app-navigation a\[aria-current="page"\]\s*\{([^}]*)\}/)?.[1];
 
     expect(activeRule).toBeDefined();
-    expect(activeRule).toContain("color: var(--color-bg);");
-    expect(activeRule).toContain("background: var(--color-primary);");
+    expect(activeRule).toContain("background: var(--color-accent-pink);");
+    expect(activeRule).toContain("color: var(--color-text);");
   });
 
   test("defines the exact design tokens", () => {
@@ -117,14 +117,15 @@ describe("soft-night CSS contract", () => {
     expect(existsSync(tokensUrl)).toBe(true);
     const tokens = readFileSync(tokensUrl, "utf8");
     const expectedTokens = [
-      ["--color-bg", "#11182b"],
-      ["--color-surface", "#182038"],
-      ["--color-primary", "#7c83c8"],
-      ["--color-positive", "#9ce2cf"],
-      ["--color-warning", "#f2c879"],
-      ["--color-text", "#f6f7ff"],
-      ["--color-muted", "#8e9cba"],
-      ["--radius-card", "16px"],
+      ["--color-bg", "#FFF8F0"],
+      ["--color-surface", "#FFFEFC"],
+      ["--color-primary", "#5E9FD4"],
+      ["--color-positive", "#7FCFA9"],
+      ["--color-negative", "#F2A0A0"],
+      ["--color-warning", "#E8B45A"],
+      ["--color-text", "#4A3F3F"],
+      ["--color-muted", "#A89B91"],
+      ["--radius-card", "24px"],
       ["--touch-target", "44px"],
     ] as const;
 

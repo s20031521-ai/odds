@@ -25,6 +25,9 @@ describe("App integration source", () => {
     expect(source).toContain("apiClient.login");
     expect(source).toContain("apiClient.liveOdds");
     expect(source).toContain("apiClient.backtest");
+    expect(source).toContain("isModelReadiness");
+    expect(source).toContain("isPendingEntry");
+    expect(source).toContain("setPendingEntries");
     expect(source).toContain("apiClient.savePredictions");
     expect(source).toContain("apiClient.logout");
     expect(source).toContain("normalizeLiveOddsPayload");

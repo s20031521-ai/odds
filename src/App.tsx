@@ -61,7 +61,32 @@ type ResultEntry = {
   source?: string;
   odds?: number;
   chance?: number;
+  edge?: number;
+  savedAt?: string;
   snapshotStatus?: string;
+};
+
+type ModelReadiness = {
+  market: string;
+  modelVersion: string;
+  settledMatches: number;
+  pendingMatches: number;
+};
+
+type PendingEntry = {
+  id: string;
+  matchId: string;
+  market: string;
+  prediction: string;
+  line: number | null;
+  odds: number | null;
+  chance: number | null;
+  edge: number | null;
+  commenceTime: string | null;
+  savedAt: string;
+  modelVersion: string;
+  source: string | null;
+  status: "upcoming" | "settling" | "overdue" | "unknown";
 };
 
 type LiveOddsPayload = {
@@ -93,6 +118,8 @@ function App() {
   const [handicapEntries, setHandicapEntries] = useState<HandicapEntry[]>([]);
   const [resultEntries, setResultEntries] = useState<ResultEntry[]>([]);
   const [snapshotQuality, setSnapshotQuality] = useState<SnapshotQuality | null>(null);
+  const [readiness, setReadiness] = useState<ModelReadiness[]>([]);
+  const [pendingEntries, setPendingEntries] = useState<PendingEntry[]>([]);
   const [historyError, setHistoryError] = useState("");
   const [dataWarning, setDataWarning] = useState("");
   const [dataFresh, setDataFresh] = useState(false);
@@ -281,7 +308,7 @@ function App() {
 
   useEffect(() => {
     if (!auth.authenticated) return;
-    if ((page === "today" || page === "fixtures" || page === "analysis") && !hkjcAutoLoadStarted.current) {
+    if ((page === "today" || page === "fixtures" || page === "analysis" || page === "history") && !hkjcAutoLoadStarted.current) {
       hkjcAutoLoadStarted.current = true;
       void loadHkjcOdds();
     }
@@ -310,10 +337,14 @@ function App() {
       const body = await apiClient.backtest();
       if (!Array.isArray(body?.rows)) throw new Error("Backend backtest 暫時不可用。");
       setResultEntries(body.rows as ResultEntry[]);
+      setReadiness(Array.isArray(body.readiness) ? body.readiness.filter(isModelReadiness) : []);
+      setPendingEntries(Array.isArray(body.pending) ? body.pending.filter(isPendingEntry) : []);
       setSnapshotQuality(isSnapshotQuality(body.snapshotQuality) ? body.snapshotQuality : null);
     } catch (error) {
-      const cleared = clearBacktestResponseState({ resultEntries, readiness: [], snapshotQuality });
+      const cleared = clearBacktestResponseState({ resultEntries, readiness, snapshotQuality });
       setResultEntries(cleared.resultEntries);
+      setReadiness(cleared.readiness);
+      setPendingEntries([]);
       setSnapshotQuality(cleared.snapshotQuality);
       setHistoryError(handleProtectedError(error, "Backend backtest 暫時不可用。"));
     } finally {
@@ -945,6 +976,16 @@ function isHandicapEntry(item: unknown): item is HandicapEntry {
 
 function isResultEntry(item: unknown): item is ResultEntry {
   return isRecord(item) && isString(item.id) && isString(item.matchId) && isString(item.market);
+}
+
+function isModelReadiness(item: unknown): item is ModelReadiness {
+  return isRecord(item) && isString(item.market) && isString(item.modelVersion)
+    && isFiniteNumber(item.settledMatches) && isFiniteNumber(item.pendingMatches);
+}
+
+function isPendingEntry(item: unknown): item is PendingEntry {
+  return isRecord(item) && isString(item.id) && isString(item.matchId) && isString(item.market)
+    && isString(item.prediction) && isString(item.savedAt) && isString(item.status);
 }
 
 function hasBaseFlat(item: Record<string, unknown>): boolean {

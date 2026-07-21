@@ -26,6 +26,7 @@ export type BacktestResponse = {
   rows: unknown[];
   summary?: unknown;
   readiness?: unknown[];
+  pending?: unknown[];
   snapshotQuality?: unknown;
 };
 

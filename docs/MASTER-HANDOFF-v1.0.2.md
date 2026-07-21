@@ -4,7 +4,7 @@
 > 版本：v1.0.2（git tag `v1.0.2`，package.json version `1.0.2`）
 > 日期：2026-07-21
 > 語言：本 repo 所有交接文件用廣東話書寫，程式碼註解用英文。
-> v1.0.2 變更：整合 Chiikawa UI refresh（`HANDOFF-2026-07-21-chiikawa-ui-refresh.md`，設計規格 `8545216` → 收尾 `04d3707`）入主交接文件 — pastel 色板 + Kawaii 元件 + mascot 素材 + self-hosted Baloo 2 webfont + WCAG 對比度修正 + Playwright spec 修復，**已部署上 production**（2026-07-21，新 bundle `index-CLj0yK_X.js`，部署前 DB 備份 `pre-deploy-20260721-044351.dump`）。v1.0.0 / v1.0.1 文件保留做歷史。
+> v1.0.2 變更：整合 Chiikawa UI refresh（`HANDOFF-2026-07-21-chiikawa-ui-refresh.md`，設計規格 `8545216` → 第二輪收尾 `53154b4`）入主交接文件 — pastel 色板 + Kawaii 元件 + mascot 素材 + self-hosted Baloo 2 webfont + WCAG 對比度修正 + Playwright spec 修復，**已部署上 production 兩次**（2026-07-21：第一次 bundle `index-CLj0yK_X.js`、備份 `pre-deploy-20260721-044351.dump`；第二次（下午，三個 follow-up commit）bundle `index-DJb2OR6G.js`、備份 `pre-deploy-20260721-055126.dump`）。v1.0.0 / v1.0.1 文件保留做歷史。
 
 ---
 
@@ -82,10 +82,10 @@ sudo -A docker exec odds-tool-postgres-1 psql -U postgres -d odds -tAc "SELECT s
 | Stack | postgres / api / caddy / cloudflared / collector 五 container healthy |
 | 數據（2026-07-19 上線時） | 96 prediction snapshots、1234 results、live_odds ~170–300 行浮動、286 distinct matches、0 settlements |
 | 付費 quota | The Odds API `quotaRemaining` 491/500；collector 有 50-credit 保護線 + provider cooldown |
-| 備份 | 手動 `pg_dump`：`/opt/odds-tool/backups/odds-2026-07-19.dump`（已驗證 10/10 表）+ **Chiikawa 部署前 `pre-deploy-20260721-044351.dump`** — **冇自動備份** |
+| 備份 | 手動 `pg_dump`：`/opt/odds-tool/backups/odds-2026-07-19.dump`（已驗證 10/10 表）+ Chiikawa 第一次部署前 `pre-deploy-20260721-044351.dump` + **第二次部署前 `pre-deploy-20260721-055126.dump`** — **冇自動備份** |
 | 測試 | 29 Vitest files / **196 tests** 全綠（master；team logos +9、Chiikawa +4）；**Playwright 32/32 全綠**（4 viewports）；14 個 node:test files；`tsc --noEmit` + `vite build` 通過 |
 | Dashboard | 雙模式：極簡（預設）+ 專業，`#/dashboard` 右上一條 toggle，localStorage `dashboard-mode` |
-| UI 主題 | **Chiikawa pastel 主題（v1.0.2 新，已上 production）**：奶油白底 + pastel 色板 + 大圓角 + 軟陰影 + mascot 插畫 + 廣東話微文案；self-hosted Baloo 2 webfont；零外部資源（離線可用）；production bundle `index-CLj0yK_X.js` |
+| UI 主題 | **Chiikawa pastel 主題（v1.0.2 新，已上 production）**：奶油白底 + pastel 色板 + 大圓角 + 軟陰影 + mascot 插畫 + 廣東話微文案；self-hosted Baloo 2 webfont；零外部資源（離線可用）；production bundle `index-DJb2OR6G.js`（第二次部署，2026-07-21 下午） |
 | 球隊 logo | `public/team-logos/` 70 個 PNG；`public/team-logos.json` manifest 75 隊（31 隊 `needsReview` 待 owner 核對）；搵唔到顯示 initials 徽章；Caddy `file_server` 直接派 PNG 唔經 API |
 | 每日自動續跑 | Blueprint Automation `automation_1dbf8f50-40cd-4dcf-b007-a16b2c452f41`「球隊 logo 每日續跑」，cron `17 9 * * *` Asia/Hong_Kong，enabled，latestRun succeeded |
 
@@ -362,7 +362,8 @@ scp -i ~/.ssh/astra_vm_ed25519 -P 169 /tmp/.ap.sh hugo@118.140.60.206:/tmp/.ap.s
 ├── postgres/create-roles.sh
 ├── migration-bundle-2026-07-19/   # read-only archive 副本
 └── backups/odds-2026-07-19.dump
-    backups/pre-deploy-20260721-044351.dump   # Chiikawa 部署前備份（v1.0.2）
+    backups/pre-deploy-20260721-044351.dump   # Chiikawa 第一次部署前備份（v1.0.2）
+    backups/pre-deploy-20260721-055126.dump   # Chiikawa 第二次部署前備份（v1.0.2）
 ```
 
 ### 9.3 Docker 怪癖（已繞過，唔好「修正」返）
@@ -377,7 +378,7 @@ scp -i ~/.ssh/astra_vm_ed25519 -P 169 /tmp/.ap.sh hugo@118.140.60.206:/tmp/.ap.s
 - 部署前：`pg_dump` 備份 + `docker tag odds-tool-{api,caddy}:latest :rollback`。
 - `sudo -A docker compose config --quiet` validate → build → per-service `up -d --no-deps <service>`。
 - Smoke 綠先開 collector + cloudflared。
-- 呢個流程（tarball→scp→rsync→pg_dump→tag rollback→build caddy→smoke）已驗證**四次**：team logos feature 三次（2026-07-20/21）+ **Chiikawa UI 一次（2026-07-21，純前端淨 rebuild caddy，新 bundle `index-CLj0yK_X.js`，備份 `pre-deploy-20260721-044351.dump`）**。
+- 呢個流程（tarball→scp→rsync→pg_dump→tag rollback→build caddy→smoke）已驗證**五次**：team logos feature 三次（2026-07-20/21）+ **Chiikawa UI 兩次（2026-07-21，純前端淨 rebuild caddy — 第一次 bundle `index-CLj0yK_X.js`、備份 `pre-deploy-20260721-044351.dump`；第二次下午三個 follow-up commit，bundle `index-DJb2OR6G.js`、備份 `pre-deploy-20260721-055126.dump`）**。
 - ⚠️ **Cloudflare 預設快取 `.js`**：曾經舊 `sw.js` 派舊 bundle 嘅 incident。Caddy 已對 `/sw.js`、`/registerSW.js` 派 `no-cache, must-revalidate`；如果更新後睇唔到新 UI，Cloudflare dashboard Purge Everything。**如果個 client 已經中咗招（裝咗舊 SW）**，Caddy no-cache 救唔到佢 — 要喺嗰個 client unregister service worker + `caches.delete()` 一次（見 §11.3 第 6 條）。
 
 ### 9.5 Rollback
@@ -436,10 +437,10 @@ scp -i ~/.ssh/astra_vm_ed25519 -P 169 /tmp/.ap.sh hugo@118.140.60.206:/tmp/.ap.s
 - **球隊 logo manifest 31 隊 `needsReview`** 待 owner 核對（API search 名可能對錯隊）；女子隊 API-Football free plan 冇 logo 數據（長遠要升 plan 或另搵 source）。
 - `build-team-logos.mjs` sleep 120ms 會撞 API-Football per-minute 429（10/min limit）；建議改 7 秒（要同步改對應 test），未改。
 - `scripts/tmp-*.mjs`、`webbridge-req-*.json`、`data/priority-*`、`data/current-teams-now.txt` 係 logo 開發期間嘅臨時／診斷檔，有意未入 git，可清。
-- **Chiikawa UI 剩低 follow-up（v1.0.2 時點）**：
-  - `styles.css` 剩 **5 個 hex 未 token 化**：L237/L533/L769 `#DFF5EA`（淺綠底）、L466 `#FFFFFF`、L472 `#4A8BC0`（深藍 hover 底）。細微，下次郁樣式順手執（`grep -nE '#[0-9A-Fa-f]{3,8}' src/styles.css` 查）。
-  - **`mascot-chiikawa-empty.png`（236 KB）可壓縮**：四張 PNG 45–236 KB，`kawaii.css` 用固定尺寸 + `object-fit` 統一顯示，效能可接受，要再壓可以用圖片工具瘦身。
-  - **`App.tsx` 一個 hardcoded `.sample-warning` 未加 mascot**：「只得 N 場獨立賽事，暫未適合調整策略。」呢段 hardcoded 警告**冇**飛鼠 mascot — `83cd086` 只覆蓋 `{qualityWarning}` 嘅 `.sample-warning`。要一致性可 follow-up 加 `<Mascot pose="momonga-alert" />`。
+- **Chiikawa UI follow-up 全部清零（v1.0.2 時點）**：
+  - ~~`styles.css` 剩 5 個 hex 未 token 化~~ ✅ `53154b4` 已解決（`#DFF5EA` ×3、`#FFFFFF`、`#4A8BC0` 全部轉 tokens）。
+  - ~~`mascot-chiikawa-empty.png`（236 KB）可壓縮~~ ✅ `4fb7aa1` 已解決（236 KB → 44 KB，PWA precache 941 → 754 KiB）；舊版喺 Cloudflare edge 有 cache（TTL 14400s，自然過期，無功能影響）。
+  - ~~`App.tsx` hardcoded `.sample-warning` 未加 mascot~~ ✅ `e79747a` 已解決（補 `<Mascot pose="momonga-alert" />`）。
   - ~~`--color-primary` 文字色對比唔達標~~ ✅ `ec24f06` 已解決（`--color-primary-text: #2E6DA4`，5.19:1）；~~Baloo 2 得個名~~ ✅ `58ff5b9` 已 self-host；~~錯誤提示冇 mascot~~ ✅ `83cd086` 已補 `momonga-alert`（歷史記錄見 chiikawa handoff §7）。
 
 ### 11.3 歷史 bug 教訓（已修，唔好 reintroduce）
@@ -468,7 +469,7 @@ scp -i ~/.ssh/astra_vm_ed25519 -P 169 /tmp/.ap.sh hugo@118.140.60.206:/tmp/.ap.s
 | 2026-07-21 | `HANDOFF-2026-07-21-chiikawa-ui-refresh.md` | Chiikawa UI 改造 + Playwright 修復 + 收尾 commits（對比度／alert mascot／webfont） |
 | 2026-07-21 | **本文件** | v1.0.2 master handoff（整合 Chiikawa UI refresh，已部署 production） |
 
-Git：base `645f22a chore: initial import`（2026-07-19 repo 重建）→ dashboard mode commits → v1.0.0 tag → team logos commits → `d4f835e` → v1.0.1 tag（`58e6aa8`）→ Chiikawa UI refresh commits（`8545216` spec → `d47f087` plan → `adb1f7a`…`d280bf9` 實施 → `9e28452` Playwright 修復 → `bca41d0` handoff → 收尾 `ec24f06` / `83cd086` / `58ff5b9` / `04d3707`）→ production deploy（2026-07-21，bundle `index-CLj0yK_X.js`）→ **v1.0.2 tag 喺本文件 commit 上**。
+Git：base `645f22a chore: initial import`（2026-07-19 repo 重建）→ dashboard mode commits → v1.0.0 tag → team logos commits → `d4f835e` → v1.0.1 tag（`58e6aa8`）→ Chiikawa UI refresh commits（`8545216` spec → `d47f087` plan → `adb1f7a`…`d280bf9` 實施 → `9e28452` Playwright 修復 → `bca41d0` handoff → 收尾 `ec24f06` / `83cd086` / `58ff5b9` / `04d3707`）→ 第一次 production deploy（bundle `index-CLj0yK_X.js`）→ v1.0.2 tag（`12effe1`）→ `489e1dc` 標記已部署 → 第二輪收尾 `e79747a` / `4fb7aa1` / `53154b4` → **第二次 production deploy（2026-07-21 下午，bundle `index-DJb2OR6G.js`，備份 `pre-deploy-20260721-055126.dump`）**。
 
 ---
 

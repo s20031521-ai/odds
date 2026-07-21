@@ -7,14 +7,16 @@ import {
   type DashboardMode,
   type StorageLike,
 } from "../dashboardMode";
+import type { Fixture } from "../odds";
 import { BuyDashboard } from "./BuyDashboard";
-import { SimpleDashboard } from "./SimpleDashboard";
+import { TodayPage } from "./TodayPage";
 
 const MODE_ORDER = ["simple", "pro"] as const;
-const MODE_LABELS: Record<DashboardMode, string> = { simple: "極簡", pro: "專業" };
+const MODE_LABELS: Record<DashboardMode, string> = { simple: "今日", pro: "專業" };
 
 export function DashboardPage(props: {
   opportunities: BuyOpportunity[];
+  fixtures: Fixture[];
   generatedAt: string | null;
   dataFresh: boolean;
   storage?: StorageLike;
@@ -44,7 +46,14 @@ export function DashboardPage(props: {
       {mode === "pro" ? (
         <BuyDashboard opportunities={props.opportunities} generatedAt={props.generatedAt} dataFresh={props.dataFresh} logos={props.logos} />
       ) : (
-        <SimpleDashboard opportunities={props.opportunities} generatedAt={props.generatedAt} dataFresh={props.dataFresh} logos={props.logos} />
+        <TodayPage
+          opportunities={props.opportunities}
+          fixtures={props.fixtures}
+          generatedAt={props.generatedAt}
+          dataFresh={props.dataFresh}
+          logos={props.logos}
+          onShowAll={() => selectMode("pro")}
+        />
       )}
     </div>
   );

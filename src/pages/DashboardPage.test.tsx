@@ -28,12 +28,12 @@ function storageWith(value: string): StorageLike {
 describe("DashboardPage", () => {
   it("defaults to simple mode when nothing is stored", () => {
     const markup = renderToStaticMarkup(
-      <DashboardPage opportunities={opportunities} generatedAt="now" dataFresh logos={testLogos} />,
+      <DashboardPage opportunities={opportunities} fixtures={[]} generatedAt="now" dataFresh logos={testLogos} />,
     );
 
-    expect(markup).toContain("simple-dashboard");
+    expect(markup).toContain("today-page");
     expect(markup).not.toContain("buy-dashboard__kpis");
-    expect(markup).toMatch(/aria-pressed="true"[^>]*>極簡<\/button>/);
+    expect(markup).toMatch(/aria-pressed="true"[^>]*>今日<\/button>/);
     expect(markup).toMatch(/aria-pressed="false"[^>]*>專業<\/button>/);
   });
 
@@ -41,6 +41,7 @@ describe("DashboardPage", () => {
     const markup = renderToStaticMarkup(
       <DashboardPage
         opportunities={opportunities}
+        fixtures={[]}
         generatedAt="now"
         dataFresh
         storage={storageWith("pro")}
@@ -50,7 +51,7 @@ describe("DashboardPage", () => {
 
     expect(markup).toContain("buy-dashboard__kpis");
     expect(markup).toContain("值得買 Dashboard");
-    expect(markup).not.toContain("simple-dashboard");
+    expect(markup).not.toContain("today-page");
     expect(markup).toMatch(/aria-pressed="true"[^>]*>專業<\/button>/);
   });
 
@@ -58,6 +59,7 @@ describe("DashboardPage", () => {
     const markup = renderToStaticMarkup(
       <DashboardPage
         opportunities={opportunities}
+        fixtures={[]}
         generatedAt="now"
         dataFresh
         storage={storageWith("junk")}
@@ -65,24 +67,39 @@ describe("DashboardPage", () => {
       />,
     );
 
-    expect(markup).toContain("simple-dashboard");
+    expect(markup).toContain("today-page");
   });
 
   it("keeps the toggle available in the stale state", () => {
     const markup = renderToStaticMarkup(
-      <DashboardPage opportunities={[]} generatedAt={null} dataFresh={false} logos={testLogos} />,
+      <DashboardPage opportunities={[]} fixtures={[]} generatedAt={null} dataFresh={false} logos={testLogos} />,
     );
 
     expect(markup).toContain("dashboard-mode-bar");
-    expect(markup).toContain("資料未更新，暫停顯示買盤。");
+    expect(markup).toContain("數據舊咗，唔好住落注");
   });
 
   it("passes logos through to the active dashboard", () => {
     const logos: TeamLogoMap = { Home: { id: 1, logo: "/team-logos/1.png" } };
     const markup = renderToStaticMarkup(
-      <DashboardPage opportunities={opportunities} generatedAt="now" dataFresh logos={logos} />,
+      <DashboardPage opportunities={opportunities} fixtures={[]} generatedAt="now" dataFresh logos={logos} />,
     );
 
     expect(markup).toContain('src="/team-logos/1.png"');
+  });
+
+  it("simple mode renders TodayPage with fixtures and picks", () => {
+    const markup = renderToStaticMarkup(
+      <DashboardPage
+        opportunities={opportunities}
+        fixtures={[]}
+        generatedAt="2026-07-21T11:50:00Z"
+        dataFresh
+        logos={testLogos}
+        storage={storageWith("simple")}
+      />,
+    );
+    expect(markup).toContain("today-page");
+    expect(markup).toContain("pick-card");
   });
 });

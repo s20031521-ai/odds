@@ -15,6 +15,13 @@ describe("Mascot", () => {
     expect(renderToStaticMarkup(<Mascot pose="momonga-loading" />)).toContain("mascot-momonga-loading.png");
     expect(renderToStaticMarkup(<Mascot pose="login-duo" />)).toContain("mascot-login-duo.png");
   });
+
+  it("renders momonga alert pose reusing the loading image", () => {
+    const html = renderToStaticMarkup(<Mascot pose="momonga-alert" />);
+    expect(html).toContain('src="/chiikawa/mascot-momonga-loading.png"');
+    expect(html).toContain("mascot--alert");
+    expect(html).toContain('alt=""');
+  });
 });
 
 describe("KawaiiDecor", () => {

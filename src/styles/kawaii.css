@@ -33,6 +33,14 @@
   margin: 0 auto 12px;
 }
 
+.mascot--alert {
+  width: 40px;
+  height: 40px;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
 .kawaii-decor {
   position: fixed;
   inset: 0;

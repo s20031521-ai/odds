@@ -512,10 +512,10 @@ function App() {
         {historyLoading ? (
           <div aria-live="polite" className="empty-state" role="status"><Mascot pose="momonga-loading" /><Loader2 aria-hidden="true" className="spin" size={20} /> 正在載入模型表現。</div>
         ) : historyError ? (
-          <div className="empty-state" role="alert"><span>{historyError}</span><button className="secondary-button compact" onClick={loadBacktest}>重新載入</button></div>
+          <div className="empty-state" role="alert"><Mascot pose="momonga-alert" /><span>{historyError}</span><button className="secondary-button compact" onClick={loadBacktest}>重新載入</button></div>
         ) : (
           <>
-            {qualityWarning ? <div className="sample-warning" role="status"><AlertTriangle size={17} />{qualityWarning}</div> : null}
+            {qualityWarning ? <div className="sample-warning" role="status"><Mascot pose="momonga-alert" /><AlertTriangle size={17} />{qualityWarning}</div> : null}
             <div className="performance-market-grid" aria-label="市場模型表現">
               {marketSummaries.map(({ market, summary }) => (
                 <button aria-pressed={analysisMarket === market} className={analysisMarket === market ? "performance-market-card active" : "performance-market-card"} key={market} onClick={() => setAnalysisMarket(market)} type="button">
@@ -650,7 +650,7 @@ function App() {
       {page === "history" ? (
       <section className="dashboard-section">
         <Panel title="完場紀錄 vs 預測" icon={<CalendarDays size={18} />}>
-          {qualityWarning ? <div className="sample-warning" role="status"><AlertTriangle size={17} />{qualityWarning}</div> : null}
+          {qualityWarning ? <div className="sample-warning" role="status"><Mascot pose="momonga-alert" /><AlertTriangle size={17} />{qualityWarning}</div> : null}
           <div className="history-toolbar">
             <div className="history-market-tabs" aria-label="完場市場">
               {(["主客和", "角球", "大細波", "亞洲讓球"] as HistoryMarket[]).map((market) => (
@@ -670,7 +670,7 @@ function App() {
           {historyLoading ? (
             <div aria-live="polite" className="empty-state compact" role="status"><Mascot pose="momonga-loading" /><Loader2 aria-hidden="true" className="spin" size={20} /><span>正在載入完場對比。</span></div>
           ) : historyError ? (
-            <div className="empty-state compact" role="alert"><span>{historyError}</span><button className="secondary-button compact" onClick={loadBacktest}>重新載入</button></div>
+            <div className="empty-state compact" role="alert"><Mascot pose="momonga-alert" /><span>{historyError}</span><button className="secondary-button compact" onClick={loadBacktest}>重新載入</button></div>
           ) : resultRows.length === 0 ? (
             <div className="empty-state compact">
               <Mascot pose="chiikawa-empty" />

@@ -2,6 +2,7 @@ const mascotPoses = {
   "chiikawa-corner": { src: "/chiikawa/mascot-chiikawa-corner.png", modifier: "corner" },
   "chiikawa-empty": { src: "/chiikawa/mascot-chiikawa-empty.png", modifier: "empty" },
   "momonga-loading": { src: "/chiikawa/mascot-momonga-loading.png", modifier: "loading" },
+  "momonga-alert": { src: "/chiikawa/mascot-momonga-loading.png", modifier: "alert" },
   "login-duo": { src: "/chiikawa/mascot-login-duo.png", modifier: "login" },
 } as const;
 

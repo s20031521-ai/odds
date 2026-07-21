@@ -34,7 +34,7 @@ export function LoginPage({ pending, error, retryAfterSeconds, onLogin }: LoginP
           <span>密碼</span>
           <input autoComplete="current-password" disabled={pending} onChange={(event) => setPassword(event.target.value)} type="password" value={password} />
         </label>
-        {error ? <p className="login-error" role="alert">{loginMessage(error, retryAfterSeconds)}</p> : null}
+        {error ? <p className="login-error" role="alert"><Mascot pose="momonga-alert" />{loginMessage(error, retryAfterSeconds)}</p> : null}
         <button disabled={pending || !username || !password} type="submit">
           {pending ? "登入中..." : "登入"}
         </button>

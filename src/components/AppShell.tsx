@@ -43,6 +43,7 @@ export function AppShell(props: {
         {props.onLogout ? <button className="secondary-button compact" onClick={props.onLogout} type="button">登出</button> : null}
         {hasWarning ? (
           <div className="app-shell__alert" role="alert">
+            <Mascot pose="momonga-alert" />
             {props.dataWarning}
           </div>
         ) : null}

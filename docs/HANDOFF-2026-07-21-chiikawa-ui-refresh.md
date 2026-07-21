@@ -2,6 +2,7 @@
 
 > 上一份:[MASTER-HANDOFF-v1.0.1.md](MASTER-HANDOFF-v1.0.1.md)(整合 team logos feature)。
 > 呢份覆蓋 2026-07-21 嘅全 app UI 改造:由深色交易台風格轉做 pastel Chiikawa(吉伊卡哇 + 飛鼠 Momonga)主題,以及隨之而嚟嘅 Playwright dashboard spec 修復。**純前端樣式/展示層改動,零數據邏輯改動。**
+> 收尾更新:補入 `ec24f06`(primary 文字對比修正)、`83cd086`(錯誤/警告狀態 Momonga mascot)、`58ff5b9`(self-hosted Baloo 2 webfont)三個收尾 commit,相關技術債已標記解決(§7)。
 
 ## 1. 背景同目標
 
@@ -28,6 +29,10 @@ Owner 想將成個 app(登入頁、值得買、全部賽事、完場紀錄、模
 | `d280bf9` | loading / 空白狀態掛 mascot + 微文案(App、SimpleDashboard、BuyDashboard) |
 | `7981a43` | `dashboard.css` 對比度目測修正 |
 | `9e28452` | **Playwright dashboard spec 修復**(見 §5) |
+| `bca41d0` | docs: 本 handoff 初版 + playwright spec fix 記錄 |
+| `ec24f06` | **Primary 文字色 WCAG AA 修正**:加 `--color-primary-text: #2E6DA4`(對比 2.70:1 → 5.19:1),`styles.css` 5 處文字色換用新 token,`AppShell.test.tsx` 加新 token 斷言 |
+| `83cd086` | **錯誤/警告狀態掛 Momonga mascot**:`Kawaii.tsx` 加 `momonga-alert` pose(40×40 icon 級),覆蓋 `App.tsx` 兩個 `role="alert"` 錯誤區塊 + 兩處 qualityWarning + `AppShell` dataWarning + `LoginPage` login-error |
+| `58ff5b9` | **Self-hosted Baloo 2 webfont**:`public/fonts/baloo-2-var.woff2`(177 KB variable 400–800,SIL OFL)+ `styles.css` 頂部 `@font-face`,PWA precache 已包 |
 
 ## 3. 檔案地圖
 
@@ -35,10 +40,11 @@ Owner 想將成個 app(登入頁、值得買、全部賽事、完場紀錄、模
 
 | Path | 用途 |
 |---|---|
-| `src/components/Kawaii.tsx` | `<Mascot pose="chiikawa-corner\|chiikawa-empty\|momonga-loading\|login-duo" />` + `<KawaiiDecor />`(CSS 花瓣/星星裝飾,`aria-hidden`) |
+| `src/components/Kawaii.tsx` | `<Mascot pose="chiikawa-corner\|chiikawa-empty\|momonga-loading\|momonga-alert\|login-duo" />` + `<KawaiiDecor />`(CSS 花瓣/星星裝飾,`aria-hidden`);`momonga-alert`(`83cd086` 加)係 40×40 icon 級,重用 momonga-loading 圖 |
 | `src/components/Kawaii.test.tsx` | Mascot/decor SSR 測試 |
 | `src/styles/kawaii.css` | mascot 四個 pose 嘅定位/尺寸(corner 係 fixed 右下角常駐,mobile 縮細)+ decor 動效;`main.tsx` import |
 | `public/chiikawa/` | 4 張 PNG:`mascot-chiikawa-corner.png`(79 KB)、`mascot-chiikawa-empty.png`(236 KB)、`mascot-login-duo.png`(137 KB)、`mascot-momonga-loading.png`(45 KB) |
+| `public/fonts/baloo-2-var.woff2` | Self-hosted Baloo 2 variable webfont(177 KB,weight 400–800,SIL OFL),`styles.css` 頂部 `@font-face` 引入,PWA precache 已包(`58ff5b9`) |
 
 **大改:**
 
@@ -58,8 +64,8 @@ Owner 想將成個 app(登入頁、值得買、全部賽事、完場紀錄、模
 奶油白底 `#FFF8F0`、暖白卡片 `#FFFEFC`、奶藍 primary `#5E9FD4`、淡粉 `#FFD9E0`、淡黃 `#FFF1C9`、薄荷綠 positive `#7FCFA9`、蜜桃粉 negative `#F2A0A0`、蜜糖黃 warning `#E8B45A`、深可可文字 `#4A3F3F`(唔用死黑)、灰杏 muted `#A89B91`。
 
 - **Primary 同 spec 唔同**:spec 寫 `#8FC1E9`,實施時目測太淺,落做 `#5E9FD4`。
-- **升跌文字另開 token**:pastel 嘅 `--color-positive`/`--color-negative` 做底色可以,做文字色對比唔夠,所以加咗 `--color-positive-text: #2F7D5F` 同 `--color-negative-text: #C05A5A` 專俾文字用。**呢個模式值得記住 — 見 §7 已知事項,primary 仲未做同樣處理。**
-- **字體**:用本地 font stack(`"Baloo 2", "PingFang TC", "Microsoft JhengHei", sans-serif`),**唔係**真係 load Baloo 2 — 離線紅線下唔可以用 Google Fonts CDN,系統冇 Baloo 2 就自然 fallback 系統圓體。
+- **升跌文字另開 token**:pastel 嘅 `--color-positive`/`--color-negative` 做底色可以,做文字色對比唔夠,所以加咗 `--color-positive-text: #2F7D5F` 同 `--color-negative-text: #C05A5A` 專俾文字用。**呢個模式值得記住 — primary 後嚟喺 `ec24f06` 照做咗同一處理(`--color-primary-text: #2E6DA4`,對比 2.70:1 → 5.19:1),見 §7.1。**
+- **字體**:用本地 font stack(`"Baloo 2", "PingFang TC", "Microsoft JhengHei", sans-serif`)。初版**唔係**真係 load Baloo 2(離線紅線下唔可以用 Google Fonts CDN);收尾 `58ff5b9` self-host 咗 variable webfont(`public/fonts/baloo-2-var.woff2` + `@font-face`),真 Baloo 2 而家離線可用,系統圓體降格做 fallback。
 
 ### 4.2 計劃紅線(實施時遵守咗,後續改 UI 都要守)
 
@@ -86,9 +92,9 @@ Owner 想將成個 app(登入頁、值得買、全部賽事、完場紀錄、模
 
 | 項目 | 結果 |
 |---|---|
-| Vitest 單元測試 | **195/195 全綠**(v1.0.1 時係 192,今次 +3:Kawaii 相關) |
-| Playwright UI | **32/32 全綠**(4 viewports) |
-| Build | `tsc --noEmit` + `vite build` 通過 |
+| Vitest 單元測試 | **196/196 全綠**(v1.0.1 時係 192,本次 feature +3:Kawaii 相關;收尾 `83cd086` 再 +1:`momonga-alert` 新測試) |
+| Playwright UI | **32/32 全綠**(4 viewports;三個收尾 commit 冇郁 UI 結構,未重跑) |
+| Build | `tsc --noEmit` + `vite build` 通過(收尾 commits 後重跑) |
 | 離線檢查 | 零外部資源(冇 CDN font、冇 hotlink 圖) |
 | 目測 | 三個主要頁面 + 登入頁喺淺色底下數字對比度檢查過(見 §7 例外) |
 
@@ -98,19 +104,20 @@ Owner 想將成個 app(登入頁、值得買、全部賽事、完場紀錄、模
 
 ## 7. 已知事項 / 技術債
 
-1. **`--color-primary: #5E9FD4` 做文字色對比唔達標**:奶藍色喺奶油白底上對比約 2.7:1,達唔到 WCAG AA 4.5:1。`styles.css` 有 5 處 `color: var(--color-primary)`(L54、L417、L615、L663、L1096 — 連結、active 狀態等)。**建議後續加 `--color-primary-text`**(做法照 `--color-positive-text`/`--color-negative-text` 嘅前科),揀隻深啲嘅藍。
+1. ~~**`--color-primary: #5E9FD4` 做文字色對比唔達標**~~ **✅ 已於 `ec24f06` 解決**(保留歷史):奶藍色喺奶油白底上對比約 2.7:1,達唔到 WCAG AA 4.5:1。解法照 `--color-positive-text`/`--color-negative-text` 前科,加咗 `--color-primary-text: #2E6DA4`(對比 2.70:1 → 5.19:1),`styles.css` 5 處 `color: var(--color-primary)` 已換用新 token,`AppShell.test.tsx` 加埋新 token 斷言。
 2. **`styles.css` 剩 5 個 hex 未 token 化**:L237/L533/L769 `#DFF5EA`(淺綠底)、L466 `#FFFFFF`、L472 `#4A8BC0`(深藍 hover 底)。細微,唔阻運作,下次郁樣式順手執。
 3. **工作樹有 team-logos 遺留 untracked 檔**(唔係今次 feature 嘅嘢,**唔好郁**):`scripts/tmp-alias-logos.mjs`、`scripts/tmp-priority-logos.mjs`、`data/priority-*.txt/json`、`data/current-teams-now.txt`、`webbridge-req-*.json`、`docs/superpowers/plans/2026-07-20-team-logos.md`;另外 `.superpowers/sdd/progress.md` 有未 commit 修改。
-4. **Baloo 2 字體得個名**:`--font-rounded` 第一個係 "Baloo 2" 但冇 load 任何 webfont,實際渲染係系統圓體。想要真 Baloo 2 要 self-host 字體檔(保持離線紅線)。
+4. ~~**Baloo 2 字體得個名**~~ **✅ 已於 `58ff5b9` 解決**(保留歷史):原本 `--font-rounded` 第一個係 "Baloo 2" 但冇 load 任何 webfont,實際渲染係系統圓體。而家 self-host 咗 `public/fonts/baloo-2-var.woff2`(177 KB variable 400–800,SIL OFL),`styles.css` 頂部加 `@font-face`,PWA precache 已包,離線紅線保持。
 5. **素材尺寸不一**:四張 PNG 由 45 KB 到 236 KB,`mascot-chiikawa-empty.png` 最大。`Kawaii.css` 用固定尺寸 + `object-fit` 統一顯示,效能上可以接受,但如要再壓可以用圖片工具瘦下身。
-6. Spec 原本講 6–8 張圖,最終落咗 4 張(分工:corner / empty / loading / login-duo);「錯誤提示用 Momonga 細圖示」呢個用途未做,錯誤提示而家冇 mascot。
+6. ~~Spec 原本講 6–8 張圖,最終落咗 4 張(分工:corner / empty / loading / login-duo);「錯誤提示用 Momonga 細圖示」呢個用途未做,錯誤提示而家冇 mascot。~~ **✅ 已於 `83cd086` 解決**(保留歷史):`Kawaii.tsx` 加咗 `momonga-alert` pose(40×40 icon 級,重用 momonga-loading 圖,所以 PNG 維持 4 張),覆蓋 `App.tsx` 兩個 `role="alert"` 錯誤區塊 + 兩處 qualityWarning + `AppShell` dataWarning + `LoginPage` login-error。
+7. **App.tsx 有一個 hardcoded `.sample-warning` 冇 mascot**:「只得 N 場獨立賽事，暫未適合調整策略。」呢段 hardcoded 警告**冇**加飛鼠 mascot — `83cd086` 收尾範圍只覆蓋 `{qualityWarning}` 嘅 `.sample-warning`。如要一致性可 follow-up 加 `<Mascot pose="momonga-alert" />`。
 
 ## 8. 下步建議(按優先順序)
 
 1. **(可選)部署上 production** — 純前端,rebuild caddy 就得,流程見 team-logos handoff §4;部署後用乾淨 profile 驗證。
-2. **加 `--color-primary-text`** 修正連結/active 文字對比(§7.1),順手 token 化埋剩低 5 個 hex(§7.2)。
+2. ~~**加 `--color-primary-text`** 修正連結/active 文字對比(§7.1),順手 token 化埋剩低 5 個 hex(§7.2)。~~ `--color-primary-text` 已於 `ec24f06` 搞掂;剩低 token 化 5 個 hex(§7.2)可以照做。
 3. **Master handoff 版本升級** — 跟 v1.0.1 做法,出 `MASTER-HANDOFF-v1.0.2.md` 整合 team logos + chiikawa UI refresh,`package.json` version + git tag 三件套一齊升。
-4. **補錯誤提示 mascot**(spec 有講但未做)同考慮壓縮 `mascot-chiikawa-empty.png`。
+4. ~~**補錯誤提示 mascot**(spec 有講但未做)同考慮壓縮 `mascot-chiikawa-empty.png`。~~ 錯誤提示 mascot 已於 `83cd086` 補咗(剩 hardcoded `.sample-warning` 一處,見 §7.7);可考慮壓縮 `mascot-chiikawa-empty.png`。
 
 ## 9. 常用指令速查
 

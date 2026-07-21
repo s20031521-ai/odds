@@ -12,7 +12,7 @@
 
 **odds-tool 係一個足球賠率價值分析 PWA，已正式上線生產：`https://odds.ballballchu.com.hk`。** React 19 + TS 前端（中文 UI + 球隊 logo + **Chiikawa pastel 主題** + **Today-first 首頁 v1.1.0** + **單場分析頁 v1.1.1** + **賽程／紀錄執整 v1.2.0**）、raw `node:http` API、PostgreSQL 18、Cloudflare Tunnel 對外（零主機 port）、兩個 collector 自動運行緊。單一 owner 登入，冇 signup。四個投注模型（主客和／大細／角球／亞洲讓球）凍結喺 3% edge 門檻，全部 0 settled matches，等緊數據累積到每個 30 場先可以考慮調校。
 
-⚠️ Production 行緊 v1.2.0 build（bundle `index-jmHUUAaH.js`，2026-07-22 凌晨部署；上一版 v1.1.1 係 `index-BW9hE076.js`）。
+⚠️ Production 行緊 v1.2.0 + post-kickoff gate 修正 build（bundle `index-BQuUTJ1Q.js`，2026-07-22 凌晨兩次部署；v1.2.0 初版係 `index-jmHUUAaH.js`）。修正詳情：`docs/HANDOFF-2026-07-22-post-kickoff-gate.md`。
 
 專案位置：`C:\Users\itadmin\Documents\賭`（Windows 本機；git repo 2026-07-19 重建，base commit `645f22a`，冇 remote）。
 
@@ -63,18 +63,19 @@ sudo -A docker exec odds-tool-postgres-1 psql -U postgres -d odds -tAc "SELECT s
 | 順序 | 文件 | 用途 |
 |---|---|---|
 | 1 | 本文件 | 全局 |
-| 2 | `docs/HANDOFF-2026-07-22-today-first-ui-phase-c.md` | 最新 feature：賽程＋紀錄執整 Phase C（merged master + **已部署**，含 adjudicated deviations + deferred minors + deploy notes） |
-| 3 | `docs/HANDOFF-2026-07-21-today-first-ui-phase-b.md` | 單場分析頁 Phase B（已部署，含 SDD 過程 + auto-load gate bug 教訓 + deferred minors） |
-| 4 | `docs/HANDOFF-2026-07-21-today-first-ui-phase-a.md` | Today-first 首頁 Phase A（已部署） |
-| 5 | `docs/HANDOFF-2026-07-21-chiikawa-ui-refresh.md` | Chiikawa UI 改造 + Playwright 修復（已部署） |
-| 6 | `docs/HANDOFF-2026-07-21-team-logos.md` | 球隊 logo + 每日自動 deploy（含 stale SW 事故教訓） |
-| 7 | `docs/KIMI-HANDOFF-2026-07-19.md` | Phase 2 部署全記錄 + VM 操作須知 |
-| 8 | `docs/HANDOFF-2026-07-19-simple-dashboard-mode.md` | Dashboard 雙模式嘅做法範例（simple 模式已被 TodayPage 取代；v1.2.0 連 `SimpleDashboard.tsx` 本體都刪埋） |
-| 9 | `docs/runbooks/production-deployment.md` | 部署／rollback／smoke／secret rotation／故障 playbook |
-| 10 | `docs/runbooks/local-postgres-development.md` | 本地 DB 開發 + 測試矩陣 |
-| 11 | `docs/runbooks/legacy-migration.md` | 舊 archive → Postgres 遷移同 parity |
-| 12 | `docs/CODEX-HANDOFF-2026-07-18.md` | 模型信任政策、snapshot 分類嘅歷史背景 |
-| 13 | `.superpowers/sdd*/` | 每個 phase 嘅逐 task 證據（progress.md + task-*-report.md） |
+| 2 | `docs/HANDOFF-2026-07-22-post-kickoff-gate.md` | 最新修正：開賽後買盤 gate（已部署，含 UX 陷阱分析 + deferred 後續） |
+| 3 | `docs/HANDOFF-2026-07-22-today-first-ui-phase-c.md` | 賽程＋紀錄執整 Phase C（merged master + **已部署**，含 adjudicated deviations + deferred minors + deploy notes） |
+| 4 | `docs/HANDOFF-2026-07-21-today-first-ui-phase-b.md` | 單場分析頁 Phase B（已部署，含 SDD 過程 + auto-load gate bug 教訓 + deferred minors） |
+| 5 | `docs/HANDOFF-2026-07-21-today-first-ui-phase-a.md` | Today-first 首頁 Phase A（已部署） |
+| 6 | `docs/HANDOFF-2026-07-21-chiikawa-ui-refresh.md` | Chiikawa UI 改造 + Playwright 修復（已部署） |
+| 7 | `docs/HANDOFF-2026-07-21-team-logos.md` | 球隊 logo + 每日自動 deploy（含 stale SW 事故教訓） |
+| 8 | `docs/KIMI-HANDOFF-2026-07-19.md` | Phase 2 部署全記錄 + VM 操作須知 |
+| 9 | `docs/HANDOFF-2026-07-19-simple-dashboard-mode.md` | Dashboard 雙模式嘅做法範例（simple 模式已被 TodayPage 取代；v1.2.0 連 `SimpleDashboard.tsx` 本體都刪埋） |
+| 10 | `docs/runbooks/production-deployment.md` | 部署／rollback／smoke／secret rotation／故障 playbook |
+| 11 | `docs/runbooks/local-postgres-development.md` | 本地 DB 開發 + 測試矩陣 |
+| 12 | `docs/runbooks/legacy-migration.md` | 舊 archive → Postgres 遷移同 parity |
+| 13 | `docs/CODEX-HANDOFF-2026-07-18.md` | 模型信任政策、snapshot 分類嘅歷史背景 |
+| 14 | `.superpowers/sdd*/` | 每個 phase 嘅逐 task 證據（progress.md + task-*-report.md） |
 
 ---
 
@@ -88,9 +89,9 @@ sudo -A docker exec odds-tool-postgres-1 psql -U postgres -d odds -tAc "SELECT s
 | 數據（2026-07-19 上線時） | 96 prediction snapshots、1234 results、live_odds ~170–300 行浮動、286 distinct matches、0 settlements |
 | 付費 quota | The Odds API `quotaRemaining` 491/500；collector 有 50-credit 保護線 + provider cooldown |
 | 備份 | 手動 `pg_dump`：`/opt/odds-tool/backups/odds-2026-07-19.dump`（已驗證 10/10 表）+ Chiikawa 部署前 `pre-deploy-20260721-044351.dump` + `pre-deploy-20260721-055126.dump` + Today-first 部署前 `pre-deploy-20260721-093231.dump` + Phase B 部署前 `pre-deploy-20260721-122827.dump` — **冇自動備份** |
-| 測試 | **Vitest 233/233 全綠**（master；Phase C 淨變化 −12：SimpleDashboard test + marketDisplay dead-export tests 刪除）；**Playwright 84/84 全綠 ×2**（4 viewports；Phase C +8：fixtures toolbar/buy dots + history readiness/groups 兩個新 test ×4 viewports）；server `node:test` 9/9；`tsc --noEmit` 0 errors + `vite build` 通過 |
+| 測試 | **Vitest 246/246 全綠**（v1.2.0 233 + post-kickoff gate 13 新）；**Playwright 84/84 全綠**（4 viewports）；server `node:test` 9/9；`tsc --noEmit` 0 errors + `vite build` 通過 |
 | Dashboard | 雙模式：**今日（新預設，`TodayPage`）**+ 專業（`BuyDashboard` 原封），`#/today` 右上一條 toggle，localStorage `dashboard-mode`（值仍係 `"simple" \| "pro"` 冇變） |
-| UI 主題 | Chiikawa pastel 主題 + Today-first 首頁（v1.1.0）+ 單場分析頁（v1.1.1）+ **賽程／紀錄執整（v1.2.0，已部署）**：賽程頁今日/聽日分組 + 一行式 `.fixture-row` + 聯賽 chips/隊名搜尋 toolbar + 有貨 mint 點；紀錄頁四模型 readiness 進度條 + 等緊開賽/已完場分組；self-hosted Baloo 2 webfont；零外部資源（離線可用）；production bundle `index-jmHUUAaH.js`（v1.2.0，2026-07-22 凌晨部署） |
+| UI 主題 | Chiikawa pastel 主題 + Today-first 首頁（v1.1.0）+ 單場分析頁（v1.1.1）+ 賽程／紀錄執整（v1.2.0）+ **post-kickoff gate（2026-07-22，已部署）**：開賽後所有 market card / fixture-row pick label 统一顯示「已開賽」（`src/kickoffGate.ts`，買同唔買都 gate，`BuyDashboard.tsx` 紅線冇郁）；self-hosted Baloo 2 webfont；零外部資源（離線可用）；production bundle `index-BQuUTJ1Q.js`（2026-07-22 凌晨部署） |
 | 路由 | `#/today`（首頁）/ `#/fixtures` / `#/analysis`（單場分析頁，`?match=<matchId>` 揀場；裸路徑係揀場 picker）/ `#/history`；**舊 `#/dashboard` 喺 `pageFromHash` alias 落 today**（舊書籤/PWA 唔死），`#/dashboard/<id>` 深鏈維持落 fixtures；nav label：今日／賽程／分析／紀錄 |
 | 球隊 logo | `public/team-logos/` 70 個 PNG；`public/team-logos.json` manifest 75 隊（31 隊 `needsReview` 待 owner 核對）；搵唔到顯示 initials 徽章；Caddy `file_server` 直接派 PNG 唔經 API |
 | 每日自動續跑 | Blueprint Automation `automation_1dbf8f50-40cd-4dcf-b007-a16b2c452f41`「球隊 logo 每日續跑」，cron `17 9 * * *` Asia/Hong_Kong，enabled，latestRun succeeded |
@@ -234,7 +235,7 @@ collector (app_net+db_net)             # 同 api image；每 5 min hdc-collector
 - **單場分析元件（v1.1.1）**：`src/matchDetails.ts`（純函數 `buildMatchMarketDetails`：按 matchId 由 h2h rows + total/corner/handicap cards 組裝四市場 `MarketDetail`（ok/insufficient/empty 三態）+ header metadata，fixtures 搵唔到會 fallback 用卡 metadata）；`src/components/MarketDetailCard.tsx`（三態卡）；`src/styles/match.css`（全用 tokens variables）。⚠️ 新頁面記住檢查 **live odds auto-load gate 有冇包佢**（Phase B 教訓：gate 原本只包 today/fixtures，cold visit analysis 冇數據；v1.2.0 history 頁都入埋 gate，等 pending 行 join 到隊名）。
 - **Today-first 元件（v1.1.0）**：`src/components/PickCard.tsx`（三行卡 + 原生 `<details>` 原地展開；export `formatSelection/formatOdds/formatKickoff`；v1.2.0 「賠率同步於」改用 `formatKickoff`，唔再 raw ISO）、`FreshnessBar.tsx`（新鮮／過期／冇同步三態）、`EmptyState.tsx`（stale／no-fixtures／no-value 三種冇貨原因）、`src/stakeDisplay.ts`（`displayStake`：顯示用 fractional Kelly，defaults 1000/0.25/0.02 跟 analyzer；v1.2.0 test 註解更正）、`src/styles/today.css`（全部新 class，`main.tsx` import）。
 - 模型檔：`odds.ts`、`totals.ts`、`asianTotals.ts`、`corners.ts`、`handicap.ts`、`buyCandidates.ts`、`buyOpportunities.ts`、`picks.ts`、`fixtureMatch.ts`、`marketCalibration.ts`、`marketDisplay.ts`（v1.2.0 刪咗 dead exports：PerformanceRow、PerformanceSummary、selectDistinctPerformanceRows、summarizePerformanceRows、currentModelRows、predictionDistribution、calibrationBuckets + private helpers，連測試；其他保留）。
-- 基礎：`predictionSnapshots.ts`（localStorage snapshot + policy 分類）、`dataHealth.ts`、`dashboardMode.ts`、`dashboard.ts`、`pwa.ts`。
+- 基礎：`predictionSnapshots.ts`（localStorage snapshot + policy 分類）、`dataHealth.ts`、`dashboardMode.ts`、`dashboard.ts`、`pwa.ts`、`kickoffGate.ts`（**2026-07-22 新**：`isPostKickoff` / `gatePickLabel`，開賽後所有 pick label → 「已開賽」；接線 fixture-row、亞洲讓球卡、`MarketCardGroup`、`MarketDetailCard`）。
 - 球隊 logo：`TeamLogo` component + `team-logos.json` manifest（格式 `{ 英文名: { id, logo, needsReview? } }`）。**Lookup 用英文名**（`homeTeam/awayTeam`），中文顯示名（`homeTeamZh` 等）完全獨立唔影響 logo；manifest 冇 entry 或 PNG load 失敗 → 顯示 initials 徽章 fallback，唔會壞 UI。
 - **Chiikawa UI**：`src/components/Kawaii.tsx` — `<Mascot pose="chiikawa-corner|chiikawa-empty|momonga-loading|momonga-alert|login-duo" />` + `<KawaiiDecor />`（CSS 花瓣/星星，`aria-hidden`）；`momonga-alert` 係 40×40 icon 級，重用 momonga-loading 圖。`src/styles/kawaii.css` 管四個 pose 嘅定位/尺寸（corner 係 fixed 右下角常駐，mobile 縮細）+ decor 動效，`main.tsx` import。素材 `public/chiikawa/` 4 張 PNG，檔名係 plan contract，`Kawaii.tsx` 直接引用 `/chiikawa/<檔名>`，改名要兩邊一齊改。
 - 樣式：`styles/tokens.css`（CSS variables 單一來源；pastel 色板，見 §5.6）、`layout.css`（nav active pastel pill）、`dashboard.css`（淺色底對比度修正）、`kawaii.css`、`today.css`（v1.1.0）、`match.css`（v1.1.1）、`styles.css`（pastel sweep；`@font-face` 引入 self-hosted Baloo 2；v1.2.0 刪咗舊 analysis CSS ~160 行：`.analysis-performance`、`.performance-market-*`、`.model-summary-*`、`.readiness-head`、`.health-tags`、`.performance-detail-grid`、`.performance-bar*` + 兩個 dead @media；`.sample-warning` 保留）。
@@ -462,6 +463,12 @@ scp -i ~/.ssh/astra_vm_ed25519 -P 169 /tmp/.ap.sh hugo@118.140.60.206:/tmp/.ap.s
   - `fixturesByMatchId` 淨包 h2h — 非 h2h pending 行顯示 raw matchId。
   - 聯賽 chip stale selection 冇 prune（揀咗嘅聯賽消失仲留喺 selection）。
   - `isPendingEntry` 對 numeric fields 檢查寬鬆（plan-mandated）。
+- **Post-kickoff gate 後續（2026-07-22 新增，詳見 `HANDOFF-2026-07-22-post-kickoff-gate.md` §5）**：
+  - 紀錄頁大細波 tab 有 3 條 12/7–13/7 the-odds-api pending snapshot，結果追蹤窗口（開賽後 3 日）喺 7-19 遷移期間已過，**永遠唔會 settle、唔會計入 30 場**（遷移犧牲品，可日後清理/標記）。
+  - **Quota 兩條 key 對唔上**：VM collector state `quotaRemaining: 373`，本機 `.env.local` 條 key 直查得 177 — 大機會本機同 production 係兩條唔同 key；Kimi 嘅 quota 監察 widget task 讀本機 key，換 key 時要一併校準。
+  - `BuyDashboard.tsx`（專業模式）紅線冇郁 → 專業版開賽後理論上仲會出「買」label；要改要 owner 明確豁免。
+  - Client snapshot POST 係 fire-and-forget（`void apiClient.savePredictions(...)`），server rejected 原因冇人睇 — 潛在盲點，未改。
+  - 系統冇接 HKJC 即場盤；開賽後顯示嘅係賽前 closing odds。即場投注如要做係新模型（新 modelVersion、獨立儲 30 場），唔可以溝入現行 sample。
 - **Today-first Phase A deferred minors（v1.1.0 新增；v1.2.0 已清咗一部分）**：
   - ~~`PickCard` 展開區「賠率同步於」顯示 raw ISO timestamp~~ ✅ v1.2.0 已改用 `formatKickoff`（dynamic test assertion）。
   - ~~stale 狀態下「即將開賽」section 仲會顯示~~ ✅ v1.2.0 `TodayPage` 喺 `dataFresh` false 時收埋個 section（連測試）。
@@ -516,8 +523,9 @@ scp -i ~/.ssh/astra_vm_ed25519 -P 169 /tmp/.ap.sh hugo@118.140.60.206:/tmp/.ap.s
 | 2026-07-21 | `MASTER-HANDOFF-v1.1.1.md` | v1.1.1 master handoff（整合 Today-first Phase B，已部署 production） |
 | 2026-07-22 | `HANDOFF-2026-07-22-today-first-ui-phase-c.md` | Today-first UI Phase C（賽程＋紀錄執整 + cleanup）+ merged master + **已部署**（bundle `index-jmHUUAaH.js`） |
 | 2026-07-22 | **本文件** | v1.2.0 master handoff（整合 Today-first Phase C，merged master，部署待定） |
+| 2026-07-22 | `HANDOFF-2026-07-22-post-kickoff-gate.md` | 開賽後買盤 gate（commits `55e931b` + `9504963`，兩次部署，bundle `index-BQuUTJ1Q.js`） |
 
-Git：base `645f22a chore: initial import`（2026-07-19 repo 重建）→ dashboard mode commits → v1.0.0 tag → team logos commits → `d4f835e` → v1.0.1 tag（`58e6aa8`）→ Chiikawa UI refresh commits（`8545216` spec → `d47f087` plan → `adb1f7a`…`d280bf9` 實施 → `9e28452` Playwright 修復 → `bca41d0` handoff → 收尾 `ec24f06` / `83cd086` / `58ff5b9` / `04d3707`）→ 第一次 production deploy（bundle `index-CLj0yK_X.js`）→ v1.0.2 tag（`12effe1`）→ `489e1dc` 標記已部署 → 第二輪收尾 `e79747a` / `4fb7aa1` / `53154b4` → 第二次 production deploy（2026-07-21 下午，bundle `index-DJb2OR6G.js`，備份 `pre-deploy-20260721-055126.dump`）→ v1.1.0：spec `8c2fb71` → plan `5b2ab7b` → branch `today-first-phase-a` 13 commits（`4684a69`…`e837c02`）→ ff merge master → production deploy（bundle `index-BYUf2jMY.js`，備份 `pre-deploy-20260721-093231.dump`）→ v1.1.0 tag → v1.1.1：plan `f37ffd5` → branch `today-first-phase-b` 7 commits（`5a1dff3`…`b03ac8f`）→ ff merge master → production deploy（bundle `index-BW9hE076.js`，備份 `pre-deploy-20260721-122827.dump`）→ v1.1.1 tag → v1.2.0：branch 8 commits（`b9e943c`…`ed0c8ed`）→ ff merge master → v1.2.0 tag（**部署待定**：等 owner「上」，要 rebuild api + caddy）。
+Git：base `645f22a chore: initial import`（2026-07-19 repo 重建）→ dashboard mode commits → v1.0.0 tag → team logos commits → `d4f835e` → v1.0.1 tag（`58e6aa8`）→ Chiikawa UI refresh commits（`8545216` spec → `d47f087` plan → `adb1f7a`…`d280bf9` 實施 → `9e28452` Playwright 修復 → `bca41d0` handoff → 收尾 `ec24f06` / `83cd086` / `58ff5b9` / `04d3707`）→ 第一次 production deploy（bundle `index-CLj0yK_X.js`）→ v1.0.2 tag（`12effe1`）→ `489e1dc` 標記已部署 → 第二輪收尾 `e79747a` / `4fb7aa1` / `53154b4` → 第二次 production deploy（2026-07-21 下午，bundle `index-DJb2OR6G.js`，備份 `pre-deploy-20260721-055126.dump`）→ v1.1.0：spec `8c2fb71` → plan `5b2ab7b` → branch `today-first-phase-a` 13 commits（`4684a69`…`e837c02`）→ ff merge master → production deploy（bundle `index-BYUf2jMY.js`，備份 `pre-deploy-20260721-093231.dump`）→ v1.1.0 tag → v1.1.1：plan `f37ffd5` → branch `today-first-phase-b` 7 commits（`5a1dff3`…`b03ac8f`）→ ff merge master → production deploy（bundle `index-BW9hE076.js`，備份 `pre-deploy-20260721-122827.dump`）→ v1.1.1 tag → v1.2.0：branch 8 commits（`b9e943c`…`ed0c8ed`）→ ff merge master → v1.2.0 tag → production deploy（2026-07-22 凌晨，api + caddy，bundle `index-jmHUUAaH.js`，備份 `pre-deploy-20260721-165125.dump`）→ post-kickoff gate：`55e931b` → production deploy（bundle `index-Cp7i2YwH.js`，備份 `pre-deploy-20260721-182949.dump`）→ `9504963` → production deploy（bundle `index-BQuUTJ1Q.js`，備份 `pre-deploy-20260721-183954.dump`）。
 
 ---
 

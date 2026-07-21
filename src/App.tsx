@@ -140,6 +140,8 @@ function App() {
   const hdcRefreshRunning = useRef(false);
 
   const [analysisTab, setAnalysisTab] = useState<AnalysisTab>("h2h");
+  const [fixtureLeagues, setFixtureLeagues] = useState<string[]>([]);
+  const [fixtureSearch, setFixtureSearch] = useState("");
 
 
   const [page, setPage] = useState(() => pageFromHash(window.location.hash));
@@ -257,6 +259,18 @@ function App() {
     dataFresh: opportunitiesTrusted,
   }), [buyCandidates, opportunitiesTrusted, selectionNow]);
   const buyMatchIds = useMemo(() => new Set(buyOpportunities.map((opportunity) => opportunity.matchId)), [buyOpportunities]);
+  const fixtureLeagueOptions = useMemo(() => [...new Set(dashboardFixtures.map((fixture) => fixture.leagueZh ?? fixture.league).filter((league): league is string => Boolean(league)))].sort((left, right) => left.localeCompare(right, "zh-Hant-HK")), [dashboardFixtures]);
+  const visibleFixtureDayGroups = useMemo(() => {
+    const query = fixtureSearch.trim().toLowerCase();
+    return fixtureDayGroupsByTime.map((group) => ({
+      ...group,
+      fixtures: group.fixtures.filter((fixture) => {
+        if (fixtureLeagues.length > 0 && !fixtureLeagues.includes(fixture.leagueZh ?? fixture.league ?? "")) return false;
+        if (!query) return true;
+        return [fixture.homeTeam, fixture.awayTeam, fixture.homeTeamZh ?? "", fixture.awayTeamZh ?? ""].some((name) => name.toLowerCase().includes(query));
+      }),
+    })).filter((group) => group.fixtures.length > 0);
+  }, [fixtureDayGroupsByTime, fixtureLeagues, fixtureSearch]);
   const totalCardGroups = useMemo(() => groupMarketCards(totalCards), [totalCards]);
   const cornerCardGroups = useMemo(() => groupMarketCards(cornerCards), [cornerCards]);
   const visibleResultEntries = useMemo(() => excludeLegacyRows(resultEntries), [resultEntries]);
@@ -470,32 +484,51 @@ function App() {
           {dashboardFixtures.length === 0 ? (
             <div className="empty-state compact"><Mascot pose="chiikawa-empty" />未有賽事。輸入或拉取賠率後會出現喺呢度。<p className="empty-state__note">飲杯茶先～</p></div>
           ) : (
-            <div className="fixture-list">
-              {fixtureDayGroupsByTime.map((group) => (
-                <div className="fixture-day" key={group.date}>
-                  <h3>{formatFixtureDayHeading(group.date)}</h3>
-                  <div className="fixture-list">
-                    {group.fixtures.map((fixture) => {
-                      const fixtureRows = rows.filter((row) => row.matchId === fixture.matchId);
-                      const bestPick = bestH2hPick(fixtureRows, settings.edgeThreshold);
-                      const isSelected = selectedFixture?.matchId === fixture.matchId;
+            <>
+              <div className="fixture-toolbar">
+                {fixtureLeagueOptions.length > 0 ? (
+                  <div className="fixture-toolbar__chips" role="group" aria-label="聯賽篩選">
+                    {fixtureLeagueOptions.map((league) => {
+                      const active = fixtureLeagues.includes(league);
                       return (
-                        <div className={isSelected ? "fixture-card-wrap expanded" : "fixture-card-wrap"} key={fixture.matchId}>
-                          <a className={fixture.matchId.startsWith("hkjc-") ? "fixture-row hkjc-card" : "fixture-row"} href={`#/analysis?match=${encodeURIComponent(fixture.matchId)}`}>
-                            <span className="fixture-row__time">{formatTimeOnly(fixture.commenceTime)}</span>
-                            <strong className="fixture-row__teams"><TeamLogo teamName={fixture.homeTeam} logos={teamLogos} /> {fixture.homeTeamZh ?? fixture.homeTeam} vs {fixture.awayTeamZh ?? fixture.awayTeam} <TeamLogo teamName={fixture.awayTeam} logos={teamLogos} /></strong>
-                            {(fixture.leagueZh ?? fixture.league) ? <span className="fixture-row__league">{fixture.leagueZh ?? fixture.league}</span> : null}
-                            {buyMatchIds.has(fixture.matchId) ? <span className="fixture-row__buy-dot" role="img" aria-label="有貨" title="有貨" /> : null}
-                            <span className={bestPick.label.startsWith("買") ? "fixture-row__pick" : "fixture-row__pick neutral"}>{bestPick.label}</span>
-                          </a>
-                          {isSelected ? <FixtureDetail fixture={fixture} rows={selectedRows} /> : null}
-                        </div>
+                        <button aria-pressed={active} className={active ? "fixture-chip active" : "fixture-chip"} key={league} onClick={() => setFixtureLeagues((current) => active ? current.filter((item) => item !== league) : [...current, league])} type="button">{league}</button>
                       );
                     })}
                   </div>
+                ) : null}
+                <input aria-label="搜尋球隊" className="fixture-search" onChange={(event) => setFixtureSearch(event.target.value)} placeholder="搜尋球隊…" type="search" value={fixtureSearch} />
+              </div>
+              {visibleFixtureDayGroups.length === 0 ? (
+                <div className="empty-state compact"><Mascot pose="chiikawa-empty" />冇賽事符合篩選。<p className="empty-state__note">試下清除篩選～</p></div>
+              ) : (
+                <div className="fixture-list">
+                  {visibleFixtureDayGroups.map((group) => (
+                    <div className="fixture-day" key={group.date}>
+                      <h3>{formatFixtureDayHeading(group.date)}</h3>
+                      <div className="fixture-list">
+                        {group.fixtures.map((fixture) => {
+                          const fixtureRows = rows.filter((row) => row.matchId === fixture.matchId);
+                          const bestPick = bestH2hPick(fixtureRows, settings.edgeThreshold);
+                          const isSelected = selectedFixture?.matchId === fixture.matchId;
+                          return (
+                            <div className={isSelected ? "fixture-card-wrap expanded" : "fixture-card-wrap"} key={fixture.matchId}>
+                              <a className={fixture.matchId.startsWith("hkjc-") ? "fixture-row hkjc-card" : "fixture-row"} href={`#/analysis?match=${encodeURIComponent(fixture.matchId)}`}>
+                                <span className="fixture-row__time">{formatTimeOnly(fixture.commenceTime)}</span>
+                                <strong className="fixture-row__teams"><TeamLogo teamName={fixture.homeTeam} logos={teamLogos} /> {fixture.homeTeamZh ?? fixture.homeTeam} vs {fixture.awayTeamZh ?? fixture.awayTeam} <TeamLogo teamName={fixture.awayTeam} logos={teamLogos} /></strong>
+                                {(fixture.leagueZh ?? fixture.league) ? <span className="fixture-row__league">{fixture.leagueZh ?? fixture.league}</span> : null}
+                                {buyMatchIds.has(fixture.matchId) ? <span className="fixture-row__buy-dot" role="img" aria-label="有貨" title="有貨" /> : null}
+                                <span className={bestPick.label.startsWith("買") ? "fixture-row__pick" : "fixture-row__pick neutral"}>{bestPick.label}</span>
+                              </a>
+                              {isSelected ? <FixtureDetail fixture={fixture} rows={selectedRows} /> : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
 
         </Panel>

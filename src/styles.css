@@ -772,6 +772,48 @@ select:focus {
   border: 1px solid var(--color-border);
 }
 
+.fixture-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.fixture-toolbar__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fixture-chip {
+  min-height: var(--touch-target);
+  padding: 6px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.fixture-chip.active {
+  border-color: var(--color-positive);
+  background: var(--color-positive-surface);
+  color: var(--color-positive-text);
+}
+
+.fixture-search {
+  flex: 1 1 200px;
+  min-height: var(--touch-target);
+  padding: 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
 .empty-state.compact {
   min-height: 84px;
 }

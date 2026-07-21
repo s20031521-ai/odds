@@ -133,5 +133,8 @@ describe("App integration source", () => {
     expect(source).toContain("formatFixtureDayHeading");
     expect(source).toContain("buyMatchIds");
     expect(source).toContain("fixture-row__buy-dot");
+    expect(source).toContain("visibleFixtureDayGroups");
+    expect(source).toContain("fixture-chip");
+    expect(source).toContain("搜尋球隊");
   });
 });

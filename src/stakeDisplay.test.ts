@@ -13,8 +13,7 @@ describe("displayStake", () => {
   });
 
   it("returns fractional Kelly stake when below the cap", () => {
-    // fullKelly = (0.52*1.5-1)/0.5 = -0.44 → 負數 clamp 做 0；用正例：(0.55*1.4-1)/0.4 = -0.575 都係負
-    // 正例：odds 3.0 chance 0.36 → fullKelly = (1.08-1)/2 = 0.04 → ×0.25 = 0.01 → 1000×0.01 = 10
+    // fullKelly = (0.36*3.0-1)/(3.0-1) = 0.04 → ×0.25 = 0.01 < 0.02 cap → 1000×0.01 = 10
     expect(displayStake(pick(0.36, 3.0))).toBe(10);
   });
 

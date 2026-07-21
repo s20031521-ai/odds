@@ -30,7 +30,7 @@ export function PickCard(props: {
         <p>Edge +{formatPercent(primary.edge)}</p>
         <p>模型估 {formatPercent(primary.chance)}，莊家開 {formatPercent(1 / primary.odds)}</p>
         <p>建議注碼 ${displayStake(primary)}</p>
-        <p>賠率同步於 {props.generatedAt ?? "未有成功同步"}</p>
+        <p>賠率同步於 {props.generatedAt ? formatKickoff(props.generatedAt) : "未有成功同步"}</p>
         {opportunity.alternatives.length > 0 ? (
           <ul className="pick-card__alternatives">
             {opportunity.alternatives.map((pick) => (

@@ -50,6 +50,7 @@ test("responsive navigation, touch targets, fixtures, and detail work", async ({
 
   await expect(top).toHaveCSS("display", phone ? "none" : "block");
   await expect(bottom).toHaveCSS("display", phone ? "block" : "none");
+  await expect(page.locator(".dashboard-card")).toHaveCount(2);
   await expectDashboardColumns(page, testInfo.project.name);
 
   const nav = phone ? bottom : top;

@@ -48,7 +48,9 @@ describe("PickCard", () => {
     expect(markup).toContain("Edge +13.1%");
     expect(markup).toContain("模型估 58.0%，莊家開 51.3%");
     expect(markup).toContain("建議注碼 $20"); // displayStake(0.58, 1.95) capped 2% of 1000
-    expect(markup).toContain("賠率同步於 2026-07-21T12:00:00Z");
+    const syncDate = new Date("2026-07-21T12:00:00Z");
+    const pad = (n: number) => String(n).padStart(2, "0");
+    expect(markup).toContain(`賠率同步於 ${syncDate.getMonth() + 1}月${syncDate.getDate()}日 ${pad(syncDate.getHours())}:${pad(syncDate.getMinutes())}`);
     expect(markup).toContain('href="#/analysis?match=match-1"');
     expect(markup).toContain("睇單場分析 →");
   });

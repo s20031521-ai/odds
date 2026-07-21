@@ -66,6 +66,7 @@ describe("TodayPage", () => {
     );
     expect(markup).toContain("數據舊咗，唔好住落注 — 更新緊");
     expect(markup).not.toContain("<details");
+    expect(markup).not.toContain("today-page__upcoming");
   });
 
   it("shows no-fixtures state when there are no fixtures", () => {

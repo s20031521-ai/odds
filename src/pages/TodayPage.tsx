@@ -49,6 +49,7 @@ export function TodayPage(props: {
           ) : null}
         </div>
       )}
+      {!props.dataFresh ? null : (
       <section className="today-page__upcoming" aria-label="即將開賽">
         <h2>即將開賽</h2>
         <ul>
@@ -64,6 +65,7 @@ export function TodayPage(props: {
         </ul>
         <a href="#/fixtures">查看全部賽事</a>
       </section>
+      )}
     </section>
   );
 }

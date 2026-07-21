@@ -52,7 +52,7 @@ export function buildBacktest(snapshots, results, now = Date.now()) {
     });
   });
   const finished = rows.filter((row) => row.settlement);
-  return { rows, summary: summarize(finished), byMarket: groupSummary(finished, (row) => row.market), buckets: groupSummary(finished, (row) => bucket(row.chance)), readiness: summarizeReadiness(usable, finished, results, now), snapshotQuality };
+  return { rows, summary: summarize(finished), byMarket: groupSummary(finished, (row) => row.market), buckets: groupSummary(finished, (row) => bucket(row.chance)), readiness: summarizeReadiness(usable, finished, results, now), pending: buildPendingRows(usable, finished, results, now), snapshotQuality };
 }
 
 function summarizeReadiness(snapshots, finished, results, now) {
@@ -97,6 +97,36 @@ function summarizeReadiness(snapshots, finished, results, now) {
       dominantDirection, dominantShare: items.length ? dominantCount / items.length : 0,
     };
   });
+}
+
+function buildPendingRows(snapshots, finished, results, now) {
+  const settled = new Set(finished.map(snapshotIdentity));
+  const commenceByMatch = new Map(results.filter((item) => item?.matchId && item?.commenceTime).map((item) => [item.matchId, item.commenceTime]));
+  return snapshots.filter((item) => !settled.has(snapshotIdentity(item))).map((item) => {
+    const commenceTime = item.commenceTime ?? commenceByMatch.get(item.matchId) ?? null;
+    const kickoff = Date.parse(commenceTime ?? "");
+    const status = !Number.isFinite(kickoff) ? "unknown" : now < kickoff ? "upcoming" : now < kickoff + SETTLEMENT_GRACE_MS ? "settling" : "overdue";
+    return {
+      id: snapshotIdentity(item),
+      matchId: item.matchId,
+      market: item.market,
+      prediction: item.prediction,
+      line: Number.isFinite(item.line) ? item.line : null,
+      odds: Number.isFinite(item.odds) ? item.odds : null,
+      chance: Number.isFinite(item.chance) ? item.chance : null,
+      edge: Number.isFinite(item.edge) ? item.edge : null,
+      commenceTime,
+      savedAt: item.savedAt,
+      modelVersion: item.modelVersion ?? "legacy-v0",
+      source: item.source ?? null,
+      status,
+    };
+  }).sort((left, right) => pendingTime(left.commenceTime) - pendingTime(right.commenceTime) || left.id.localeCompare(right.id));
+}
+
+function pendingTime(value) {
+  const time = Date.parse(value ?? "");
+  return Number.isFinite(time) ? time : Number.MAX_SAFE_INTEGER;
 }
 
 export function summarize(rows) {

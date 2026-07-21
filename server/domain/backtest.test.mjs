@@ -199,3 +199,25 @@ test("freezes detailed current, legacy, and invalid snapshot classification reas
     return [actual.status, actual.reason, status, reason];
   }), cases.map(([, status, reason]) => [status, reason, status, reason]));
 });
+
+test("lists unsettled valid-current snapshots as pending rows with kickoff status", () => {
+  const snapshots = [
+    { matchId: "upcoming", market: TOTALS, prediction: "細", line: 2.5, commenceTime: "2026-07-11T13:00:00Z", modelVersion: "totals-loo-v1" },
+    { matchId: "settling", market: HANDICAP, prediction: "主", line: -0.5, commenceTime: "2026-07-11T10:30:00Z", modelVersion: "hdc-loo-v2" },
+    { matchId: "overdue", market: TOTALS, prediction: "大", line: 2.5, commenceTime: "2026-07-11T06:00:00Z", modelVersion: "totals-loo-v1" },
+    { matchId: "settled", market: TOTALS, prediction: "大", line: 2.5, commenceTime: "2026-07-11T06:00:00Z", modelVersion: "totals-loo-v1" },
+    { ...validSnapshot({ matchId: "legacy", market: TOTALS, prediction: "大", line: 2.5, commenceTime: "2026-07-11T13:00:00Z" }), modelVersion: undefined },
+  ].map((item) => (item.modelVersion === undefined ? item : validSnapshot(item)));
+  const response = buildBacktest(snapshots, [
+    { matchId: "settled", market: TOTALS, actual: "3 球" },
+  ], NOW);
+
+  assert.deepEqual(response.pending.map((row) => `${row.matchId}:${row.status}`), ["overdue:overdue", "settling:settling", "upcoming:upcoming"]);
+  const upcoming = response.pending.find((row) => row.matchId === "upcoming");
+  assert.deepEqual(
+    { market: upcoming.market, prediction: upcoming.prediction, line: upcoming.line, odds: upcoming.odds, chance: upcoming.chance, savedAt: upcoming.savedAt, modelVersion: upcoming.modelVersion, source: upcoming.source },
+    { market: TOTALS, prediction: "細", line: 2.5, odds: 2, chance: 0.55, savedAt: "2026-07-11T05:00:00Z", modelVersion: "totals-loo-v1", source: null },
+  );
+  assert.equal(response.pending.some((row) => row.matchId === "settled"), false);
+  assert.equal(response.pending.some((row) => row.matchId === "legacy"), false);
+});

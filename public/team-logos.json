@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-20T07:27:41.146Z",
+  "generatedAt": "2026-07-21T01:17:51.359Z",
   "teams": {
     "AC Oulu": {
       "id": 2077,
@@ -8,6 +8,11 @@
     "AEK Larnaca": {
       "id": 614,
       "logo": "/team-logos/614.png"
+    },
+    "AGF Aarhus": {
+      "id": 406,
+      "logo": "/team-logos/406.png",
+      "needsReview": true
     },
     "APIA Leichhardt": {
       "id": 3764,
@@ -26,6 +31,10 @@
       "id": 2378,
       "logo": "/team-logos/2378.png"
     },
+    "Alloa Athletic": {
+      "id": 1391,
+      "logo": "/team-logos/1391.png"
+    },
     "Altona Magic": {
       "id": 3797,
       "logo": "/team-logos/3797.png"
@@ -33,6 +42,295 @@
     "America Mineiro": {
       "id": 125,
       "logo": "/team-logos/125.png"
+    },
+    "Annan Athletic": {
+      "id": 6757,
+      "logo": "/team-logos/6757.png"
+    },
+    "Ansan Greeners": {
+      "id": 2758,
+      "logo": "/team-logos/2758.png"
+    },
+    "Antofagasta": {
+      "id": 2327,
+      "logo": "/team-logos/2327.png"
+    },
+    "Arbroath": {
+      "id": 4249,
+      "logo": "/team-logos/4249.png"
+    },
+    "Argentina": {
+      "id": 26,
+      "logo": "/team-logos/26.png"
+    },
+    "Atert Bissen": {
+      "id": 15847,
+      "logo": "/team-logos/15847.png"
+    },
+    "Athletic Club MG": {
+      "id": 23643,
+      "logo": "/team-logos/23643.png",
+      "needsReview": true
+    },
+    "Athletico Paranaense": {
+      "id": 21006,
+      "logo": "/team-logos/21006.png",
+      "needsReview": true
+    },
+    "Bayswater City": {
+      "id": 3814,
+      "logo": "/team-logos/3814.png"
+    },
+    "Cumberland Utd": {
+      "id": 10009,
+      "logo": "/team-logos/10009.png",
+      "needsReview": true
+    },
+    "Daejeon Citizen": {
+      "id": 2750,
+      "logo": "/team-logos/2750.png"
+    },
+    "Dinamo Zagreb": {
+      "id": 620,
+      "logo": "/team-logos/620.png"
+    },
+    "Djurgardens": {
+      "id": 364,
+      "logo": "/team-logos/364.png",
+      "needsReview": true
+    },
+    "Djurgardens IF": {
+      "id": 364,
+      "logo": "/team-logos/364.png"
+    },
+    "Dundee": {
+      "id": 253,
+      "logo": "/team-logos/253.png"
+    },
+    "East Kilbride": {
+      "id": 6765,
+      "logo": "/team-logos/6765.png"
+    },
+    "FC Lahti": {
+      "id": 1166,
+      "logo": "/team-logos/1166.png",
+      "needsReview": true
+    },
+    "FCI Levadia": {
+      "id": 3517,
+      "logo": "/team-logos/3517.png",
+      "needsReview": true
+    },
+    "Falkirk": {
+      "id": 1389,
+      "logo": "/team-logos/1389.png"
+    },
+    "Fenerbahce": {
+      "id": 611,
+      "logo": "/team-logos/611.png",
+      "needsReview": true
+    },
+    "GIF Sundsvall": {
+      "id": 373,
+      "logo": "/team-logos/373.png"
+    },
+    "Gangwon FC": {
+      "id": 2746,
+      "logo": "/team-logos/2746.png"
+    },
+    "Gornik Zabrze": {
+      "id": 340,
+      "logo": "/team-logos/340.png"
+    },
+    "Goteborg": {
+      "id": 366,
+      "logo": "/team-logos/366.png",
+      "needsReview": true
+    },
+    "Hamilton Academical": {
+      "id": 248,
+      "logo": "/team-logos/248.png"
+    },
+    "Hearts": {
+      "id": 6771,
+      "logo": "/team-logos/6771.png",
+      "needsReview": true
+    },
+    "Heidelberg Utd": {
+      "id": 3803,
+      "logo": "/team-logos/3803.png",
+      "needsReview": true
+    },
+    "IFK Mariehamn": {
+      "id": 587,
+      "logo": "/team-logos/587.png",
+      "needsReview": true
+    },
+    "Incheon Utd": {
+      "id": 2763,
+      "logo": "/team-logos/2763.png",
+      "needsReview": true
+    },
+    "Inverness": {
+      "id": 903,
+      "logo": "/team-logos/903.png",
+      "needsReview": true
+    },
+    "Jeju SK": {
+      "id": 2761,
+      "logo": "/team-logos/2761.png",
+      "needsReview": true
+    },
+    "Jeonbuk Motors": {
+      "id": 2762,
+      "logo": "/team-logos/2762.png"
+    },
+    "KI Klaksvik": {
+      "id": 701,
+      "logo": "/team-logos/701.png"
+    },
+    "Kalmar": {
+      "id": 374,
+      "logo": "/team-logos/374.png",
+      "needsReview": true
+    },
+    "Kalmar FF": {
+      "id": 374,
+      "logo": "/team-logos/374.png"
+    },
+    "Kauno Zalgiris": {
+      "id": 3872,
+      "logo": "/team-logos/3872.png",
+      "needsReview": true
+    },
+    "Kilmarnock": {
+      "id": 250,
+      "logo": "/team-logos/250.png"
+    },
+    "KuPS": {
+      "id": 1165,
+      "logo": "/team-logos/1165.png"
+    },
+    "Lahti": {
+      "id": 1166,
+      "logo": "/team-logos/1166.png"
+    },
+    "Lech Poznan": {
+      "id": 347,
+      "logo": "/team-logos/347.png"
+    },
+    "Lincoln Red Imps": {
+      "id": 667,
+      "logo": "/team-logos/667.png",
+      "needsReview": true
+    },
+    "Lions FC": {
+      "id": 26961,
+      "logo": "/team-logos/26961.png",
+      "needsReview": true
+    },
+    "Malmo": {
+      "id": 375,
+      "logo": "/team-logos/375.png",
+      "needsReview": true
+    },
+    "Malmo FF": {
+      "id": 375,
+      "logo": "/team-logos/375.png"
+    },
+    "Mjallby": {
+      "id": 2240,
+      "logo": "/team-logos/2240.png",
+      "needsReview": true
+    },
+    "Montrose": {
+      "id": 4251,
+      "logo": "/team-logos/4251.png"
+    },
+    "Newcastle Jets": {
+      "id": 946,
+      "logo": "/team-logos/946.png"
+    },
+    "Norrby IF": {
+      "id": 2173,
+      "logo": "/team-logos/2173.png"
+    },
+    "Orgryte": {
+      "id": 2166,
+      "logo": "/team-logos/2166.png",
+      "needsReview": true
+    },
+    "Perth Glory": {
+      "id": 940,
+      "logo": "/team-logos/940.png"
+    },
+    "Peterhead": {
+      "id": 6777,
+      "logo": "/team-logos/6777.png"
+    },
+    "Preston Lions": {
+      "id": 19705,
+      "logo": "/team-logos/19705.png"
+    },
+    "Raith Rovers": {
+      "id": 1385,
+      "logo": "/team-logos/1385.png"
+    },
+    "Sabah FC": {
+      "id": 2505,
+      "logo": "/team-logos/2505.png",
+      "needsReview": true
+    },
+    "Shamrock Rovers": {
+      "id": 652,
+      "logo": "/team-logos/652.png"
+    },
+    "Sporting": {
+      "id": 228,
+      "logo": "/team-logos/228.png",
+      "needsReview": true
+    },
+    "St. Johnstone": {
+      "id": 258,
+      "logo": "/team-logos/258.png",
+      "needsReview": true
+    },
+    "St. Mirren": {
+      "id": 251,
+      "logo": "/team-logos/251.png",
+      "needsReview": true
+    },
+    "Stenhousemuir": {
+      "id": 6784,
+      "logo": "/team-logos/6784.png"
+    },
+    "Strasbourg": {
+      "id": 95,
+      "logo": "/team-logos/95.png"
+    },
+    "Sturm Graz": {
+      "id": 637,
+      "logo": "/team-logos/637.png"
+    },
+    "Sydney FC": {
+      "id": 1968,
+      "logo": "/team-logos/1968.png",
+      "needsReview": true
+    },
+    "Thun": {
+      "id": 1012,
+      "logo": "/team-logos/1012.png",
+      "needsReview": true
+    },
+    "Ulsan HD": {
+      "id": 2767,
+      "logo": "/team-logos/2767.png",
+      "needsReview": true
+    },
+    "Örgryte IS": {
+      "id": 2166,
+      "logo": "/team-logos/2166.png",
+      "needsReview": true
     }
   }
 }

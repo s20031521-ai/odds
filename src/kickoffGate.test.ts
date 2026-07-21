@@ -35,9 +35,9 @@ describe("gatePickLabel", () => {
     expect(gatePickLabel("買細", FUTURE, NOW)).toBe("買細");
   });
 
-  it("keeps neutral labels unchanged even after kickoff", () => {
-    expect(gatePickLabel("唔買", PAST, NOW)).toBe("唔買");
-    expect(gatePickLabel("資料不足，唔買", PAST, NOW)).toBe("資料不足，唔買");
+  it("replaces neutral labels with the post-kickoff label after kickoff too", () => {
+    expect(gatePickLabel("唔買", PAST, NOW)).toBe(POST_KICKOFF_LABEL);
+    expect(gatePickLabel("資料不足，唔買", PAST, NOW)).toBe(POST_KICKOFF_LABEL);
   });
 
   it("uses the post-kickoff label text 已開賽", () => {

@@ -14,7 +14,7 @@ export function MarketDetailCard(props: { market: string; detail: MarketDetail; 
     return (
       <article className="market-detail-card market-detail-card--empty">
         <h3>{market}</h3>
-        <p>{detail.note}</p>
+        <p>{props.postKickoff ? "已開賽" : detail.note}</p>
       </article>
     );
   }

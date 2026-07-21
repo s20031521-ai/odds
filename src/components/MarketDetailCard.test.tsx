@@ -65,4 +65,12 @@ describe("MarketDetailCard", () => {
     expect(markup).toContain("建議注碼 $15");
     expect(markup).not.toContain("已開賽");
   });
+
+  it("replaces the insufficient note with 已開賽 after kickoff", () => {
+    const markup = renderToStaticMarkup(
+      <MarketDetailCard market="亞洲讓球" postKickoff detail={{ kind: "insufficient", note: "資料不足，唔買" }} />,
+    );
+    expect(markup).toContain("已開賽");
+    expect(markup).not.toContain("資料不足，唔買");
+  });
 });

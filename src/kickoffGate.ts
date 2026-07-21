@@ -10,5 +10,5 @@ export function isPostKickoff(commenceTime: string | undefined, now: number = Da
 }
 
 export function gatePickLabel(pickLabel: string, commenceTime: string, now: number = Date.now()): string {
-  return pickLabel.startsWith("買") && isPostKickoff(commenceTime, now) ? POST_KICKOFF_LABEL : pickLabel;
+  return isPostKickoff(commenceTime, now) ? POST_KICKOFF_LABEL : pickLabel;
 }

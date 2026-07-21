@@ -14,9 +14,9 @@ import { dataFreshFromHealth, dataHealthWarning, dataLoadsReady, dataLoadStateAf
 
 import { buildTotalsCards, type TotalsMarketEntry } from "./oddsApi";
 import { buildHandicapCards, type HandicapEntry } from "./handicap";
-import { calibrationBuckets, clearBacktestResponseState, cornerPickLabel, currentModelRows, excludeLegacyRows, filterHistoryRows, groupMarketCards, hasPredictionSnapshot, isSnapshotQuality, predictionDistribution, snapshotQualityMessage, summarizeHistoryRows, summarizePerformanceRows, type SnapshotQuality } from "./marketDisplay";
+import { clearBacktestResponseState, cornerPickLabel, excludeLegacyRows, filterHistoryRows, groupMarketCards, hasPredictionSnapshot, isSnapshotQuality, snapshotQualityMessage, summarizeHistoryRows, type SnapshotQuality } from "./marketDisplay";
 
-import { fixtureIdFromHash, pageFromHash, tabForRouteTransition } from "./route";
+import { analysisMatchIdFromHash, fixtureIdFromHash, pageFromHash, tabForRouteTransition } from "./route";
 import { savePredictionSnapshots, type PredictionSnapshot } from "./predictionSnapshots";
 import { bestH2hPick } from "./picks";
 import { AppShell } from "./components/AppShell";
@@ -28,6 +28,8 @@ import { AllFixtures } from "./pages/AllFixtures";
 import { canShowActiveOpportunities, useConnectivityState } from "./pwa";
 import { ApiError, createApiClient, type SessionState } from "./apiClient";
 import { LoginPage } from "./pages/LoginPage";
+import { MatchAnalysisPage } from "./pages/MatchAnalysisPage";
+import { buildMatchMarketDetails } from "./matchDetails";
 import { Mascot } from "./components/Kawaii";
 
 
@@ -70,35 +72,6 @@ type LiveOddsPayload = {
   resultEntries: ResultEntry[];
 };
 
-type ModelReadiness = {
-  market: HistoryMarket;
-  modelVersion: string;
-  snapshots: number;
-  matches: number;
-  settled: number;
-  settledMatches: number;
-  pending: number;
-  pendingMatches: number;
-  upcoming: number;
-  upcomingMatches: number;
-  settling: number;
-  settlingMatches: number;
-  overdue: number;
-  overdueMatches: number;
-  unknownPending: number;
-  unknownPendingMatches: number;
-  priced: number;
-  chanceCount: number;
-  chanceAverage: number | null;
-  chanceMin: number | null;
-  chanceMax: number | null;
-  bookmakerCount: number;
-  sources: string[];
-  directions: Record<string, number>;
-  dominantDirection: string;
-  dominantShare: number;
-};
-
 const HDC_REFRESH_MS = 3 * 60 * 1000;
 const initialEntries: ManualEntry[] = [];
 const OFFLINE_WARNING = "目前離線；已隱藏值得買機會，連線後會自動恢復。";
@@ -119,7 +92,6 @@ function App() {
   const [cornerEntries, setCornerEntries] = useState<TotalsMarketEntry[]>([]);
   const [handicapEntries, setHandicapEntries] = useState<HandicapEntry[]>([]);
   const [resultEntries, setResultEntries] = useState<ResultEntry[]>([]);
-  const [readiness, setReadiness] = useState<ModelReadiness[]>([]);
   const [snapshotQuality, setSnapshotQuality] = useState<SnapshotQuality | null>(null);
   const [historyError, setHistoryError] = useState("");
   const [dataWarning, setDataWarning] = useState("");
@@ -129,7 +101,6 @@ function App() {
   const [historyLoading, setHistoryLoading] = useState(() => pageFromHash(window.location.hash) === "history");
   const [historyView, setHistoryView] = useState<"comparable" | "all">("comparable");
   const [historyMarket, setHistoryMarket] = useState<HistoryMarket>("主客和");
-  const [analysisMarket, setAnalysisMarket] = useState<HistoryMarket>("大細波");
 
   const [settings, setSettings] = useState<AnalyzerSettings>({
     bankroll: 1000,
@@ -146,6 +117,7 @@ function App() {
 
   const [page, setPage] = useState(() => pageFromHash(window.location.hash));
   const [fixtureId, setFixtureId] = useState(() => fixtureIdFromHash(window.location.hash));
+  const [analysisMatchId, setAnalysisMatchId] = useState(() => analysisMatchIdFromHash(window.location.hash));
   const [apiStatus, setApiStatus] = useState<ApiStatus>({
     type: "idle",
     message: "API key 留空都可以用手動輸入。",
@@ -207,7 +179,6 @@ function App() {
     setCornerEntries([]);
     setHandicapEntries([]);
     setResultEntries([]);
-    setReadiness([]);
     setSnapshotQuality(null);
     setDataFresh(false);
   }
@@ -262,28 +233,22 @@ function App() {
   const comparableMatchCount = useMemo(() => new Set(comparableResultRows.map((row) => row.matchId)).size, [comparableResultRows]);
   const historyStats = useMemo(() => summarizeHistoryRows(marketResultRows), [marketResultRows]);
   const resultRows = historyView === "comparable" ? comparableResultRows : marketResultRows;
-  const analysisRows = useMemo(() => filterHistoryRows(visibleResultEntries, analysisMarket).filter((row) => Boolean(row.settlement)), [visibleResultEntries, analysisMarket]);
-  const currentAnalysisRows = useMemo(() => currentModelRows(analysisRows), [analysisRows]);
-  const marketSummaries = useMemo(() => (["主客和", "角球", "大細波", "亞洲讓球"] as HistoryMarket[]).map((market) => ({
-    market,
-    summary: summarizePerformanceRows(currentModelRows(filterHistoryRows(visibleResultEntries, market)), () => market)[0] ?? null,
-  })), [visibleResultEntries]);
-  const modelSummaries = useMemo(() => summarizePerformanceRows(currentAnalysisRows, (row) => row.modelVersion!), [currentAnalysisRows]);
-  const directionSummaries = useMemo(() => predictionDistribution(currentAnalysisRows), [currentAnalysisRows]);
-  const calibrationSummaries = useMemo(() => calibrationBuckets(currentAnalysisRows), [currentAnalysisRows]);
   const qualityWarning = snapshotQuality ? snapshotQualityMessage(snapshotQuality) : null;
-  const selectedPerformance = marketSummaries.find((item) => item.market === analysisMarket)?.summary ?? null;
-  const selectedReadiness = excludeLegacyRows(readiness.filter((item) => item.market === analysisMarket));
   const selectedFixture = fixtures.find((fixture) => fixture.matchId === fixtureId) ?? null;
   const selectedRows = selectedFixture ? rows.filter((row) => row.matchId === selectedFixture.matchId) : [];
+  const matchAnalysis = useMemo(
+    () => (analysisMatchId ? buildMatchMarketDetails({ matchId: analysisMatchId, fixtures, rows, totalCards, cornerCards, handicapCards }) : null),
+    [analysisMatchId, fixtures, rows, totalCards, cornerCards, handicapCards],
+  );
 
   useEffect(() => {
     const syncPage = () => {
       const nextPage = pageFromHash(window.location.hash);
       setPage(nextPage);
-      if ((nextPage === "history" || nextPage === "analysis") && !resultAutoLoadStarted.current) setHistoryLoading(true);
+      if (nextPage === "history" && !resultAutoLoadStarted.current) setHistoryLoading(true);
       setAnalysisTab((current) => tabForRouteTransition(current, window.location.hash));
       setFixtureId(fixtureIdFromHash(window.location.hash));
+      setAnalysisMatchId(analysisMatchIdFromHash(window.location.hash));
     };
     window.addEventListener("hashchange", syncPage);
     return () => window.removeEventListener("hashchange", syncPage);
@@ -320,7 +285,7 @@ function App() {
       hkjcAutoLoadStarted.current = true;
       void loadHkjcOdds();
     }
-    if ((page === "history" || page === "analysis") && !resultAutoLoadStarted.current) {
+    if (page === "history" && !resultAutoLoadStarted.current) {
       resultAutoLoadStarted.current = true;
       void loadBacktest();
     }
@@ -345,12 +310,10 @@ function App() {
       const body = await apiClient.backtest();
       if (!Array.isArray(body?.rows)) throw new Error("Backend backtest 暫時不可用。");
       setResultEntries(body.rows as ResultEntry[]);
-      setReadiness(Array.isArray(body.readiness) ? body.readiness as ModelReadiness[] : []);
       setSnapshotQuality(isSnapshotQuality(body.snapshotQuality) ? body.snapshotQuality : null);
     } catch (error) {
-      const cleared = clearBacktestResponseState({ resultEntries, readiness, snapshotQuality });
+      const cleared = clearBacktestResponseState({ resultEntries, readiness: [], snapshotQuality });
       setResultEntries(cleared.resultEntries);
-      setReadiness(cleared.readiness);
       setSnapshotQuality(cleared.snapshotQuality);
       setHistoryError(handleProtectedError(error, "Backend backtest 暫時不可用。"));
     } finally {
@@ -464,7 +427,6 @@ function App() {
         <DashboardPage opportunities={buyOpportunities} fixtures={dashboardFixtures} generatedAt={lastSuccessfulSync} dataFresh={opportunitiesTrusted} logos={teamLogos} />
       ) : null}
       {page === "history" ? <h1 className="page-heading">完場對比</h1> : null}
-      {page === "analysis" ? <h1 className="page-heading">模型表現分析</h1> : null}
 
       {page === "fixtures" && analysisTab === "h2h" ? (
       <section className="dashboard-section">
@@ -483,7 +445,7 @@ function App() {
                       const isSelected = selectedFixture?.matchId === fixture.matchId;
                       return (
                         <div className={isSelected ? "fixture-card-wrap expanded" : "fixture-card-wrap"} key={fixture.matchId}>
-                          <a className={fixture.matchId.startsWith("hkjc-") ? "fixture-card hkjc-card" : "fixture-card"} href={`#/fixtures/${encodeURIComponent(fixture.matchId)}`}>
+                          <a className={fixture.matchId.startsWith("hkjc-") ? "fixture-card hkjc-card" : "fixture-card"} href={`#/analysis?match=${encodeURIComponent(fixture.matchId)}`}>
                             <span className="fixture-time">{formatDate(fixture.commenceTime)}</span>
                             <strong><TeamLogo teamName={fixture.homeTeam} logos={teamLogos} /> {fixture.homeTeamZh ?? fixture.homeTeam} vs {fixture.awayTeamZh ?? fixture.awayTeam} <TeamLogo teamName={fixture.awayTeam} logos={teamLogos} /></strong>
                             {(fixture.leagueZh ?? fixture.league) ? <span className="fixture-league">{fixture.leagueZh ?? fixture.league}</span> : null}
@@ -508,88 +470,14 @@ function App() {
       ) : null}
 
       {page === "analysis" ? (
-      <section className="analysis-performance">
-        {historyLoading ? (
-          <div aria-live="polite" className="empty-state" role="status"><Mascot pose="momonga-loading" /><Loader2 aria-hidden="true" className="spin" size={20} /> 正在載入模型表現。</div>
-        ) : historyError ? (
-          <div className="empty-state" role="alert"><Mascot pose="momonga-alert" /><span>{historyError}</span><button className="secondary-button compact" onClick={loadBacktest}>重新載入</button></div>
-        ) : (
-          <>
-            {qualityWarning ? <div className="sample-warning" role="status"><Mascot pose="momonga-alert" /><AlertTriangle size={17} />{qualityWarning}</div> : null}
-            <div className="performance-market-grid" aria-label="市場模型表現">
-              {marketSummaries.map(({ market, summary }) => (
-                <button aria-pressed={analysisMarket === market} className={analysisMarket === market ? "performance-market-card active" : "performance-market-card"} key={market} onClick={() => setAnalysisMarket(market)} type="button">
-                  <span>{market}</span>
-                  {summary ? (
-                    <>
-                      <strong>{summary.hitRate === null ? "—" : formatPercent(summary.hitRate)}</strong>
-                      <small>現行 · {summary.matches} 場 · {summary.finished} 盤口</small>
-                      <small>ROI {summary.roi === null ? "未有" : formatPercent(summary.roi)} · {summary.priced} 個有效賠率</small>
-                    </>
-                  ) : <strong className="muted-score">未有可評估樣本</strong>}
-                </button>
-              ))}
-            </div>
-
-            <Panel title={`${analysisMarket} · 資料準備度`} icon={<Calculator size={18} />}>
-              {selectedReadiness.length ? <div className="model-summary-grid">
-                {selectedReadiness.map((item) => (
-                  <article className="model-summary-card readiness-card" key={item.modelVersion}>
-                    <div className="readiness-head"><span>{item.modelVersion}</span><b>現行</b></div>
-                    <strong>{item.matches} 場 · {item.snapshots} snapshots</strong>
-                    <small>已結算 {item.settledMatches} 場 · 未開賽 {item.upcomingMatches} 場 · 正常等待 {item.settlingMatches} 場</small>
-                    <small>逾期欠結果 {item.overdueMatches} 場 · 舊資料未分類 {item.unknownPendingMatches} 場</small>
-                    <small>賠率 {item.priced}/{item.snapshots} · 機率 {item.chanceCount}/{item.snapshots} · Bookmaker {item.bookmakerCount}/{item.snapshots}</small>
-                    {item.chanceAverage !== null ? <small>機率平均 {formatPercent(item.chanceAverage)} · 範圍 {formatPercent(item.chanceMin ?? 0)}–{formatPercent(item.chanceMax ?? 0)}</small> : null}
-                    <small>方向 {Object.entries(item.directions).map(([direction, count]) => `${direction} ${count}`).join(" · ") || "未有"}</small>
-                    <small>來源 {item.sources.join(" · ") || "未標示"}</small>
-                    <div className="health-tags">
-                      {item.settledMatches < 30 ? <span>未夠 30 場</span> : null}
-                      {item.overdueMatches > 0 ? <span className="danger">逾期欠結果 {item.overdueMatches} 場</span> : null}
-                      {item.priced < item.snapshots ? <span>欠賠率 {item.snapshots - item.priced}</span> : null}
-                      {item.chanceCount < item.snapshots ? <span>欠機率 {item.snapshots - item.chanceCount}</span> : null}
-                      {item.snapshots >= 5 && item.dominantShare >= 0.85 ? <span>方向偏 {item.dominantDirection} {formatPercent(item.dominantShare)}</span> : null}
-                    </div>
-                  </article>
-                ))}
-              </div> : <div className="empty-state compact">未有{analysisMarket}賽前 snapshots。</div>}
-            </Panel>
-
-            {!selectedPerformance ? (
-              <div className="empty-state"><Mascot pose="chiikawa-empty" />暫時未有{analysisMarket}可評估樣本。</div>
-            ) : (
-              <>
-                {selectedPerformance.matches < 30 ? <div className="sample-warning"><Mascot pose="momonga-alert" /><AlertTriangle size={17} />只得 {selectedPerformance.matches} 場獨立賽事，暫未適合調整策略。</div> : null}
-                <Panel title={`${analysisMarket} · 模型版本`} icon={<Calculator size={18} />}>
-                  <div className="model-summary-grid">
-                    {modelSummaries.map((summary) => (
-                      <article className="model-summary-card" key={summary.key}>
-                        <span>{summary.key}</span>
-                        <strong>{summary.hitRate === null ? "—" : formatPercent(summary.hitRate)}</strong>
-                        <small>{summary.matches} 場 · {summary.finished} 盤口 · {summary.win} 中 / {summary.loss} 錯</small>
-                        <small>ROI {summary.roi === null ? "未有足夠有效賠率" : formatPercent(summary.roi)} · 有價 {summary.priced}</small>
-                      </article>
-                    ))}
-                  </div>
-                </Panel>
-
-                <div className="performance-detail-grid">
-                  <Panel title="現行模型 · 預測方向" icon={<Calculator size={18} />}>
-                    {directionSummaries.length ? <div className="performance-bars">
-                      {directionSummaries.map((item) => <PerformanceBar key={item.key} label={item.key} value={item.percent} meta={`${item.count} 次`} />)}
-                    </div> : <div className="empty-state compact">未有方向資料。</div>}
-                  </Panel>
-                  <Panel title="現行模型 · 機率校準" icon={<Calculator size={18} />}>
-                    {calibrationSummaries.length ? <div className="performance-bars">
-                      {calibrationSummaries.map((item) => <PerformanceBar key={item.key} label={item.key} value={item.hitRate} meta={`${item.finished} 個樣本`} />)}
-                    </div> : <div className="empty-state compact">未有有效預測機率資料。</div>}
-                  </Panel>
-                </div>
-              </>
-            )}
-          </>
-        )}
-      </section>
+        <MatchAnalysisPage
+          matchId={analysisMatchId}
+          header={matchAnalysis?.header ?? null}
+          details={matchAnalysis?.details ?? null}
+          opportunities={buyOpportunities}
+          logos={teamLogos}
+          generatedAt={lastSuccessfulSync}
+        />
       ) : null}
 
       {page === "fixtures" && analysisTab === "totals" ? (
@@ -704,16 +592,6 @@ function App() {
   );
 }
 
-function PerformanceBar({ label, value, meta }: { label: string; value: number; meta: string }) {
-  const percent = Math.max(0, Math.min(100, value * 100));
-  return (
-    <div className="performance-bar-row">
-      <div><strong>{label}</strong><span>{meta} · {percent.toFixed(1)}%</span></div>
-      <div aria-label={`${label} ${percent.toFixed(1)}%`} className="performance-bar" role="img"><span style={{ width: `${percent}%` }} /></div>
-    </div>
-  );
-}
-
 type TotalsCard = ReturnType<typeof buildTotalsCards>[number];
 
 function MarketCardGroup({ group, market, logos }: { group: { matchId: string; primary: TotalsCard; lines: TotalsCard[] }; market: "totals" | "corners"; logos: TeamLogoMap }) {
@@ -798,15 +676,6 @@ function Panel({ title, icon, children }: { title: string; icon: ReactNode; chil
         <h2>{title}</h2>
       </div>
       {children}
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="stat">
-      <span>{label}</span>
-      <strong>{value}</strong>
     </div>
   );
 }

@@ -41,7 +41,8 @@ describe("App integration source", () => {
     const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 
     expect(source).toContain('{page === "history" ? <h1 className="page-heading">完場對比</h1> : null}');
-    expect(source).toContain('{page === "analysis" ? <h1 className="page-heading">模型表現分析</h1> : null}');
+    expect(source).toContain('<MatchAnalysisPage');
+    expect(source).toContain('matchId={analysisMatchId}');
   });
 
   it("starts freshness fail-closed and only trusts a validated health response", () => {

@@ -1,0 +1,113 @@
+/* Today-first homepage (Phase A). New classes only — do not rename existing ones. */
+
+.today-page__picks {
+  display: grid;
+  gap: 12px;
+}
+
+.pick-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+}
+
+.pick-card__summary {
+  min-height: var(--touch-target);
+  cursor: pointer;
+  display: grid;
+  gap: 4px;
+  padding: 16px;
+  list-style: none;
+}
+
+.pick-card__summary::-webkit-details-marker {
+  display: none;
+}
+
+.pick-card__match {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.pick-card__kickoff {
+  margin-left: auto;
+  color: var(--color-muted);
+  font-weight: 400;
+}
+
+.pick-card__selection {
+  color: var(--color-text);
+}
+
+.pick-card__odds {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-primary-text);
+}
+
+.pick-card__toggle {
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.pick-card__details {
+  padding: 0 16px 16px;
+  border-top: 1px dashed var(--color-border);
+  color: var(--color-text);
+}
+
+.pick-card__alternatives {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--color-muted);
+}
+
+.pick-card__analysis-link {
+  color: var(--color-primary-text);
+  font-weight: 600;
+}
+
+.freshness-bar {
+  color: var(--color-positive-text);
+  margin: 0 0 12px;
+}
+
+.freshness-bar--stale {
+  color: var(--color-warning);
+}
+
+.today-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--color-text);
+}
+
+.today-page__show-all {
+  min-height: var(--touch-target);
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--color-primary-text);
+  font-weight: 600;
+}
+
+.today-page__upcoming ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.today-page__upcoming-item a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--touch-target);
+  color: var(--color-text);
+  text-decoration: none;
+}

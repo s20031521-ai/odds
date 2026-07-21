@@ -81,3 +81,7 @@ npm run build
 - Browser startup must not automatically spend paid The Odds API credits.
 - Titan007 is for human cross-checking only, not source of truth.
 - Corner handicap is intentionally not integrated yet; corner totals are the active corner market.
+
+## Artwork Assets
+
+`public/chiikawa/` 內嘅 Chiikawa 插圖下載自 chiikawa-wallpaper.com，僅供本地個人用途，不得商用或對外發佈。版權屬原作者 Nagano 所有。

@@ -34,7 +34,7 @@ describe("PWA build contract", () => {
     for (const expected of [
       'name: "Odds Value Dashboard"',
       'short_name: "Odds Dashboard"',
-      'start_url: "/#/dashboard"',
+      'start_url: "/#/today"',
       'scope: "/"',
       'display: "standalone"',
       'theme_color: "#11182B"',

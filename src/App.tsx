@@ -316,7 +316,7 @@ function App() {
 
   useEffect(() => {
     if (!auth.authenticated) return;
-    if ((page === "dashboard" || page === "fixtures") && !hkjcAutoLoadStarted.current) {
+    if ((page === "today" || page === "fixtures") && !hkjcAutoLoadStarted.current) {
       hkjcAutoLoadStarted.current = true;
       void loadHkjcOdds();
     }
@@ -328,7 +328,7 @@ function App() {
 
   useEffect(() => {
     if (!auth.authenticated) return;
-    if ((page !== "dashboard" && page !== "fixtures") || !["h2h", "handicap", "totals", "corners"].includes(analysisTab)) return;
+    if ((page !== "today" && page !== "fixtures") || !["h2h", "handicap", "totals", "corners"].includes(analysisTab)) return;
     void refreshHdcOdds();
     void refreshDataHealth();
     const timer = window.setInterval(() => {
@@ -447,7 +447,7 @@ function App() {
   }
 
   return (
-    <AppShell route={page} onLogout={handleLogout} dataWarning={page === "dashboard" || page === "fixtures" ? (connectivity.online ? dashboardWarning : OFFLINE_WARNING) : undefined}>
+    <AppShell route={page} onLogout={handleLogout} dataWarning={page === "today" || page === "fixtures" ? (connectivity.online ? dashboardWarning : OFFLINE_WARNING) : undefined}>
       <AllFixtures
         active={page === "fixtures"}
         marketNavigation={(
@@ -460,8 +460,8 @@ function App() {
         )}
         content={(
         <>
-      {page === "dashboard" ? (
-        <DashboardPage opportunities={buyOpportunities} generatedAt={lastSuccessfulSync} dataFresh={opportunitiesTrusted} logos={teamLogos} />
+      {page === "today" ? (
+        <DashboardPage opportunities={buyOpportunities} fixtures={dashboardFixtures} generatedAt={lastSuccessfulSync} dataFresh={opportunitiesTrusted} logos={teamLogos} />
       ) : null}
       {page === "history" ? <h1 className="page-heading">完場對比</h1> : null}
       {page === "analysis" ? <h1 className="page-heading">模型表現分析</h1> : null}

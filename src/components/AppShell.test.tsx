@@ -12,7 +12,7 @@ const navigationItems = [
 ] as const;
 
 function renderShell(
-  route: "dashboard" | "fixtures" | "history" | "analysis" = "dashboard",
+  route: "today" | "fixtures" | "history" | "analysis" = "today",
   dataWarning?: string,
 ) {
   return renderToStaticMarkup(
@@ -71,7 +71,7 @@ describe("AppShell contract", () => {
   });
 
   test("renders exactly one alert for a non-empty data warning", () => {
-    const markup = renderShell("dashboard", "資料暫時過期");
+    const markup = renderShell("today", "資料暫時過期");
 
     expect(markup.match(/role="alert"/g) ?? []).toHaveLength(1);
     expect(markup).toContain("資料暫時過期");
@@ -79,7 +79,7 @@ describe("AppShell contract", () => {
 
   test("does not render an alert for blank or missing warnings", () => {
     for (const warning of [undefined, "", "   "]) {
-      expect(renderShell("dashboard", warning)).not.toContain('role="alert"');
+      expect(renderShell("today", warning)).not.toContain('role="alert"');
     }
   });
 

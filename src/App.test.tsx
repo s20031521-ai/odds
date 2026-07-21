@@ -141,4 +141,13 @@ describe("App integration source", () => {
     expect(source).toContain("fixture-chip");
     expect(source).toContain("搜尋球隊");
   });
+
+  it("gates buy CTAs behind the post-kickoff label on market cards and fixture rows", () => {
+    const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
+
+    expect(source).toContain('import { gatePickLabel } from "./kickoffGate"');
+    expect(source).toContain("gatePickLabel(bestPick.label, fixture.commenceTime)");
+    expect(source).toContain("gatePickLabel(card.pickLabel, card.commenceTime)");
+    expect(source).toContain("gatePickLabel(line.pickLabel, line.commenceTime)");
+  });
 });

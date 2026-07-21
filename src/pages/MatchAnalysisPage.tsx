@@ -3,6 +3,7 @@ import { Mascot } from "../components/Kawaii";
 import { MarketDetailCard } from "../components/MarketDetailCard";
 import { formatKickoff } from "../components/PickCard";
 import { TeamLogo, type TeamLogoMap } from "../components/TeamLogo";
+import { isPostKickoff } from "../kickoffGate";
 import type { MatchHeaderInfo, MatchMarketDetails } from "../matchDetails";
 
 const MARKETS: Array<{ key: keyof MatchMarketDetails; label: string }> = [
@@ -73,7 +74,7 @@ export function MatchAnalysisPage(props: {
       </header>
       <div className="market-detail-grid">
         {MARKETS.map(({ key, label }) => (
-          <MarketDetailCard key={key} market={label} detail={details[key]} />
+          <MarketDetailCard key={key} market={label} detail={details[key]} postKickoff={isPostKickoff(header.commenceTime)} />
         ))}
       </div>
       <p className="match-analysis__sync">賠率同步於 {props.generatedAt ?? "未有成功同步"}</p>

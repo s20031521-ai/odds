@@ -30,6 +30,7 @@ import { ApiError, createApiClient, type SessionState } from "./apiClient";
 import { LoginPage } from "./pages/LoginPage";
 import { MatchAnalysisPage } from "./pages/MatchAnalysisPage";
 import { buildMatchMarketDetails } from "./matchDetails";
+import { gatePickLabel } from "./kickoffGate";
 import { Mascot } from "./components/Kawaii";
 
 
@@ -519,6 +520,7 @@ function App() {
                         {group.fixtures.map((fixture) => {
                           const fixtureRows = rows.filter((row) => row.matchId === fixture.matchId);
                           const bestPick = bestH2hPick(fixtureRows, settings.edgeThreshold);
+                          const fixturePickLabel = gatePickLabel(bestPick.label, fixture.commenceTime);
                           const isSelected = selectedFixture?.matchId === fixture.matchId;
                           return (
                             <div className={isSelected ? "fixture-card-wrap expanded" : "fixture-card-wrap"} key={fixture.matchId}>
@@ -527,7 +529,7 @@ function App() {
                                 <strong className="fixture-row__teams"><TeamLogo teamName={fixture.homeTeam} logos={teamLogos} /> {fixture.homeTeamZh ?? fixture.homeTeam} vs {fixture.awayTeamZh ?? fixture.awayTeam} <TeamLogo teamName={fixture.awayTeam} logos={teamLogos} /></strong>
                                 {(fixture.leagueZh ?? fixture.league) ? <span className="fixture-row__league">{fixture.leagueZh ?? fixture.league}</span> : null}
                                 {buyMatchIds.has(fixture.matchId) ? <span className="fixture-row__buy-dot" role="img" aria-label="有貨" title="有貨" /> : null}
-                                <span className={bestPick.label.startsWith("買") ? "fixture-row__pick" : "fixture-row__pick neutral"}>{bestPick.label}</span>
+                                <span className={fixturePickLabel.startsWith("買") ? "fixture-row__pick" : "fixture-row__pick neutral"}>{fixturePickLabel}</span>
                               </a>
                               {isSelected ? <FixtureDetail fixture={fixture} rows={selectedRows} /> : null}
                             </div>
@@ -591,7 +593,9 @@ function App() {
             <div className="empty-state compact"><Mascot pose="chiikawa-empty" /><span>暫時未有已收集嘅亞洲讓球盤。</span><button className="secondary-button compact" onClick={refreshHdcOdds}>重新載入</button></div>
           ) : (
             <div className="fixture-grid">
-              {handicapCards.map((card) => (
+              {handicapCards.map((card) => {
+                const pickLabel = gatePickLabel(card.pickLabel, card.commenceTime);
+                return (
                 <div className={`fixture-card market-card${card.hasHkjc ? " hkjc-card" : ""}`} key={`${card.matchId}-${card.line}`}>
                   <span className="fixture-time">{formatDate(card.commenceTime)}</span>
                   <strong><TeamLogo teamName={card.homeTeam} logos={teamLogos} /> {card.homeTeamZh ?? card.homeTeam} vs {card.awayTeamZh ?? card.awayTeam} <TeamLogo teamName={card.awayTeam} logos={teamLogos} /></strong>
@@ -602,9 +606,10 @@ function App() {
                     <span className={card.bookmakerCount > 1 ? "positive" : ""}>{card.bookmakerCount > 1 ? `市場 ${formatPercent(card.bestChance)}` : "未有跨莊同盤"}</span>
                     {card.hasHkjc ? <span className="positive">HKJC 同盤</span> : null}
                   </div>
-                  <div className={card.pickLabel.startsWith("買") ? "simple-pick" : "simple-pick neutral"}>{card.pickLabel}{card.pickLabel.startsWith("買") ? ` @ ${card.bestBookmaker} ${card.bestOdds.toFixed(2)}` : ""}</div>
+                  <div className={pickLabel.startsWith("買") ? "simple-pick" : "simple-pick neutral"}>{pickLabel}{pickLabel.startsWith("買") ? ` @ ${card.bestBookmaker} ${card.bestOdds.toFixed(2)}` : ""}</div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </Panel>
@@ -720,6 +725,7 @@ type TotalsCard = ReturnType<typeof buildTotalsCards>[number];
 
 function MarketCardGroup({ group, market, logos }: { group: { matchId: string; primary: TotalsCard; lines: TotalsCard[] }; market: "totals" | "corners"; logos: TeamLogoMap }) {
   const card = group.primary;
+  const pickLabel = gatePickLabel(card.pickLabel, card.commenceTime);
   const otherLines = group.lines.filter((line) => line.id !== card.id);
   const lineLabel = market === "corners" ? "角球 Line" : "Line";
   return (
@@ -731,23 +737,26 @@ function MarketCardGroup({ group, market, logos }: { group: { matchId: string; p
         <span>{card.bookmakerCount} bookmakers</span>
         <span>{lineLabel} {card.line.toFixed(1)}</span>
         <span className={card.bookmakerCount > 1 ? "positive" : ""}>{card.bookmakerCount > 1 ? `市場 ${formatPercent(card.bestChance)}` : "未有跨莊同盤"}</span>
-        {card.pickLabel.startsWith("買") ? <span className="positive">Edge {formatPercent(card.bestEdge)}</span> : null}
+        {pickLabel.startsWith("買") ? <span className="positive">Edge {formatPercent(card.bestEdge)}</span> : null}
         {card.hasHkjc ? <span className="source-badge">HKJC</span> : null}
       </div>
-      <div className={card.pickLabel.startsWith("買") ? "simple-pick" : "simple-pick neutral"}>
-        {card.pickLabel}{card.pickLabel.startsWith("買") ? ` @ ${card.bestBookmaker} ${card.bestOdds.toFixed(2)}` : ""}
+      <div className={pickLabel.startsWith("買") ? "simple-pick" : "simple-pick neutral"}>
+        {pickLabel}{pickLabel.startsWith("買") ? ` @ ${card.bestBookmaker} ${card.bestOdds.toFixed(2)}` : ""}
       </div>
       {otherLines.length > 0 ? (
         <details className="other-lines">
           <summary>其他 {otherLines.length} 個盤口</summary>
           <div className="line-list">
-            {otherLines.map((line) => (
+            {otherLines.map((line) => {
+              const linePickLabel = gatePickLabel(line.pickLabel, line.commenceTime);
+              return (
               <div className="line-item" key={line.id}>
                 <span>{lineLabel} {line.line.toFixed(1)}</span>
                 <span>{line.bookmakerCount} 莊</span>
-                <strong className={line.pickLabel.startsWith("買") ? "positive" : ""}>{line.pickLabel}</strong>
+                <strong className={linePickLabel.startsWith("買") ? "positive" : ""}>{linePickLabel}</strong>
               </div>
-            ))}
+              );
+            })}
           </div>
         </details>
       ) : null}

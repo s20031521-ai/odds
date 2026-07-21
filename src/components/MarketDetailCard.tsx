@@ -1,6 +1,6 @@
 import type { MarketDetail } from "../matchDetails";
 
-export function MarketDetailCard(props: { market: string; detail: MarketDetail }): React.ReactElement {
+export function MarketDetailCard(props: { market: string; detail: MarketDetail; postKickoff?: boolean }): React.ReactElement {
   const { market, detail } = props;
   if (detail.kind === "empty") {
     return (
@@ -15,6 +15,20 @@ export function MarketDetailCard(props: { market: string; detail: MarketDetail }
       <article className="market-detail-card market-detail-card--empty">
         <h3>{market}</h3>
         <p>{detail.note}</p>
+      </article>
+    );
+  }
+  if (props.postKickoff) {
+    return (
+      <article className="market-detail-card">
+        <h3>{market}</h3>
+        <p className="market-detail-card__selection">已開賽</p>
+        <p className="market-detail-card__odds">
+          {formatOdds(detail.odds)}
+          <span className="market-detail-card__bookmaker">（{detail.bookmaker}）</span>
+        </p>
+        <p>模型估 {formatPercent(detail.chance)}，莊家開 {formatPercent(detail.implied)}</p>
+        <p>Edge {detail.edge >= 0 ? "+" : ""}{formatPercent(detail.edge)}</p>
       </article>
     );
   }

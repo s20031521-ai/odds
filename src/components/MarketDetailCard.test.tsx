@@ -41,4 +41,28 @@ describe("MarketDetailCard", () => {
     );
     expect(markup).toContain("資料不足，唔買");
   });
+
+  it("hides the buy CTA and stake after kickoff, showing 已開賽 instead", () => {
+    const markup = renderToStaticMarkup(
+      <MarketDetailCard market="大細波" postKickoff detail={{
+        kind: "ok", selection: "細 2.5", odds: 2.3,
+        chance: 0.6, implied: 1 / 2.3, edge: 0.21, stake: 15, bookmaker: "HKJC",
+      }} />,
+    );
+    expect(markup).toContain("已開賽");
+    expect(markup).not.toContain("買：");
+    expect(markup).not.toContain("建議注碼");
+  });
+
+  it("keeps the buy CTA before kickoff when postKickoff is false", () => {
+    const markup = renderToStaticMarkup(
+      <MarketDetailCard market="大細波" postKickoff={false} detail={{
+        kind: "ok", selection: "細 2.5", odds: 2.3,
+        chance: 0.6, implied: 1 / 2.3, edge: 0.21, stake: 15, bookmaker: "HKJC",
+      }} />,
+    );
+    expect(markup).toContain("買：細 2.5");
+    expect(markup).toContain("建議注碼 $15");
+    expect(markup).not.toContain("已開賽");
+  });
 });

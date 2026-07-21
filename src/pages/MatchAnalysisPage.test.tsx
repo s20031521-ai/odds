@@ -58,4 +58,12 @@ describe("MatchAnalysisPage", () => {
     expect(markup).toContain("搵唔到呢場波");
     expect(markup).toContain('href="#/analysis"');
   });
+
+  it("hides buy CTAs when the match has already kicked off", () => {
+    const pastHeader = { ...header, commenceTime: "2020-01-01T20:00:00.000Z" };
+    const markup = renderToStaticMarkup(<MatchAnalysisPage {...base} header={pastHeader} />);
+    expect(markup).toContain("已開賽");
+    expect(markup).not.toContain("買：");
+    expect(markup).not.toContain("建議注碼");
+  });
 });

@@ -1,0 +1,53 @@
+/* Match analysis page (Phase B). Card visuals follow today.css .pick-card. */
+
+.market-detail-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+  .market-detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.market-detail-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: 16px;
+  color: var(--color-text);
+  display: grid;
+  gap: 4px;
+}
+
+.market-detail-card h3 {
+  margin: 0;
+  font-weight: 600;
+}
+
+.market-detail-card p {
+  margin: 0;
+}
+
+.market-detail-card__selection {
+  color: var(--color-text);
+}
+
+.market-detail-card__odds {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--color-primary-text);
+}
+
+.market-detail-card__bookmaker {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--color-muted);
+}
+
+.market-detail-card--empty {
+  color: var(--color-muted);
+}

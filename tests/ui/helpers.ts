@@ -4,7 +4,7 @@ import { DASHBOARD_MODE_STORAGE_KEY } from "../../src/dashboardMode";
 const FUTURE_KICKOFF = "2030-07-17T12:00:00.000Z";
 const PAST_KICKOFF = "2020-07-17T12:00:00.000Z";
 
-export type Scenario = "authenticated" | "guest" | "empty" | "live-failed" | "backtest-failed";
+export type Scenario = "authenticated" | "guest" | "empty" | "live-failed" | "backtest-failed" | "many-picks";
 
 export function entry(id: string, matchId: string, homeTeam: string, awayTeam: string, bookmaker: string, odds: { home: number; draw: number; away: number }, commenceTime = FUTURE_KICKOFF) {
   return { id, matchId, homeTeam, awayTeam, commenceTime, bookmaker, odds };
@@ -32,6 +32,23 @@ export const totalEntries = [
   total("boundary-total-b", "match-boundary", "Boundary FC", "Threshold Town", "Book B", 2.0, 2.0),
   total("below-total-a", "match-below", "Below United", "No Buy Rovers", "Book A", 2.0598, 2.0598),
   total("below-total-b", "match-below", "Below United", "No Buy Rovers", "Book B", 2.0, 2.0),
+];
+
+// 六場各自有 edge ≥ 3% 主客和值博盤(賠率組合同 match-value 一樣),
+// 用嚟觸發 TodayPage 嘅「仲有 X 個盤 →」溢出按鈕(上限 5 張卡)。
+export const manyPickEntries = [
+  entry("many-1a", "match-many-1", "Alpha United", "Beta City", "Book A", { home: 2.4, draw: 3.2, away: 3.0 }),
+  entry("many-1b", "match-many-1", "Alpha United", "Beta City", "Book B", { home: 1.8, draw: 3.6, away: 4.8 }),
+  entry("many-2a", "match-many-2", "Gamma Rovers", "Delta Town", "Book A", { home: 2.4, draw: 3.2, away: 3.0 }),
+  entry("many-2b", "match-many-2", "Gamma Rovers", "Delta Town", "Book B", { home: 1.8, draw: 3.6, away: 4.8 }),
+  entry("many-3a", "match-many-3", "Epsilon FC", "Zeta Athletic", "Book A", { home: 2.4, draw: 3.2, away: 3.0 }),
+  entry("many-3b", "match-many-3", "Epsilon FC", "Zeta Athletic", "Book B", { home: 1.8, draw: 3.6, away: 4.8 }),
+  entry("many-4a", "match-many-4", "Eta Wanderers", "Theta Villa", "Book A", { home: 2.4, draw: 3.2, away: 3.0 }),
+  entry("many-4b", "match-many-4", "Eta Wanderers", "Theta Villa", "Book B", { home: 1.8, draw: 3.6, away: 4.8 }),
+  entry("many-5a", "match-many-5", "Iota Stars", "Kappa Rangers", "Book A", { home: 2.4, draw: 3.2, away: 3.0 }),
+  entry("many-5b", "match-many-5", "Iota Stars", "Kappa Rangers", "Book B", { home: 1.8, draw: 3.6, away: 4.8 }),
+  entry("many-6a", "match-many-6", "Lambda City", "Mu County", "Book A", { home: 2.4, draw: 3.2, away: 3.0 }),
+  entry("many-6b", "match-many-6", "Lambda City", "Mu County", "Book B", { home: 1.8, draw: 3.6, away: 4.8 }),
 ];
 
 export async function mockApi(
@@ -107,12 +124,13 @@ export async function mockApi(
         return;
       }
       const empty = scenario === "empty";
+      const many = scenario === "many-picks";
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          entries: empty ? [] : h2hEntries,
-          totalEntries: empty ? [] : totalEntries,
+          entries: empty ? [] : many ? manyPickEntries : h2hEntries,
+          totalEntries: empty || many ? [] : totalEntries,
           cornerEntries: [],
           handicapEntries: [],
           resultEntries: [],

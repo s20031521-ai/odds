@@ -39,3 +39,13 @@ test("freshness bar is visible with role status", async ({ page }) => {
   await page.goto("/#/today");
   await expect(page.locator(".freshness-bar")).toHaveAttribute("role", "status");
 });
+
+test("overflow button switches from today page to the pro dashboard", async ({ page }) => {
+  await mockApi(page, "many-picks", { dashboardMode: "simple" });
+  await page.goto("/#/today");
+  const showAll = page.locator(".today-page__show-all");
+  await expect(showAll).toHaveText("仲有 1 個盤 →");
+  await showAll.click();
+  await expect(page.locator(".buy-dashboard")).toBeVisible();
+  await expect(page.locator("#buy-dashboard-title")).toBeVisible();
+});

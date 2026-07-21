@@ -1,0 +1,84 @@
+.mascot {
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}
+
+.mascot--corner {
+  position: fixed;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  width: 88px;
+  height: 88px;
+  opacity: 0.9;
+  z-index: 5;
+}
+
+.mascot--loading {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 8px;
+}
+
+.mascot--empty {
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 8px;
+}
+
+.mascot--login {
+  width: 180px;
+  height: 180px;
+  margin: 0 auto 12px;
+}
+
+.kawaii-decor {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.kawaii-decor__petal,
+.kawaii-decor__star {
+  position: absolute;
+  display: block;
+  opacity: 0.5;
+}
+
+.kawaii-decor__petal {
+  width: 18px;
+  height: 18px;
+  background: var(--color-accent-pink);
+  border-radius: 80% 0 80% 0;
+}
+
+.kawaii-decor__petal--1 {
+  top: 12%;
+  left: 4%;
+  transform: rotate(24deg);
+}
+
+.kawaii-decor__petal--2 {
+  top: 64%;
+  right: 6%;
+  transform: rotate(-40deg);
+}
+
+.kawaii-decor__star {
+  top: 24%;
+  right: 12%;
+  width: 14px;
+  height: 14px;
+  background: var(--color-accent-yellow);
+  clip-path: polygon(50% 0%, 63% 37%, 100% 50%, 63% 63%, 50% 100%, 37% 63%, 0% 50%, 37% 37%);
+}
+
+@media (max-width: 720px) {
+  .mascot--corner {
+    width: 64px;
+    height: 64px;
+  }
+}

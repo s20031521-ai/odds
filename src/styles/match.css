@@ -51,3 +51,49 @@
 .market-detail-card--empty {
   color: var(--color-muted);
 }
+
+.match-analysis__header .page-heading {
+  /* 跟 today.css heading 風格 */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 8px;
+}
+
+.match-analysis__meta {
+  /* muted 細字 */
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.match-analysis__picker {
+  list-style: none;
+  /* 每個 link 做 card-like 大行，min-height 跟 --touch-target: 44px */
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.match-analysis__picker a {
+  display: block;
+  min-height: var(--touch-target);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-soft);
+  padding: 12px 16px;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.match-analysis__sync,
+.match-analysis__back {
+  /* muted 細字，置中跟 today.css 嘅 footer 風格 */
+  margin: 16px 0 0;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}

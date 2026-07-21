@@ -70,6 +70,7 @@
   - 主客和 / 大細 / 角球 / 亞洲讓球
   - 每張卡：模型機率 vs 莊家隱含機率（一句人話對比，例「模型估 58%，莊家開 51%」）、edge、Kelly stake、現時賠率
   - 該市場冇數據 → 卡照出，顯示「呢個市場冇盤」（唔好靜靜雞消失）
+- **舊「模型健康」頁內容（readiness 面板、calibration、direction 分析等）直接刪除**（owner 2026-07-21 決定：readiness 進度條 + 歷史記錄已經夠，唔保留、唔搬遷）
 
 ### 2.5 紀錄頁
 
@@ -102,8 +103,8 @@
 - edge 幾多 %
 - 模型機率 vs 莊家隱含機率（一句人話）
 - Kelly 建議注碼（bankroll % / 金額，跟現行 analyzer 設定：bankroll 1000 / fractionalKelly 0.25 / cap 2%）
-- 「睇單場分析 →」link
-- 數據時間戳：「呢個盤 X 分鐘前更新」
+- 「睇單場分析 →」link：**Phase A 暫指 `#/fixtures/<matchId>`**（現有深鏈，落地即 work）；Phase B 單場分析頁實裝後改指 `#/analysis?match=<matchId>`
+- 數據時間戳：「賠率同步於 &lt;generatedAt&gt;」（2026-07-21 plan 階段修訂：`BuyPick` 冇 per-pick timestamp，用 page 級同步時間代替「呢個盤 X 分鐘前」）
 
 ### 3.3 冇貨狀態（EmptyState，三種原因，廣東話口語，owner 已 confirm）
 

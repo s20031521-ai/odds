@@ -145,7 +145,7 @@
 .dashboard-card__alternative {
   padding: 6px 9px;
   border-radius: 999px;
-  color: var(--color-positive);
+  color: var(--color-positive-text);
   background: color-mix(in srgb, var(--color-positive) 12%, transparent);
   font-size: 0.78rem;
 }
@@ -156,7 +156,7 @@
 }
 
 .buy-dashboard__empty a {
-  color: var(--color-positive);
+  color: var(--color-positive-text);
   font-weight: 800;
 }
 
@@ -267,7 +267,7 @@
 }
 
 .simple-card__picks strong {
-  color: var(--color-positive);
+  color: var(--color-positive-text);
   font-size: 1.05rem;
 }
 

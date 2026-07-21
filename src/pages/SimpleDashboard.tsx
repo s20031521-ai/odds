@@ -1,4 +1,5 @@
 import type { BuyOpportunity, BuyPick } from "../buyOpportunities";
+import { Mascot } from "../components/Kawaii";
 import { TeamLogo, type TeamLogoMap } from "../components/TeamLogo";
 
 export function SimpleDashboard(props: {
@@ -17,9 +18,9 @@ export function SimpleDashboard(props: {
       </header>
 
       {!props.dataFresh ? (
-        <div className="simple-dashboard__empty" role="status">資料未更新，暫停顯示買盤。</div>
+        <div className="simple-dashboard__empty" role="status"><Mascot pose="momonga-loading" />資料未更新，暫停顯示買盤。</div>
       ) : activeOpportunities.length === 0 ? (
-        <div className="simple-dashboard__empty">暫時冇場次過關</div>
+        <div className="simple-dashboard__empty"><Mascot pose="chiikawa-empty" />暫時冇場次過關<p className="empty-state__note">飲杯茶先～</p></div>
       ) : (
         <div className="simple-dashboard__grid">
           {activeOpportunities.map((opportunity) => (

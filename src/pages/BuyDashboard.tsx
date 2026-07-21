@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { BuyMarket, BuyOpportunity, BuyPick } from "../buyOpportunities";
+import { Mascot } from "../components/Kawaii";
 import { TeamLogo, type TeamLogoMap } from "../components/TeamLogo";
 
 const MARKET_FILTERS = ["全部市場", "主客和", "大細波", "角球", "亞洲讓球"] as const;
@@ -61,9 +62,10 @@ export function BuyDashboard(props: {
       </div>
 
       {!props.dataFresh ? (
-        <div className="buy-dashboard__empty" role="status">資料未更新，暫停顯示買盤。</div>
+        <div className="buy-dashboard__empty" role="status"><Mascot pose="momonga-loading" />資料未更新，暫停顯示買盤。</div>
       ) : activeOpportunities.length === 0 ? (
         <div className="buy-dashboard__empty">
+          <Mascot pose="chiikawa-empty" />
           <p>暫時未有賽事達到 3% Edge。</p>
           <a href="#/fixtures">查看全部賽事</a>
         </div>

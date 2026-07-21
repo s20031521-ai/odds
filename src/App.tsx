@@ -470,7 +470,7 @@ function App() {
       <section className="dashboard-section">
         <Panel title="即將賽事" icon={<CalendarDays size={18} />}>
           {dashboardFixtures.length === 0 ? (
-            <div className="empty-state compact">未有賽事。輸入或拉取賠率後會出現喺呢度。</div>
+            <div className="empty-state compact"><Mascot pose="chiikawa-empty" />未有賽事。輸入或拉取賠率後會出現喺呢度。<p className="empty-state__note">飲杯茶先～</p></div>
           ) : (
             <div className="fixture-grid">
               {fixtureDateGroups.map((group) => (
@@ -510,7 +510,7 @@ function App() {
       {page === "analysis" ? (
       <section className="analysis-performance">
         {historyLoading ? (
-          <div aria-live="polite" className="empty-state" role="status"><Loader2 aria-hidden="true" className="spin" size={20} /> 正在載入模型表現。</div>
+          <div aria-live="polite" className="empty-state" role="status"><Mascot pose="momonga-loading" /><Loader2 aria-hidden="true" className="spin" size={20} /> 正在載入模型表現。</div>
         ) : historyError ? (
           <div className="empty-state" role="alert"><span>{historyError}</span><button className="secondary-button compact" onClick={loadBacktest}>重新載入</button></div>
         ) : (
@@ -556,7 +556,7 @@ function App() {
             </Panel>
 
             {!selectedPerformance ? (
-              <div className="empty-state">暫時未有{analysisMarket}可評估樣本。</div>
+              <div className="empty-state"><Mascot pose="chiikawa-empty" />暫時未有{analysisMarket}可評估樣本。</div>
             ) : (
               <>
                 {selectedPerformance.matches < 30 ? <div className="sample-warning"><AlertTriangle size={17} />只得 {selectedPerformance.matches} 場獨立賽事，暫未適合調整策略。</div> : null}
@@ -596,7 +596,7 @@ function App() {
       <section className="totals-section">
         <Panel title="大細波賠率" icon={<Calculator size={18} />}>
           {totalCardGroups.length === 0 ? (
-            <div className="empty-state compact"><span>暫時未有已收集嘅大細波盤。</span><button className="secondary-button compact" onClick={refreshHdcOdds}>重新載入</button></div>
+            <div className="empty-state compact"><Mascot pose="chiikawa-empty" /><span>暫時未有已收集嘅大細波盤。</span><button className="secondary-button compact" onClick={refreshHdcOdds}>重新載入</button></div>
           ) : (
             <div className="fixture-grid">
               {totalCardGroups.map((group) => <MarketCardGroup group={group} key={group.matchId} market="totals" logos={teamLogos} />)}
@@ -610,7 +610,7 @@ function App() {
       <section className="corners-section">
         <Panel title="角球賠率" icon={<Calculator size={18} />}>
           {cornerCardGroups.length === 0 ? (
-            <div className="empty-state compact"><span>暫時未有開賽前 30 分鐘內嘅角球盤。</span><button className="secondary-button compact" onClick={loadHkjcOdds}>重新載入</button></div>
+            <div className="empty-state compact"><Mascot pose="chiikawa-empty" /><span>暫時未有開賽前 30 分鐘內嘅角球盤。</span><button className="secondary-button compact" onClick={loadHkjcOdds}>重新載入</button></div>
           ) : (
             <div className="fixture-grid">
               {cornerCardGroups.map((group) => <MarketCardGroup group={group} key={group.matchId} market="corners" logos={teamLogos} />)}
@@ -624,7 +624,7 @@ function App() {
       <section className="totals-section">
         <Panel title="HDC 亞洲讓球" icon={<Calculator size={18} />}>
           {handicapCards.length === 0 ? (
-            <div className="empty-state compact"><span>暫時未有已收集嘅亞洲讓球盤。</span><button className="secondary-button compact" onClick={refreshHdcOdds}>重新載入</button></div>
+            <div className="empty-state compact"><Mascot pose="chiikawa-empty" /><span>暫時未有已收集嘅亞洲讓球盤。</span><button className="secondary-button compact" onClick={refreshHdcOdds}>重新載入</button></div>
           ) : (
             <div className="fixture-grid">
               {handicapCards.map((card) => (
@@ -668,11 +668,12 @@ function App() {
             <button aria-pressed={historyView === "all"} className={historyView === "all" ? "active" : ""} onClick={() => setHistoryView("all")} type="button">全部完場資料 {marketResultRows.length}</button>
           </div>
           {historyLoading ? (
-            <div aria-live="polite" className="empty-state compact" role="status"><Loader2 aria-hidden="true" className="spin" size={20} /><span>正在載入完場對比。</span></div>
+            <div aria-live="polite" className="empty-state compact" role="status"><Mascot pose="momonga-loading" /><Loader2 aria-hidden="true" className="spin" size={20} /><span>正在載入完場對比。</span></div>
           ) : historyError ? (
             <div className="empty-state compact" role="alert"><span>{historyError}</span><button className="secondary-button compact" onClick={loadBacktest}>重新載入</button></div>
           ) : resultRows.length === 0 ? (
             <div className="empty-state compact">
+              <Mascot pose="chiikawa-empty" />
               <span>{marketResultRows.length > 0 ? `未有附帶賽前 snapshot 嘅${historyMarket}記錄。` : `暫時未有${historyMarket}完場記錄。`}</span>
               {marketResultRows.length > 0 ? <button className="secondary-button compact" onClick={() => setHistoryView("all")}>顯示全部記錄</button> : null}
             </div>

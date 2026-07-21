@@ -1,107 +1,162 @@
-### Task 3: `displayStake` 注碼顯示 helper
+### Task 3: `MarketDetailCard` 元件 + `match.css`
 
 **Files:**
-- Create: `src/stakeDisplay.ts`
-- Test: `src/stakeDisplay.test.ts`
+- Create: `src/components/MarketDetailCard.tsx`
+- Test: `src/components/MarketDetailCard.test.tsx`
+- Create: `src/styles/match.css`
+- Modify: `src/main.tsx`（加一行 import，`src/main.tsx:9` `import "./styles/today.css";` 之後）
 
 **Interfaces:**
-- Consumes: `BuyPick`（`src/buyOpportunities.ts:5-13`）。
-- Produces:
-  ```ts
-  export type StakeSettings = { bankroll: number; fractionalKelly: number; stakeCapPercent: number };
-  export const DEFAULT_STAKE_SETTINGS: StakeSettings; // { bankroll: 1000, fractionalKelly: 0.25, stakeCapPercent: 0.02 }
-  export function displayStake(pick: BuyPick, settings?: StakeSettings): number; // 回傳整數金額
-  ```
-  Task 4 `PickCard` 用 `displayStake(primary)`。呢個係**顯示層** helper，公式跟現行 analyzer defaults，唔郁任何模型檔。
+- Consumes: `MarketDetail`（Task 2）。
+- Produces: `MarketDetailCard(props: { market: string; detail: MarketDetail }): React.ReactElement` — Task 4 用。CSS class：`market-detail-card`、`market-detail-card--empty`、`market-detail-card__selection`、`market-detail-card__odds`、`market-detail-card__bookmaker`（Task 4 嘅 grid 用 `market-detail-grid`）。
 
-- [ ] **Step 1: 寫 test（RED）**
+- [ ] **Step 1: 寫失敗測試 `src/components/MarketDetailCard.test.tsx`**（跟 PickCard.test.tsx 嘅 SSR pattern： `renderToStaticMarkup` + `toContain`）
 
-Create `src/stakeDisplay.test.ts`：
-
-```ts
+```tsx
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { BuyPick } from "./buyOpportunities";
-import { DEFAULT_STAKE_SETTINGS, displayStake } from "./stakeDisplay";
+import { MarketDetailCard } from "./MarketDetailCard";
 
-const pick = (chance: number, odds: number): BuyPick => ({
-  market: "大細波", selection: "大", line: 2.5, odds, chance, edge: chance * odds - 1, bookmaker: "Alpha",
-});
-
-describe("displayStake", () => {
-  it("caps at 2% of bankroll when fractional Kelly exceeds the cap", () => {
-    // fullKelly = (0.58*1.95-1)/(1.95-1) ≈ 0.138 → ×0.25 ≈ 0.0345 > 0.02 cap → 1000×0.02 = 20
-    expect(displayStake(pick(0.58, 1.95))).toBe(20);
+describe("MarketDetailCard", () => {
+  it("shows model vs bookie probabilities, edge, stake and odds", () => {
+    const markup = renderToStaticMarkup(
+      <MarketDetailCard market="主客和" detail={{
+        kind: "ok", selection: "主勝", odds: 2.0,
+        chance: 0.58, implied: 0.5, edge: 0.16, stake: 20, bookmaker: "Book A",
+      }} />,
+    );
+    expect(markup).toContain("主客和");
+    expect(markup).toContain("買：主勝");
+    expect(markup).toContain("模型估 58.0%，莊家開 50.0%");
+    expect(markup).toContain("Edge +16.0%");
+    expect(markup).toContain("建議注碼 $20");
+    expect(markup).toContain("2.00");
+    expect(markup).toContain("Book A");
   });
 
-  it("returns fractional Kelly stake when below the cap", () => {
-    // fullKelly = (0.52*1.5-1)/0.5 = -0.44 → 負數 clamp 做 0；用正例：(0.55*1.4-1)/0.4 = -0.575 都係負
-    // 正例：odds 3.0 chance 0.36 → fullKelly = (1.08-1)/2 = 0.04 → ×0.25 = 0.01 → 1000×0.01 = 10
-    expect(displayStake(pick(0.36, 3.0))).toBe(10);
+  it("shows negative edge without double sign", () => {
+    const markup = renderToStaticMarkup(
+      <MarketDetailCard market="大細波" detail={{
+        kind: "ok", selection: "大 2.5", odds: 1.9,
+        chance: 0.5, implied: 1 / 1.9, edge: -0.05, stake: 0, bookmaker: "Book B",
+      }} />,
+    );
+    expect(markup).toContain("Edge -5.0%");
   });
 
-  it("returns 0 for negative edge", () => {
-    expect(displayStake(pick(0.3, 2.0))).toBe(0);
+  it("shows empty state when the market has no data", () => {
+    const markup = renderToStaticMarkup(<MarketDetailCard market="角球" detail={{ kind: "empty" }} />);
+    expect(markup).toContain("角球");
+    expect(markup).toContain("呢個市場冇盤");
   });
 
-  it("returns 0 for invalid inputs", () => {
-    expect(displayStake(pick(0, 1.95))).toBe(0);
-    expect(displayStake(pick(0.5, 1))).toBe(0);
-  });
-
-  it("respects custom settings", () => {
-    expect(displayStake(pick(0.36, 3.0), { bankroll: 5000, fractionalKelly: 0.25, stakeCapPercent: 0.02 })).toBe(50);
-  });
-
-  it("exposes frozen defaults matching analyzer settings", () => {
-    expect(DEFAULT_STAKE_SETTINGS).toEqual({ bankroll: 1000, fractionalKelly: 0.25, stakeCapPercent: 0.02 });
+  it("shows the insufficient note for single-bookmaker markets", () => {
+    const markup = renderToStaticMarkup(
+      <MarketDetailCard market="亞洲讓球" detail={{ kind: "insufficient", note: "資料不足，唔買" }} />,
+    );
+    expect(markup).toContain("資料不足，唔買");
   });
 });
 ```
 
-- [ ] **Step 2: 跑 test 確認 fail**
+- [ ] **Step 2: 跑測試確認 fail**
 
-Run: `node node_modules/vitest/vitest.mjs run src/stakeDisplay.test.ts`
-Expected: FAIL — module 未存在
+Run: `node node_modules/vitest/vitest.mjs run src/components/MarketDetailCard.test.tsx`
+Expected: FAIL（module not found）
 
-- [ ] **Step 3: 寫 implementation（GREEN）**
+- [ ] **Step 3: 實裝 `src/components/MarketDetailCard.tsx`**
 
-Create `src/stakeDisplay.ts`：
+```tsx
+import type { MarketDetail } from "../matchDetails";
 
-```ts
-import type { BuyPick } from "./buyOpportunities";
+export function MarketDetailCard(props: { market: string; detail: MarketDetail }): React.ReactElement {
+  const { market, detail } = props;
+  if (detail.kind === "empty") {
+    return (
+      <article className="market-detail-card market-detail-card--empty">
+        <h3>{market}</h3>
+        <p>呢個市場冇盤</p>
+      </article>
+    );
+  }
+  if (detail.kind === "insufficient") {
+    return (
+      <article className="market-detail-card market-detail-card--empty">
+        <h3>{market}</h3>
+        <p>{detail.note}</p>
+      </article>
+    );
+  }
+  return (
+    <article className="market-detail-card">
+      <h3>{market}</h3>
+      <p className="market-detail-card__selection">買：{detail.selection}</p>
+      <p className="market-detail-card__odds">
+        {formatOdds(detail.odds)}
+        <span className="market-detail-card__bookmaker">（{detail.bookmaker}）</span>
+      </p>
+      <p>模型估 {formatPercent(detail.chance)}，莊家開 {formatPercent(detail.implied)}</p>
+      <p>Edge {detail.edge >= 0 ? "+" : ""}{formatPercent(detail.edge)}</p>
+      <p>建議注碼 ${detail.stake}</p>
+    </article>
+  );
+}
 
-export type StakeSettings = {
-  bankroll: number;
-  fractionalKelly: number;
-  stakeCapPercent: number;
-};
+function formatPercent(value: number): string {
+  return Number.isFinite(value) ? `${(value * 100).toFixed(1)}%` : "—";
+}
 
-// Display-only mirror of the analyzer defaults in src/App.tsx — never edit
-// these values without owner approval (model freeze red line).
-export const DEFAULT_STAKE_SETTINGS: StakeSettings = {
-  bankroll: 1000,
-  fractionalKelly: 0.25,
-  stakeCapPercent: 0.02,
-};
-
-export function displayStake(pick: BuyPick, settings: StakeSettings = DEFAULT_STAKE_SETTINGS): number {
-  if (!(pick.odds > 1) || !(pick.chance > 0) || !(pick.chance <= 1)) return 0;
-  const fullKelly = (pick.chance * pick.odds - 1) / (pick.odds - 1);
-  const fraction = Math.min(Math.max(fullKelly, 0) * settings.fractionalKelly, settings.stakeCapPercent);
-  return Math.round(settings.bankroll * fraction);
+function formatOdds(value: number): string {
+  return Number.isFinite(value) ? value.toFixed(2) : "—";
 }
 ```
 
-- [ ] **Step 4: 跑 test 確認 pass**
+- [ ] **Step 4: 寫 `src/styles/match.css` 同 import**
 
-Run: `node node_modules/vitest/vitest.mjs run src/stakeDisplay.test.ts`
-Expected: PASS（6 tests）
+`src/styles/match.css`（只用 tokens.css variables；具體 variable 名以 `src/styles/tokens.css` 同 `src/styles/today.css` 為準，implementer 先讀 today.css 跟佢嘅命名）：
 
-- [ ] **Step 5: Commit**
+```css
+.market-detail-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+  .market-detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.market-detail-card {
+  /* 跟 today.css 嘅卡面 style（背景/border/radius/padding 用 tokens） */
+}
+
+.market-detail-card--empty {
+  /* 同卡面，文字 muted */
+}
+```
+
+（卡面視覺以 `today.css` 嘅 `.pick-card` 為模板，唔好發明新色系。）
+
+`src/main.tsx` 喺 `import "./styles/today.css";` 後加：
+
+```ts
+import "./styles/match.css";
+```
+
+- [ ] **Step 5: 跑測試確認 pass + tsc**
+
+Run: `node node_modules/vitest/vitest.mjs run src/components/MarketDetailCard.test.tsx`
+Expected: PASS（4 tests）
+Run: `node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json`
+Expected: 冇新 error
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/stakeDisplay.ts src/stakeDisplay.test.ts
-git commit -m "feat: add displayStake helper for pick cards"
+git add src/components/MarketDetailCard.tsx src/components/MarketDetailCard.test.tsx src/styles/match.css src/main.tsx
+git commit -m "feat: MarketDetailCard component with match styles"
 ```
 
 ---

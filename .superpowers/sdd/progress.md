@@ -57,3 +57,19 @@ ALL TASKS COMPLETE — pending final whole-branch review (merge-base 5b2ab7b)
 MERGED to master (ff 5b2ab7b..e837c02); tests on merged result 226/226 green + tsc clean; branch deleted
 Final review: ready-to-merge=yes; fix e837c02 added onShowAll click coverage (56/56 playwright)
 Deferred minors recorded for Phase B/C: raw ISO 賠率同步於 formatting; upcoming section visible when stale; FUTURE_KICKOFF 2030 time bomb; stale-copy divergence simple vs pro
+=== Phase B: today-first UI match analysis (branch today-first-phase-b, base f37ffd5) ===
+Task 1: complete (commits f37ffd5..5a1dff3, review clean; note: parser strict-equals 'analysis' vs pageFromHash startsWith — Task 6 wiring留意)
+Task 2: complete (commits 5a1dff3..5131654, review clean; TotalsCard id/bestSide type deviation adjudicated necessary)
+Minor: test factory lie cast bestSide; totals/corners header fallback無直接測試
+Task 3: complete (commits 5131654..0297650, review clean)
+Minor: match.css 冗餘 color rule; hardcode padding 16px (tokens 無 spacing token, 合理)
+Task 4: complete (commits 0297650..9e43462, review clean)
+Minor: picker link無垂直置中 (cosmetic); leagueZh ?? league ?: 靠 precedence (plan-mandated)
+Task 5: complete (commits 9e43462..9808b08, review clean)
+Task 6: complete (commits 9808b08..92fea7e, review clean; deep-link chain preserved statically, e2e coverage in Task 7)
+Minor: clearBacktestResponseState readiness:[] 遷就簽名 — Phase C 簡化
+Task 7: complete (commits 92fea7e..b03ac8f, review clean; plan-gap fix: analysis page加入 live odds autoload gate, controller-approved)
+Minor: HDC interval gate仲受 analysisTab 限制 (同 today/fixtures 一致, 唔影響); dashboard.spec:44 一次 tablet-landscape flaky (timing race, 觀察中)
+Task 8: complete (controller-run: vitest 245/245, tsc 0, build OK, playwright 76/76 x2 consecutive; red-line files zero diff; flaky dashboard.spec:44 tablet-landscape 1/3 runs — timing race, deferred, no retry added)
+ALL TASKS COMPLETE — pending final whole-branch review (merge-base f37ffd5)
+MERGED to master (ff f37ffd5..b03ac8f); branch deleted; merged result vitest 245/245

@@ -1,214 +1,236 @@
-### Task 4: `PickCard` 精選盤卡（`<details>` 原生展開）
+### Task 4: `MatchAnalysisPage`
 
 **Files:**
-- Create: `src/components/PickCard.tsx`
-- Test: `src/components/PickCard.test.tsx`
+- Create: `src/pages/MatchAnalysisPage.tsx`
+- Test: `src/pages/MatchAnalysisPage.test.tsx`
+- Modify: `src/styles/match.css`（加頁面級樣式）
 
 **Interfaces:**
-- Consumes: `BuyOpportunity`、`BuyPick`（`src/buyOpportunities.ts:26-37`）；`TeamLogo`、`TeamLogoMap`（`src/components/TeamLogo.tsx`）；`displayStake`（Task 3）。
-- Produces:
-  ```tsx
-  export function PickCard(props: { opportunity: BuyOpportunity; logos: TeamLogoMap; generatedAt: string | null }): React.ReactElement
-  export function formatSelection(pick: BuyPick): string   // "大 2.5" / "主隊"
-  export function formatOdds(value: number): string        // "1.95" / "—"
-  export function formatKickoff(value: string): string     // "7月21日 20:00"（parse 唔到回原字串）
-  ```
-  用原生 `<details>/<summary>` 做原地展開 — SSR 測試可以斷言 markup、Playwright 可以 click、唔使 JS state、離線 work。Task 7 `TodayPage` 用 `PickCard` + `formatKickoff`。
+- Consumes: `MatchHeaderInfo` / `MatchMarketDetails`（Task 2）、`MarketDetailCard`（Task 3）、`BuyOpportunity`（`src/buyOpportunities.ts:26-37`）、`formatKickoff`（`src/components/PickCard.tsx:59`）、`TeamLogo` / `TeamLogoMap`、`Mascot`（`src/components/Kawaii.tsx`，pose `"chiikawa-empty"`）。
+- Produces: `MatchAnalysisPage(props)` — Task 6 App.tsx 用：
 
-- [ ] **Step 1: 寫 test（RED）**
+```ts
+export function MatchAnalysisPage(props: {
+  matchId: string | null;
+  header: MatchHeaderInfo | null;
+  details: MatchMarketDetails | null;
+  opportunities: BuyOpportunity[];
+  logos: TeamLogoMap;
+  generatedAt: string | null;
+}): React.ReactElement;
+```
 
-Create `src/components/PickCard.test.tsx`：
+行為規則（spec §2.4）：
+1. `matchId === null`（裸 `#/analysis`）→ picker：Mascot `chiikawa-empty` + 「由今日或賽程揀一場波」+ 今日有貨場次快捷入口（`opportunities` dedupe by matchId，每個 link `#/analysis?match=<encoded>`，顯示「主 vs 客 · 開賽時間」）。
+2. `matchId` 有但 `header`/`details` null → 「搵唔到呢場波 — 可能已開賽或已下架」+ link `#/analysis`「揀返另一場 →」。
+3. 齊料 → header（logo + 主 vs 客 + logo、`formatKickoff(commenceTime)`、聯賽、「轉場」link 指 `#/analysis`）→ 四張 `MarketDetailCard`（主客和 / 大細波 / 角球 / 亞洲讓球，次序固定）→ 尾行「賠率同步於 {generatedAt ?? "未有成功同步"}」。
+
+- [ ] **Step 1: 寫失敗測試 `src/pages/MatchAnalysisPage.test.tsx`**
 
 ```tsx
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { MatchAnalysisPage } from "./MatchAnalysisPage";
+import type { MatchHeaderInfo, MatchMarketDetails } from "../matchDetails";
 import type { BuyOpportunity } from "../buyOpportunities";
-import type { TeamLogoMap } from "./TeamLogo";
-import { formatKickoff, PickCard } from "./PickCard";
 
-const opportunity: BuyOpportunity = {
-  matchId: "match-1",
-  homeTeam: "Arsenal",
-  awayTeam: "Chelsea",
-  homeTeamZh: "阿仙奴",
-  awayTeamZh: "車路士",
-  commenceTime: "2026-07-21T20:00:00",
-  league: "Premier League",
-  primary: { market: "大細波", selection: "大", line: 2.5, odds: 1.95, chance: 0.58, edge: 0.131, bookmaker: "Alpha" },
-  alternatives: [
-    { market: "主客和", selection: "主隊", odds: 2.1, chance: 0.52, edge: 0.092, bookmaker: "Beta" },
-  ],
+const header: MatchHeaderInfo = {
+  matchId: "m1", homeTeam: "Home FC", awayTeam: "Away FC",
+  homeTeamZh: "主隊", awayTeamZh: "客隊",
+  commenceTime: "2030-01-01T20:00:00.000Z", league: "EPL", leagueZh: "英超",
 };
 
-const logos: TeamLogoMap = { Arsenal: { id: 42, logo: "/team-logos/42.png" } };
+const details: MatchMarketDetails = {
+  h2h: { kind: "ok", selection: "主勝", odds: 2.0, chance: 0.58, implied: 0.5, edge: 0.16, stake: 20, bookmaker: "Book A" },
+  totals: { kind: "empty" },
+  corners: { kind: "insufficient", note: "資料不足，唔買" },
+  handicap: { kind: "empty" },
+};
 
-describe("PickCard", () => {
-  it("renders collapsed three-line summary inside a details element", () => {
+function opportunity(matchId: string): BuyOpportunity {
+  return {
+    matchId, homeTeam: "Home FC", awayTeam: "Away FC",
+    homeTeamZh: "主隊", awayTeamZh: "客隊",
+    commenceTime: "2030-01-01T20:00:00.000Z",
+    primary: { market: "主客和", selection: "主勝", odds: 2.0, chance: 0.58, edge: 0.16, bookmaker: "Book A" },
+    alternatives: [],
+  };
+}
+
+const base = { matchId: "m1", header, details, opportunities: [] as BuyOpportunity[], logos: {}, generatedAt: "2026-07-21T09:00:00.000Z" };
+
+describe("MatchAnalysisPage", () => {
+  it("renders header, four market cards and sync timestamp", () => {
+    const markup = renderToStaticMarkup(<MatchAnalysisPage {...base} />);
+    expect(markup).toContain("主隊 vs 客隊");
+    expect(markup).toContain("英超");
+    expect(markup).toContain("轉場");
+    expect(markup).toContain('href="#/analysis"');
+    expect(markup).toContain("模型估 58.0%，莊家開 50.0%");
+    expect(markup).toContain("呢個市場冇盤");
+    expect(markup).toContain("資料不足，唔買");
+    expect(markup).toContain("賠率同步於 2026-07-21T09:00:00.000Z");
+  });
+
+  it("shows picker with quick links when no match selected", () => {
     const markup = renderToStaticMarkup(
-      <PickCard opportunity={opportunity} logos={logos} generatedAt="2026-07-21T12:00:00Z" />,
+      <MatchAnalysisPage {...base} matchId={null} header={null} details={null} opportunities={[opportunity("m1"), opportunity("m1"), opportunity("m2")]} />,
     );
-    expect(markup).toContain("<details");
-    expect(markup).toContain("pick-card");
-    expect(markup).toContain("阿仙奴 vs 車路士"); // zh 名優先
-    expect(markup).toContain("買：大 2.5");
-    expect(markup).toContain("1.95");
-    expect(markup).toContain("詳情▾");
+    expect(markup).toContain("由今日或賽程揀一場波");
+    expect(markup).toContain('href="#/analysis?match=m1"');
+    expect(markup).toContain('href="#/analysis?match=m2"');
+    // dedupe：m1 只出一次
+    expect(markup.match(/#\/analysis\?match=m1/g)?.length).toBe(1);
   });
 
-  it("falls back to English names when zh missing", () => {
-    const noZh: BuyOpportunity = { ...opportunity, homeTeamZh: undefined, awayTeamZh: undefined };
-    const markup = renderToStaticMarkup(
-      <PickCard opportunity={noZh} logos={logos} generatedAt={null} />,
-    );
-    expect(markup).toContain("Arsenal vs Chelsea");
-  });
-
-  it("renders expanded detail content (edge, probability comparison, stake, sync time, analysis link)", () => {
-    const markup = renderToStaticMarkup(
-      <PickCard opportunity={opportunity} logos={logos} generatedAt="2026-07-21T12:00:00Z" />,
-    );
-    expect(markup).toContain("Edge +13.1%");
-    expect(markup).toContain("模型估 58.0%，莊家開 51.3%");
-    expect(markup).toContain("建議注碼 $20"); // displayStake(0.58, 1.95) capped 2% of 1000
-    expect(markup).toContain("賠率同步於 2026-07-21T12:00:00Z");
-    expect(markup).toContain('href="#/fixtures/match-1"');
-    expect(markup).toContain("睇單場分析 →");
-  });
-
-  it("lists alternative picks", () => {
-    const markup = renderToStaticMarkup(
-      <PickCard opportunity={opportunity} logos={logos} generatedAt={null} />,
-    );
-    expect(markup).toContain("未有成功同步");
-    expect(markup).toContain("主隊");
-    expect(markup).toContain("2.10");
-    expect(markup).toContain("Beta");
-  });
-
-  it("encodes matchId in the analysis link", () => {
-    const spaced: BuyOpportunity = { ...opportunity, matchId: "match 1" };
-    const markup = renderToStaticMarkup(
-      <PickCard opportunity={spaced} logos={logos} generatedAt={null} />,
-    );
-    expect(markup).toContain('href="#/fixtures/match%201"');
-  });
-});
-
-describe("formatKickoff", () => {
-  it("formats as M月D日 HH:MM", () => {
-    const input = "2026-07-21T20:00:00";
-    const date = new Date(input);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    const expected = `${date.getMonth() + 1}月${date.getDate()}日 ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-    expect(formatKickoff(input)).toBe(expected);
-  });
-
-  it("returns the raw string when unparseable", () => {
-    expect(formatKickoff("not-a-date")).toBe("not-a-date");
+  it("shows not-found state for unknown match", () => {
+    const markup = renderToStaticMarkup(<MatchAnalysisPage {...base} matchId="ghost" header={null} details={null} />);
+    expect(markup).toContain("搵唔到呢場波");
+    expect(markup).toContain('href="#/analysis"');
   });
 });
 ```
 
-- [ ] **Step 2: 跑 test 確認 fail**
+- [ ] **Step 2: 跑測試確認 fail**
 
-Run: `node node_modules/vitest/vitest.mjs run src/components/PickCard.test.tsx`
-Expected: FAIL — module 未存在
+Run: `node node_modules/vitest/vitest.mjs run src/pages/MatchAnalysisPage.test.tsx`
+Expected: FAIL（module not found）
 
-- [ ] **Step 3: 寫 implementation（GREEN）**
-
-Create `src/components/PickCard.tsx`：
+- [ ] **Step 3: 實裝 `src/pages/MatchAnalysisPage.tsx`**
 
 ```tsx
-import type { BuyOpportunity, BuyPick } from "../buyOpportunities";
-import { displayStake } from "../stakeDisplay";
-import { TeamLogo, type TeamLogoMap } from "./TeamLogo";
+import type { BuyOpportunity } from "../buyOpportunities";
+import { Mascot } from "../components/Kawaii";
+import { MarketDetailCard } from "../components/MarketDetailCard";
+import { formatKickoff } from "../components/PickCard";
+import { TeamLogo, type TeamLogoMap } from "../components/TeamLogo";
+import type { MatchHeaderInfo, MatchMarketDetails } from "../matchDetails";
 
-export function PickCard(props: {
-  opportunity: BuyOpportunity;
+const MARKETS: Array<{ key: keyof MatchMarketDetails; label: string }> = [
+  { key: "h2h", label: "主客和" },
+  { key: "totals", label: "大細波" },
+  { key: "corners", label: "角球" },
+  { key: "handicap", label: "亞洲讓球" },
+];
+
+export function MatchAnalysisPage(props: {
+  matchId: string | null;
+  header: MatchHeaderInfo | null;
+  details: MatchMarketDetails | null;
+  opportunities: BuyOpportunity[];
   logos: TeamLogoMap;
   generatedAt: string | null;
 }): React.ReactElement {
-  const { opportunity, logos } = props;
-  const primary = opportunity.primary;
-  const home = opportunity.homeTeamZh ?? opportunity.homeTeam;
-  const away = opportunity.awayTeamZh ?? opportunity.awayTeam;
-  return (
-    <details className="pick-card">
-      <summary className="pick-card__summary">
-        <span className="pick-card__match">
-          <TeamLogo teamName={opportunity.homeTeam} logos={logos} />
-          {home} vs {away}
-          <TeamLogo teamName={opportunity.awayTeam} logos={logos} />
-          <time className="pick-card__kickoff" dateTime={opportunity.commenceTime}>
-            {formatKickoff(opportunity.commenceTime)}
-          </time>
-        </span>
-        <span className="pick-card__selection">買：{formatSelection(primary)}</span>
-        <span className="pick-card__odds">{formatOdds(primary.odds)}</span>
-        <span className="pick-card__toggle" aria-hidden="true">詳情▾</span>
-      </summary>
-      <div className="pick-card__details">
-        <p>Edge +{formatPercent(primary.edge)}</p>
-        <p>模型估 {formatPercent(primary.chance)}，莊家開 {formatPercent(1 / primary.odds)}</p>
-        <p>建議注碼 ${displayStake(primary)}</p>
-        <p>賠率同步於 {props.generatedAt ?? "未有成功同步"}</p>
-        {opportunity.alternatives.length > 0 ? (
-          <ul className="pick-card__alternatives">
-            {opportunity.alternatives.map((pick) => (
-              <li key={pickKey(pick)}>
-                {formatSelection(pick)} @ {formatOdds(pick.odds)}（{pick.bookmaker}）
+  if (!props.matchId) {
+    const matches = uniqueMatches(props.opportunities);
+    return (
+      <section className="match-analysis">
+        <div className="today-empty" role="status">
+          <Mascot pose="chiikawa-empty" />
+          <p>由今日或賽程揀一場波</p>
+        </div>
+        {matches.length > 0 ? (
+          <ul className="match-analysis__picker">
+            {matches.map((match) => (
+              <li key={match.matchId}>
+                <a href={`#/analysis?match=${encodeURIComponent(match.matchId)}`}>
+                  {match.homeTeamZh ?? match.homeTeam} vs {match.awayTeamZh ?? match.awayTeam} · {formatKickoff(match.commenceTime)}
+                </a>
               </li>
             ))}
           </ul>
         ) : null}
-        <a className="pick-card__analysis-link" href={`#/fixtures/${encodeURIComponent(opportunity.matchId)}`}>
-          睇單場分析 →
-        </a>
+      </section>
+    );
+  }
+
+  const { header, details } = props;
+  if (!header || !details) {
+    return (
+      <section className="match-analysis">
+        <div className="today-empty" role="status">
+          <Mascot pose="chiikawa-empty" />
+          <p>搵唔到呢場波 — 可能已開賽或已下架</p>
+        </div>
+        <p className="match-analysis__back"><a href="#/analysis">揀返另一場 →</a></p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="match-analysis">
+      <header className="match-analysis__header">
+        <h1 className="page-heading">
+          <TeamLogo teamName={header.homeTeam} logos={props.logos} />
+          {header.homeTeamZh ?? header.homeTeam} vs {header.awayTeamZh ?? header.awayTeam}
+          <TeamLogo teamName={header.awayTeam} logos={props.logos} />
+        </h1>
+        <p className="match-analysis__meta">
+          {formatKickoff(header.commenceTime)}
+          {header.leagueZh ?? header.league ? ` · ${header.leagueZh ?? header.league}` : ""}
+          {" · "}
+          <a href="#/analysis">轉場</a>
+        </p>
+      </header>
+      <div className="market-detail-grid">
+        {MARKETS.map(({ key, label }) => (
+          <MarketDetailCard key={key} market={label} detail={details[key]} />
+        ))}
       </div>
-    </details>
+      <p className="match-analysis__sync">賠率同步於 {props.generatedAt ?? "未有成功同步"}</p>
+    </section>
   );
 }
 
-export function formatSelection(pick: BuyPick): string {
-  return pick.line === undefined ? pick.selection : `${pick.selection} ${formatLine(pick.line)}`;
-}
-
-export function formatOdds(value: number): string {
-  return Number.isFinite(value) ? value.toFixed(2) : "—";
-}
-
-export function formatKickoff(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getMonth() + 1}月${date.getDate()}日 ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function formatLine(line: number): string {
-  return Number.isInteger(line) ? line.toFixed(1) : `${line}`;
-}
-
-function formatPercent(value: number): string {
-  return `${(value * 100).toFixed(1)}%`;
-}
-
-function pickKey(pick: BuyPick): string {
-  return `${pick.market}|${pick.line ?? ""}|${pick.selection}|${pick.bookmaker}`;
+function uniqueMatches(opportunities: BuyOpportunity[]): Array<Pick<BuyOpportunity, "matchId" | "homeTeam" | "awayTeam" | "homeTeamZh" | "awayTeamZh" | "commenceTime">> {
+  const seen = new Set<string>();
+  const matches: Array<Pick<BuyOpportunity, "matchId" | "homeTeam" | "awayTeam" | "homeTeamZh" | "awayTeamZh" | "commenceTime">> = [];
+  for (const opportunity of opportunities) {
+    if (seen.has(opportunity.matchId)) continue;
+    seen.add(opportunity.matchId);
+    matches.push(opportunity);
+  }
+  return matches;
 }
 ```
 
-注意：「模型估 58.0%」嚟自 `formatPercent(0.58)`（toFixed(1)）；「莊家開 51.3%」嚟自 `1/1.95 ≈ 0.5128`。Test 斷言已經對準呢個格式。
+- [ ] **Step 4: `src/styles/match.css` 加頁面級樣式**
 
-- [ ] **Step 4: 跑 test 確認 pass**
+```css
+.match-analysis__header .page-heading {
+  /* 跟 today.css heading 風格 */
+}
 
-Run: `node node_modules/vitest/vitest.mjs run src/components/PickCard.test.tsx`
-Expected: PASS（7 tests）
+.match-analysis__meta {
+  /* muted 細字 */
+}
 
-- [ ] **Step 5: Commit**
+.match-analysis__picker {
+  list-style: none;
+  /* 每個 link 做 card-like 大行，min-height 跟 --touch-target: 44px */
+}
+
+.match-analysis__picker a {
+  display: block;
+  min-height: var(--touch-target);
+}
+
+.match-analysis__sync,
+.match-analysis__back {
+  /* muted 細字，置中跟 today.css 嘅 footer 風格 */
+}
+```
+
+- [ ] **Step 5: 跑測試確認 pass**
+
+Run: `node node_modules/vitest/vitest.mjs run src/pages/MatchAnalysisPage.test.tsx`
+Expected: PASS（3 tests）。注意 `formatKickoff` 輸出受機器 timezone 影響，測試冇斷言具體時間字串係特意的 — 唔好加。
+
+- [ ] **Step 6: Commit**
 
 ```bash
-git add src/components/PickCard.tsx src/components/PickCard.test.tsx
-git commit -m "feat: add PickCard with native details expansion"
+git add src/pages/MatchAnalysisPage.tsx src/pages/MatchAnalysisPage.test.tsx src/styles/match.css
+git commit -m "feat: MatchAnalysisPage with picker and not-found states"
 ```
 
 ---

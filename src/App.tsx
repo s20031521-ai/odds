@@ -559,7 +559,7 @@ function App() {
               <div className="empty-state"><Mascot pose="chiikawa-empty" />暫時未有{analysisMarket}可評估樣本。</div>
             ) : (
               <>
-                {selectedPerformance.matches < 30 ? <div className="sample-warning"><AlertTriangle size={17} />只得 {selectedPerformance.matches} 場獨立賽事，暫未適合調整策略。</div> : null}
+                {selectedPerformance.matches < 30 ? <div className="sample-warning"><Mascot pose="momonga-alert" /><AlertTriangle size={17} />只得 {selectedPerformance.matches} 場獨立賽事，暫未適合調整策略。</div> : null}
                 <Panel title={`${analysisMarket} · 模型版本`} icon={<Calculator size={18} />}>
                   <div className="model-summary-grid">
                     {modelSummaries.map((summary) => (

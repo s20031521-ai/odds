@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import { Mascot } from "../components/Kawaii";
 
 type LoginPageProps = {
   pending: boolean;
@@ -20,6 +21,7 @@ export function LoginPage({ pending, error, retryAfterSeconds, onLogin }: LoginP
   return (
     <main className="login-page">
       <form className="login-panel" onSubmit={submit}>
+        <Mascot pose="login-duo" />
         <div>
           <span className="login-kicker">BallBallChu Odds</span>
           <h1>登入 Dashboard</h1>

@@ -28,6 +28,7 @@ import { AllFixtures } from "./pages/AllFixtures";
 import { canShowActiveOpportunities, useConnectivityState } from "./pwa";
 import { ApiError, createApiClient, type SessionState } from "./apiClient";
 import { LoginPage } from "./pages/LoginPage";
+import { Mascot } from "./components/Kawaii";
 
 
 type ApiStatus =
@@ -431,7 +432,14 @@ function App() {
   }
 
   if (authLoading) {
-    return <main className="login-page"><div className="login-panel">載入中...</div></main>;
+    return (
+      <main className="login-page">
+        <div className="login-panel" role="status">
+          <Mascot pose="momonga-loading" />
+          <p>載入中...</p>
+        </div>
+      </main>
+    );
   }
 
   if (!auth.authenticated) {

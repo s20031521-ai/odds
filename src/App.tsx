@@ -9,7 +9,7 @@ import {
   type AnalyzerSettings,
   type ManualEntry,
 } from "./odds";
-import { formatFixtureDateHeading, groupFixturesByDate } from "./dashboard";
+import { formatFixtureDayHeading, groupFixturesByDate } from "./dashboard";
 import { dataFreshFromHealth, dataHealthWarning, dataLoadsReady, dataLoadStateAfter, dataLoadWarning, type DataHealth, type DataLoadState } from "./dataHealth";
 
 import { buildTotalsCards, type TotalsMarketEntry } from "./oddsApi";
@@ -230,6 +230,10 @@ function App() {
   const fixtures = useMemo(() => upcomingFixtures(entries), [entries]);
   const dashboardFixtures = useMemo(() => sortFixturesByBestEdge(fixtures, rows), [fixtures, rows]);
   const fixtureDateGroups = useMemo(() => groupFixturesByDate(dashboardFixtures), [dashboardFixtures]);
+  const fixtureDayGroupsByTime = useMemo(() => fixtureDateGroups.map((group) => ({
+    ...group,
+    fixtures: [...group.fixtures].sort((left, right) => Date.parse(left.commenceTime) - Date.parse(right.commenceTime)),
+  })), [fixtureDateGroups]);
 
   const totalCards = useMemo(() => buildTotalsCards(totalEntries, settings.edgeThreshold), [totalEntries, settings.edgeThreshold]);
   const cornerCards = useMemo(() => buildTotalsCards(cornerEntries, settings.edgeThreshold).map((card) => ({
@@ -252,6 +256,7 @@ function App() {
     edgeThreshold: BUY_EDGE_THRESHOLD,
     dataFresh: opportunitiesTrusted,
   }), [buyCandidates, opportunitiesTrusted, selectionNow]);
+  const buyMatchIds = useMemo(() => new Set(buyOpportunities.map((opportunity) => opportunity.matchId)), [buyOpportunities]);
   const totalCardGroups = useMemo(() => groupMarketCards(totalCards), [totalCards]);
   const cornerCardGroups = useMemo(() => groupMarketCards(cornerCards), [cornerCards]);
   const visibleResultEntries = useMemo(() => excludeLegacyRows(resultEntries), [resultEntries]);
@@ -465,26 +470,23 @@ function App() {
           {dashboardFixtures.length === 0 ? (
             <div className="empty-state compact"><Mascot pose="chiikawa-empty" />未有賽事。輸入或拉取賠率後會出現喺呢度。<p className="empty-state__note">飲杯茶先～</p></div>
           ) : (
-            <div className="fixture-grid">
-              {fixtureDateGroups.map((group) => (
+            <div className="fixture-list">
+              {fixtureDayGroupsByTime.map((group) => (
                 <div className="fixture-day" key={group.date}>
-                  <h3>{formatFixtureDateHeading(group.date)}</h3>
-                  <div className="fixture-grid">
+                  <h3>{formatFixtureDayHeading(group.date)}</h3>
+                  <div className="fixture-list">
                     {group.fixtures.map((fixture) => {
                       const fixtureRows = rows.filter((row) => row.matchId === fixture.matchId);
                       const bestPick = bestH2hPick(fixtureRows, settings.edgeThreshold);
                       const isSelected = selectedFixture?.matchId === fixture.matchId;
                       return (
                         <div className={isSelected ? "fixture-card-wrap expanded" : "fixture-card-wrap"} key={fixture.matchId}>
-                          <a className={fixture.matchId.startsWith("hkjc-") ? "fixture-card hkjc-card" : "fixture-card"} href={`#/analysis?match=${encodeURIComponent(fixture.matchId)}`}>
-                            <span className="fixture-time">{formatDate(fixture.commenceTime)}</span>
-                            <strong><TeamLogo teamName={fixture.homeTeam} logos={teamLogos} /> {fixture.homeTeamZh ?? fixture.homeTeam} vs {fixture.awayTeamZh ?? fixture.awayTeam} <TeamLogo teamName={fixture.awayTeam} logos={teamLogos} /></strong>
-                            {(fixture.leagueZh ?? fixture.league) ? <span className="fixture-league">{fixture.leagueZh ?? fixture.league}</span> : null}
-                            <div className="fixture-meta">
-                              <span>{fixture.bookmakerCount} bookmakers</span>
-                              <span className="positive">市場 {formatPercent(bestPick.chance)}</span>
-                            </div>
-                            <div className="simple-pick">{bestPick.label}</div>
+                          <a className={fixture.matchId.startsWith("hkjc-") ? "fixture-row hkjc-card" : "fixture-row"} href={`#/analysis?match=${encodeURIComponent(fixture.matchId)}`}>
+                            <span className="fixture-row__time">{formatTimeOnly(fixture.commenceTime)}</span>
+                            <strong className="fixture-row__teams"><TeamLogo teamName={fixture.homeTeam} logos={teamLogos} /> {fixture.homeTeamZh ?? fixture.homeTeam} vs {fixture.awayTeamZh ?? fixture.awayTeam} <TeamLogo teamName={fixture.awayTeam} logos={teamLogos} /></strong>
+                            {(fixture.leagueZh ?? fixture.league) ? <span className="fixture-row__league">{fixture.leagueZh ?? fixture.league}</span> : null}
+                            {buyMatchIds.has(fixture.matchId) ? <span className="fixture-row__buy-dot" role="img" aria-label="有貨" title="有貨" /> : null}
+                            <span className={bestPick.label.startsWith("買") ? "fixture-row__pick" : "fixture-row__pick neutral"}>{bestPick.label}</span>
                           </a>
                           {isSelected ? <FixtureDetail fixture={fixture} rows={selectedRows} /> : null}
                         </div>
@@ -1051,6 +1053,13 @@ function formatDate(value: string): string {
   }
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function formatTimeOnly(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function badgeClass(label: string): string {

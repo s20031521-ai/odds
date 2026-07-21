@@ -130,5 +130,8 @@ describe("App integration source", () => {
     expect(source).toContain("connectivity.online ? dashboardWarning : OFFLINE_WARNING");
     expect(source).toContain("canShowActiveOpportunities(connectivity, dataFresh && dataLoadsReady(dataLoads))");
     expect(source).not.toContain("setDataFresh(connectivity.online)");
+    expect(source).toContain("formatFixtureDayHeading");
+    expect(source).toContain("buyMatchIds");
+    expect(source).toContain("fixture-row__buy-dot");
   });
 });

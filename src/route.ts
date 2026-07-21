@@ -14,6 +14,14 @@ export function fixtureIdFromHash(hash: string): string | null {
   return id ? decodeURIComponent(id) : null;
 }
 
+export function analysisMatchIdFromHash(hash: string): string | null {
+  const value = cleanHash(hash);
+  const questionIndex = value.indexOf("?");
+  if (questionIndex < 0 || value.slice(0, questionIndex) !== "analysis") return null;
+  const match = new URLSearchParams(value.slice(questionIndex + 1)).get("match");
+  return match ? match : null;
+}
+
 export function tabForRouteTransition(current: FixtureAnalysisTab, hash: string): FixtureAnalysisTab {
   return fixtureIdFromHash(hash) ? "h2h" : current;
 }

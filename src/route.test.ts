@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fixtureIdFromHash, pageFromHash } from "./route";
+import { analysisMatchIdFromHash, fixtureIdFromHash, pageFromHash } from "./route";
 import * as routeModule from "./route";
 
 describe("hash route", () => {
@@ -39,5 +39,21 @@ describe("hash route", () => {
     expect(tabForRouteTransition("corners", "#/dashboard/game-1")).toBe("h2h");
     expect(tabForRouteTransition("handicap", "#/fixtures")).toBe("handicap");
     expect(tabForRouteTransition("totals", "#/analysis")).toBe("totals");
+  });
+
+  it("parses analysis match query param", () => {
+    expect(analysisMatchIdFromHash("#/analysis?match=match-1")).toBe("match-1");
+    expect(analysisMatchIdFromHash("#/analysis?match=match%201")).toBe("match 1");
+  });
+
+  it("returns null when analysis hash has no match param", () => {
+    expect(analysisMatchIdFromHash("#/analysis")).toBeNull();
+    expect(analysisMatchIdFromHash("#/analysis?foo=1")).toBeNull();
+    expect(analysisMatchIdFromHash("#/analysis?match=")).toBeNull();
+  });
+
+  it("ignores match param on non-analysis routes", () => {
+    expect(analysisMatchIdFromHash("#/today")).toBeNull();
+    expect(analysisMatchIdFromHash("#/fixtures/match-1?match=match-2")).toBeNull();
   });
 });

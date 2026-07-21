@@ -4,14 +4,15 @@ import * as routeModule from "./route";
 
 describe("hash route", () => {
   it("resolves fixtures and all legacy top-level routes", () => {
-    expect(pageFromHash("")).toBe("dashboard");
-    expect(pageFromHash("#/dashboard")).toBe("dashboard");
+    expect(pageFromHash("")).toBe("today");
+    expect(pageFromHash("#/today")).toBe("today");
+    expect(pageFromHash("#/dashboard")).toBe("today"); // legacy alias
     expect(pageFromHash("#/fixtures")).toBe("fixtures");
     expect(pageFromHash("#/analysis")).toBe("analysis");
     expect(pageFromHash("#analysis")).toBe("analysis");
     expect(pageFromHash("#/history")).toBe("history");
-    expect(pageFromHash("#/nope")).toBe("dashboard");
-    expect(pageFromHash("#/fixtures-old")).toBe("dashboard");
+    expect(pageFromHash("#/nope")).toBe("today");
+    expect(pageFromHash("#/fixtures-old")).toBe("today");
   });
 
   it("extracts fixture id from dashboard detail hash", () => {
@@ -24,7 +25,7 @@ describe("hash route", () => {
   it("opens fixtures detail and legacy dashboard detail under the fixtures page", () => {
     expect(pageFromHash("#/fixtures/game-1")).toBe("fixtures");
     expect(pageFromHash("#/dashboard/game-1")).toBe("fixtures");
-    expect(pageFromHash("#/dashboard")).toBe("dashboard");
+    expect(pageFromHash("#/dashboard")).toBe("today");
   });
 
   it("forces the H2H tab only when a fixture detail route is entered", () => {

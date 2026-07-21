@@ -1,4 +1,4 @@
-export type Page = "dashboard" | "fixtures" | "analysis" | "history";
+export type Page = "today" | "fixtures" | "analysis" | "history";
 export type FixtureAnalysisTab = "h2h" | "totals" | "corners" | "handicap";
 
 export function pageFromHash(hash: string): Page {
@@ -6,7 +6,7 @@ export function pageFromHash(hash: string): Page {
   if (value === "fixtures" || value.startsWith("fixtures/") || value.startsWith("dashboard/")) return "fixtures";
   if (value.startsWith("analysis")) return "analysis";
   if (value.startsWith("history")) return "history";
-  return "dashboard";
+  return "today";
 }
 
 export function fixtureIdFromHash(hash: string): string | null {

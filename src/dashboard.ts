@@ -36,6 +36,14 @@ export function formatFixtureDateHeading(value: string): string {
   return value === "未設定日期" ? value : value.replace(/-/g, "/");
 }
 
+export function formatFixtureDayHeading(value: string, now: Date = new Date()): string {
+  if (value === "未設定日期") return value;
+  const base = formatFixtureDateHeading(value);
+  if (value === fixtureDateKey(now.toISOString())) return `今日 ${base}`;
+  if (value === fixtureDateKey(new Date(now.getTime() + 86_400_000).toISOString())) return `聽日 ${base}`;
+  return base;
+}
+
 function sortableDate(value: string): number {
   const time = new Date(value).getTime();
   return Number.isNaN(time) ? Number.MAX_SAFE_INTEGER : time;

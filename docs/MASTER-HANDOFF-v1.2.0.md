@@ -4,7 +4,7 @@
 > 版本：v1.2.0（git tag `v1.2.0`，package.json version `1.2.0`）
 > 日期：2026-07-22
 > 語言：本 repo 所有交接文件用廣東話書寫，程式碼註解用英文。
-> v1.2.0 變更：整合 **Today-first UI Phase C**（`HANDOFF-2026-07-22-today-first-ui-phase-c.md`，branch 8 commits `b9e943c`…`ed0c8ed` ff merge master）— 賽程頁 h2h tab 執整（今日/聽日分組標題、一行式 fixture row、聯賽 chips + 隊名搜尋 toolbar、「有貨」mint 點、日內按開賽時間排序）、紀錄頁執整（四模型 readiness 進度條 X/30、「等緊開賽」pending 卡 +「已完場」分組、賽前快照 `<details>`）、server `/api/v1/backtest` response 加 `pending` 陣列（未結算 valid-current snapshot，冇新 endpoint）、owner-approved cleanup：刪 `SimpleDashboard.tsx` + `marketDisplay.ts` dead exports + 舊 analysis CSS（11 files +10/−559）。Merged 測試全綠：Vitest 233/233、tsc 0 errors、server node:test 9/9、Playwright 84/84 ×2。**未部署 production** — 今次郁咗 server code，deploy 要 rebuild api + caddy 兩個 image，照舊等 owner 講「上」先郁。模型檔 + `BuyDashboard.tsx` 零 diff。v1.0.0 / v1.0.1 / v1.0.2 / v1.1.0 / v1.1.1 文件保留做歷史。
+> v1.2.0 變更：整合 **Today-first UI Phase C**（`HANDOFF-2026-07-22-today-first-ui-phase-c.md`，branch 8 commits `b9e943c`…`ed0c8ed` ff merge master）— 賽程頁 h2h tab 執整（今日/聽日分組標題、一行式 fixture row、聯賽 chips + 隊名搜尋 toolbar、「有貨」mint 點、日內按開賽時間排序）、紀錄頁執整（四模型 readiness 進度條 X/30、「等緊開賽」pending 卡 +「已完場」分組、賽前快照 `<details>`）、server `/api/v1/backtest` response 加 `pending` 陣列（未結算 valid-current snapshot，冇新 endpoint）、owner-approved cleanup：刪 `SimpleDashboard.tsx` + `marketDisplay.ts` dead exports + 舊 analysis CSS（11 files +10/−559）。Merged 測試全綠：Vitest 233/233、tsc 0 errors、server node:test 9/9、Playwright 84/84 ×2。**已部署 production（2026-07-22 凌晨）** — rebuild 咗 api + caddy 兩個 image，bundle `index-jmHUUAaH.js`，備份 `pre-deploy-20260721-165125.dump`（VM 時鐘係 UTC）。模型檔 + `BuyDashboard.tsx` 零 diff。模型檔 + `BuyDashboard.tsx` 零 diff。v1.0.0 / v1.0.1 / v1.0.2 / v1.1.0 / v1.1.1 文件保留做歷史。
 
 ---
 
@@ -12,7 +12,7 @@
 
 **odds-tool 係一個足球賠率價值分析 PWA，已正式上線生產：`https://odds.ballballchu.com.hk`。** React 19 + TS 前端（中文 UI + 球隊 logo + **Chiikawa pastel 主題** + **Today-first 首頁 v1.1.0** + **單場分析頁 v1.1.1** + **賽程／紀錄執整 v1.2.0**）、raw `node:http` API、PostgreSQL 18、Cloudflare Tunnel 對外（零主機 port）、兩個 collector 自動運行緊。單一 owner 登入，冇 signup。四個投注模型（主客和／大細／角球／亞洲讓球）凍結喺 3% edge 門檻，全部 0 settled matches，等緊數據累積到每個 30 場先可以考慮調校。
 
-⚠️ Production 暫時仲行緊 v1.1.1 build（bundle `index-BW9hE076.js`）；v1.2.0 已 merge master 但**未部署**（等 owner「上」，見 §9.4）。
+⚠️ Production 行緊 v1.2.0 build（bundle `index-jmHUUAaH.js`，2026-07-22 凌晨部署；上一版 v1.1.1 係 `index-BW9hE076.js`）。
 
 專案位置：`C:\Users\itadmin\Documents\賭`（Windows 本機；git repo 2026-07-19 重建，base commit `645f22a`，冇 remote）。
 
@@ -63,7 +63,7 @@ sudo -A docker exec odds-tool-postgres-1 psql -U postgres -d odds -tAc "SELECT s
 | 順序 | 文件 | 用途 |
 |---|---|---|
 | 1 | 本文件 | 全局 |
-| 2 | `docs/HANDOFF-2026-07-22-today-first-ui-phase-c.md` | 最新 feature：賽程＋紀錄執整 Phase C（merged master，**未部署**，含 adjudicated deviations + deferred minors + deploy notes） |
+| 2 | `docs/HANDOFF-2026-07-22-today-first-ui-phase-c.md` | 最新 feature：賽程＋紀錄執整 Phase C（merged master + **已部署**，含 adjudicated deviations + deferred minors + deploy notes） |
 | 3 | `docs/HANDOFF-2026-07-21-today-first-ui-phase-b.md` | 單場分析頁 Phase B（已部署，含 SDD 過程 + auto-load gate bug 教訓 + deferred minors） |
 | 4 | `docs/HANDOFF-2026-07-21-today-first-ui-phase-a.md` | Today-first 首頁 Phase A（已部署） |
 | 5 | `docs/HANDOFF-2026-07-21-chiikawa-ui-refresh.md` | Chiikawa UI 改造 + Playwright 修復（已部署） |
@@ -90,7 +90,7 @@ sudo -A docker exec odds-tool-postgres-1 psql -U postgres -d odds -tAc "SELECT s
 | 備份 | 手動 `pg_dump`：`/opt/odds-tool/backups/odds-2026-07-19.dump`（已驗證 10/10 表）+ Chiikawa 部署前 `pre-deploy-20260721-044351.dump` + `pre-deploy-20260721-055126.dump` + Today-first 部署前 `pre-deploy-20260721-093231.dump` + Phase B 部署前 `pre-deploy-20260721-122827.dump` — **冇自動備份** |
 | 測試 | **Vitest 233/233 全綠**（master；Phase C 淨變化 −12：SimpleDashboard test + marketDisplay dead-export tests 刪除）；**Playwright 84/84 全綠 ×2**（4 viewports；Phase C +8：fixtures toolbar/buy dots + history readiness/groups 兩個新 test ×4 viewports）；server `node:test` 9/9；`tsc --noEmit` 0 errors + `vite build` 通過 |
 | Dashboard | 雙模式：**今日（新預設，`TodayPage`）**+ 專業（`BuyDashboard` 原封），`#/today` 右上一條 toggle，localStorage `dashboard-mode`（值仍係 `"simple" \| "pro"` 冇變） |
-| UI 主題 | Chiikawa pastel 主題 + Today-first 首頁（v1.1.0）+ 單場分析頁（v1.1.1）+ **賽程／紀錄執整（v1.2.0，merged 未部署）**：賽程頁今日/聽日分組 + 一行式 `.fixture-row` + 聯賽 chips/隊名搜尋 toolbar + 有貨 mint 點；紀錄頁四模型 readiness 進度條 + 等緊開賽/已完場分組；self-hosted Baloo 2 webfont；零外部資源（離線可用）；production bundle 仍係 `index-BW9hE076.js`（v1.1.1，2026-07-21 晚部署；v1.2.0 未部署） |
+| UI 主題 | Chiikawa pastel 主題 + Today-first 首頁（v1.1.0）+ 單場分析頁（v1.1.1）+ **賽程／紀錄執整（v1.2.0，已部署）**：賽程頁今日/聽日分組 + 一行式 `.fixture-row` + 聯賽 chips/隊名搜尋 toolbar + 有貨 mint 點；紀錄頁四模型 readiness 進度條 + 等緊開賽/已完場分組；self-hosted Baloo 2 webfont；零外部資源（離線可用）；production bundle `index-jmHUUAaH.js`（v1.2.0，2026-07-22 凌晨部署） |
 | 路由 | `#/today`（首頁）/ `#/fixtures` / `#/analysis`（單場分析頁，`?match=<matchId>` 揀場；裸路徑係揀場 picker）/ `#/history`；**舊 `#/dashboard` 喺 `pageFromHash` alias 落 today**（舊書籤/PWA 唔死），`#/dashboard/<id>` 深鏈維持落 fixtures；nav label：今日／賽程／分析／紀錄 |
 | 球隊 logo | `public/team-logos/` 70 個 PNG；`public/team-logos.json` manifest 75 隊（31 隊 `needsReview` 待 owner 核對）；搵唔到顯示 initials 徽章；Caddy `file_server` 直接派 PNG 唔經 API |
 | 每日自動續跑 | Blueprint Automation `automation_1dbf8f50-40cd-4dcf-b007-a16b2c452f41`「球隊 logo 每日續跑」，cron `17 9 * * *` Asia/Hong_Kong，enabled，latestRun succeeded |
@@ -378,6 +378,7 @@ scp -i ~/.ssh/astra_vm_ed25519 -P 169 /tmp/.ap.sh hugo@118.140.60.206:/tmp/.ap.s
     backups/pre-deploy-20260721-055126.dump   # Chiikawa 第二次部署前備份（v1.0.2）
     backups/pre-deploy-20260721-093231.dump   # Today-first Phase A 部署前備份（v1.1.0）
     backups/pre-deploy-20260721-122827.dump   # Phase B 部署前備份（v1.1.1）
+    backups/pre-deploy-20260721-165125.dump   # Phase C 部署前備份（v1.2.0，VM 時鐘 UTC = 香港 2026-07-22 00:51）
 ```
 
 ### 9.3 Docker 怪癖（已繞過，唔好「修正」返）
@@ -392,8 +393,9 @@ scp -i ~/.ssh/astra_vm_ed25519 -P 169 /tmp/.ap.sh hugo@118.140.60.206:/tmp/.ap.s
 - 部署前：`pg_dump` 備份 + `docker tag odds-tool-{api,caddy}:latest :rollback`。
 - `sudo -A docker compose config --quiet` validate → build → per-service `up -d --no-deps <service>`。
 - Smoke 綠先開 collector + cloudflared。
-- 呢個流程（tarball→scp→rsync→pg_dump→tag rollback→build caddy→smoke）已驗證**七次**：team logos feature 三次（2026-07-20/21）+ Chiikawa UI 兩次（2026-07-21）+ Today-first Phase A 一次（bundle `index-BYUf2jMY.js`、備份 `pre-deploy-20260721-093231.dump`）+ Phase B 一次（2026-07-21 晚，純前端淨 rebuild caddy，bundle `index-BW9hE076.js`、備份 `pre-deploy-20260721-122827.dump`）。
-- ⚠️ **v1.2.0 部署注意**：今次 server code 有 diff（`server/domain/backtest.mjs` 加 `pending`）→ 要 rebuild **api + caddy 兩個 image**（Phase A/B 純前端淨 rebuild caddy 嘅做法今次唔啱用）。Deploy 照舊 **gated on owner 講「上」**。
+- 呢個流程（tarball→scp→rsync→pg_dump→tag rollback→build→smoke）已驗證**八次**：team logos feature 三次（2026-07-20/21）+ Chiikawa UI 兩次（2026-07-21）+ Today-first Phase A 一次（bundle `index-BYUf2jMY.js`、備份 `pre-deploy-20260721-093231.dump`）+ Phase B 一次（2026-07-21 晚，純前端淨 rebuild caddy，bundle `index-BW9hE076.js`、備份 `pre-deploy-20260721-122827.dump`）+ Phase C 一次（2026-07-22 凌晨，api + caddy 兩個 image，bundle `index-jmHUUAaH.js`、備份 `pre-deploy-20260721-165125.dump`；中途 git archive CRLF 中伏一次，見下面 ⚠️）。
+- ⚠️ **v1.2.0 已部署（2026-07-22 凌晨）**：rebuild api + caddy 兩個 image，bundle `index-jmHUUAaH.js`，備份 `pre-deploy-20260721-165125.dump`，rollback tags 已打，smoke 全綠（internal 200/404/200、public 200/401/404/HSTS、tunnel ×4、quota 388、collector 重啟後即寫咗批新盤）。
+- ⚠️ **git archive 喺 Windows 會輸出 CRLF**（v1.2.0 部署實測中伏）：`git archive` 跟 `core.autocrlf=true` 將成個 tarball 轉 CRLF → image 入面 `.sh` entrypoint 嘅 shebang 變 `#!/bin/sh\r` → api container `exec ... no such file or directory` 不停 restart。解法：打包用 `git -c core.autocrlf=false -c core.eol=lf archive master -o <tar>`，上傳前 `tar -xOf <tar> deploy/api-entrypoint.sh | head -1 | od -c` 驗證係 `\n` 先繼續。
 - ⚠️ **Cloudflare 預設快取 `.js`**：曾經舊 `sw.js` 派舊 bundle 嘅 incident。Caddy 已對 `/sw.js`、`/registerSW.js` 派 `no-cache, must-revalidate`；如果更新後睇唔到新 UI，Cloudflare dashboard Purge Everything。**如果個 client 已經中咗招（裝咗舊 SW）**，Caddy no-cache 救唔到佢 — 要喺嗰個 client unregister service worker + `caches.delete()` 一次（見 §11.3 第 6 條）。
 
 ### 9.5 Rollback
@@ -512,7 +514,7 @@ scp -i ~/.ssh/astra_vm_ed25519 -P 169 /tmp/.ap.sh hugo@118.140.60.206:/tmp/.ap.s
 | 2026-07-21 | `MASTER-HANDOFF-v1.1.0.md` | v1.1.0 master handoff（整合 Today-first Phase A，已部署 production） |
 | 2026-07-21 | `HANDOFF-2026-07-21-today-first-ui-phase-b.md` | Today-first UI Phase B（單場分析頁）+ SDD 8 task + 部署 |
 | 2026-07-21 | `MASTER-HANDOFF-v1.1.1.md` | v1.1.1 master handoff（整合 Today-first Phase B，已部署 production） |
-| 2026-07-22 | `HANDOFF-2026-07-22-today-first-ui-phase-c.md` | Today-first UI Phase C（賽程＋紀錄執整 + cleanup）+ merged master，**未部署** |
+| 2026-07-22 | `HANDOFF-2026-07-22-today-first-ui-phase-c.md` | Today-first UI Phase C（賽程＋紀錄執整 + cleanup）+ merged master + **已部署**（bundle `index-jmHUUAaH.js`） |
 | 2026-07-22 | **本文件** | v1.2.0 master handoff（整合 Today-first Phase C，merged master，部署待定） |
 
 Git：base `645f22a chore: initial import`（2026-07-19 repo 重建）→ dashboard mode commits → v1.0.0 tag → team logos commits → `d4f835e` → v1.0.1 tag（`58e6aa8`）→ Chiikawa UI refresh commits（`8545216` spec → `d47f087` plan → `adb1f7a`…`d280bf9` 實施 → `9e28452` Playwright 修復 → `bca41d0` handoff → 收尾 `ec24f06` / `83cd086` / `58ff5b9` / `04d3707`）→ 第一次 production deploy（bundle `index-CLj0yK_X.js`）→ v1.0.2 tag（`12effe1`）→ `489e1dc` 標記已部署 → 第二輪收尾 `e79747a` / `4fb7aa1` / `53154b4` → 第二次 production deploy（2026-07-21 下午，bundle `index-DJb2OR6G.js`，備份 `pre-deploy-20260721-055126.dump`）→ v1.1.0：spec `8c2fb71` → plan `5b2ab7b` → branch `today-first-phase-a` 13 commits（`4684a69`…`e837c02`）→ ff merge master → production deploy（bundle `index-BYUf2jMY.js`，備份 `pre-deploy-20260721-093231.dump`）→ v1.1.0 tag → v1.1.1：plan `f37ffd5` → branch `today-first-phase-b` 7 commits（`5a1dff3`…`b03ac8f`）→ ff merge master → production deploy（bundle `index-BW9hE076.js`，備份 `pre-deploy-20260721-122827.dump`）→ v1.1.1 tag → v1.2.0：branch 8 commits（`b9e943c`…`ed0c8ed`）→ ff merge master → v1.2.0 tag（**部署待定**：等 owner「上」，要 rebuild api + caddy）。

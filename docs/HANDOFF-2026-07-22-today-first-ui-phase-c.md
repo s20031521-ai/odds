@@ -2,7 +2,7 @@
 
 日期：2026-07-22
 版本：v1.2.0
-狀態：✅ 已完成 + merged master（`b9e943c..ed0c8ed`，8 commits）— **未部署 production**（等 owner「上」；今次要 rebuild api + caddy 兩個 image）
+狀態：✅ 已完成 + merged master（`b9e943c..ed0c8ed`，8 commits）+ **已部署 production（2026-07-22 凌晨）** — rebuild api + caddy 兩個 image，bundle `index-jmHUUAaH.js`，備份 `pre-deploy-20260721-165125.dump`，smoke 全綠。部署中伏一次：git archive 喺 Windows 輸出 CRLF 令 api entrypoint shebang 失效（`exec ... no such file or directory` 不停 restart），改用 `git -c core.autocrlf=false -c core.eol=lf archive` 重打包後順利 — 教訓已寫入 MASTER-HANDOFF §9.4。
 
 ---
 
@@ -72,10 +72,13 @@ Merged result 全綠：**Vitest 233/233**、**tsc 0 errors**、**server node:tes
 7. 聯賽 chip stale selection 冇 prune（揀咗嘅聯賽消失仲留喺 selection）。
 8. `isPendingEntry` 對 numeric fields 檢查寬鬆（plan-mandated）。
 
-## 7. 部署 notes
+## 7. 部署 notes（已執行，2026-07-22 凌晨）
 
-- 今次 **server code 有 diff**（`server/domain/backtest.mjs`）→ production deploy 要 rebuild **api + caddy 兩個 image**（之前 Phase A/B 純前端淨 rebuild caddy）。
-- 部署照舊 **gated on owner 講「上」**；流程同 runbook（pg_dump 備份 + rollback tags + smoke）。
+- 今次 **server code 有 diff**（`server/domain/backtest.mjs`）→ rebuild 咗 **api + caddy 兩個 image**（之前 Phase A/B 純前端淨 rebuild caddy）。
+- 實際部署紀錄：pg_dump 備份 `pre-deploy-20260721-165125.dump`（VM 時鐘 UTC）→ rollback tags（api + caddy）→ `git archive` tarball 同步 → build → `up -d --no-deps api/caddy` → smoke → collector recreate（佢共用 api image）。
+- ⚠️ 中伏位：第一次 build 後 api 不停 restart（`exec /usr/local/bin/api-entrypoint.sh: no such file or directory`）— 查實係 Windows `git archive` 跟 `core.autocrlf=true` 將成個 tarball 轉咗 CRLF，entrypoint shebang 變 `#!/bin/sh\r`。用 `git -c core.autocrlf=false -c core.eol=lf archive` 重打包 + 重新同步 + rebuild 後即 healthy。**以後打包一定要用呢個指令。**
+- Smoke 結果：internal `api ready 200 / caddy internal 404 / session 200`；public `root 200 / results 401 / internal 404 / HSTS ≥1`；tunnel `Registered tunnel connection` ×4；collector quota 388（>50）；collector 重啟後即寫咗批新盤（92 HAD / 92 HIL / 21 CHL / 58 HDC + 582 result comparisons）。
+- Bundle：image 內 `/srv/index.html` 同 public 派嘅都係 `index-jmHUUAaH.js`（hash 核對一致；上一版 `index-BW9hE076.js`）。askpass 兩邊已刪。
 
 ---
 

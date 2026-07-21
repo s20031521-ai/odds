@@ -100,7 +100,7 @@ Owner 想將成個 app(登入頁、值得買、全部賽事、完場紀錄、模
 
 ⚠️ 本機 Git Bash 冇 `npm`/`npx` 喺 PATH,跑測試用 `node node_modules/vitest/vitest.mjs run`(詳見 master handoff §8.1)。
 
-**未部署**:今次改動仲未上 production(`https://odds.ballballchu.com.hk` 仲係深色主題)。要上的話係純前端改動,跟 team-logos handoff §4 流程,淨係 rebuild caddy;記住 Cloudflare purge + stale SW 教訓(master handoff §11.3 #5/#6)。
+**已部署(2026-07-21)**:純前端改動,跟 team-logos handoff §4 流程 rebuild caddy 上咗 production(`https://odds.ballballchu.com.hk`)。Smoke 全過(caddy healthy、首頁 200、API 401、internal 404、HSTS ✓、tunnel ×4),公開 bundle `index-CLj0yK_X.js` 同本地 build 一致(grep `chiikawa` ×18)。DB 備份 `pre-deploy-20260721-044351.dump`,`odds-tool-caddy:rollback` 就位。Cloudflare purge 唔駛做(edge 已派新嘢);如 client 睇唔到新主題,係 stale Service Worker 問題,要 unregister SW + reload(master handoff §11.3 #5/#6 教訓)。
 
 ## 7. 已知事項 / 技術債
 

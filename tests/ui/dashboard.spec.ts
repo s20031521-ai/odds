@@ -63,10 +63,13 @@ test("responsive navigation, touch targets, fixtures, and detail work", async ({
   await expect(page.locator(".fixture-card-wrap")).toHaveCount(3);
   if (touchLayout) await expectMinimumHeight(page.locator(".market-tabs button"), 44);
 
-  await page.locator('a[href="#/fixtures/match-value"]').click();
-  await expect(page).toHaveURL(/#\/fixtures\/match-value$/);
-  await expect(page.locator(".fixture-detail")).toBeVisible();
+  await page.locator('a[href="#/analysis?match=match-value"]').click();
+  await expect(page).toHaveURL(/#\/analysis\?match=match-value$/);
+  await expect(page.locator(".match-analysis")).toBeVisible();
   await expectNoDocumentOverflow(page);
+
+  await page.goto("/#/fixtures/match-value");
+  await expect(page.locator(".fixture-detail")).toBeVisible();
 
   await nav.getByRole("link", { name: "紀錄" }).click();
   await expect(page).toHaveURL(/#\/history$/);

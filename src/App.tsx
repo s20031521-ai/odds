@@ -281,7 +281,7 @@ function App() {
 
   useEffect(() => {
     if (!auth.authenticated) return;
-    if ((page === "today" || page === "fixtures") && !hkjcAutoLoadStarted.current) {
+    if ((page === "today" || page === "fixtures" || page === "analysis") && !hkjcAutoLoadStarted.current) {
       hkjcAutoLoadStarted.current = true;
       void loadHkjcOdds();
     }
@@ -293,7 +293,7 @@ function App() {
 
   useEffect(() => {
     if (!auth.authenticated) return;
-    if ((page !== "today" && page !== "fixtures") || !["h2h", "handicap", "totals", "corners"].includes(analysisTab)) return;
+    if ((page !== "today" && page !== "fixtures" && page !== "analysis") || !["h2h", "handicap", "totals", "corners"].includes(analysisTab)) return;
     void refreshHdcOdds();
     void refreshDataHealth();
     const timer = window.setInterval(() => {

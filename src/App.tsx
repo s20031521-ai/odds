@@ -23,7 +23,7 @@ import { AppShell } from "./components/AppShell";
 import { buildBuyCandidates } from "./buyCandidates";
 import { BUY_EDGE_THRESHOLD, candidateSelectionRuntime, selectBuyOpportunities } from "./buyOpportunities";
 import { DashboardPage } from "./pages/DashboardPage";
-import type { TeamLogoMap } from "./components/TeamLogo";
+import { TeamLogo, type TeamLogoMap } from "./components/TeamLogo";
 import { AllFixtures } from "./pages/AllFixtures";
 import { canShowActiveOpportunities, useConnectivityState } from "./pwa";
 import { ApiError, createApiClient, type SessionState } from "./apiClient";
@@ -477,7 +477,7 @@ function App() {
                         <div className={isSelected ? "fixture-card-wrap expanded" : "fixture-card-wrap"} key={fixture.matchId}>
                           <a className={fixture.matchId.startsWith("hkjc-") ? "fixture-card hkjc-card" : "fixture-card"} href={`#/fixtures/${encodeURIComponent(fixture.matchId)}`}>
                             <span className="fixture-time">{formatDate(fixture.commenceTime)}</span>
-                            <strong>{fixture.homeTeamZh ?? fixture.homeTeam} vs {fixture.awayTeamZh ?? fixture.awayTeam}</strong>
+                            <strong><TeamLogo teamName={fixture.homeTeam} logos={teamLogos} /> {fixture.homeTeamZh ?? fixture.homeTeam} vs {fixture.awayTeamZh ?? fixture.awayTeam} <TeamLogo teamName={fixture.awayTeam} logos={teamLogos} /></strong>
                             {(fixture.leagueZh ?? fixture.league) ? <span className="fixture-league">{fixture.leagueZh ?? fixture.league}</span> : null}
                             <div className="fixture-meta">
                               <span>{fixture.bookmakerCount} bookmakers</span>
@@ -591,7 +591,7 @@ function App() {
             <div className="empty-state compact"><span>暫時未有已收集嘅大細波盤。</span><button className="secondary-button compact" onClick={refreshHdcOdds}>重新載入</button></div>
           ) : (
             <div className="fixture-grid">
-              {totalCardGroups.map((group) => <MarketCardGroup group={group} key={group.matchId} market="totals" />)}
+              {totalCardGroups.map((group) => <MarketCardGroup group={group} key={group.matchId} market="totals" logos={teamLogos} />)}
             </div>
           )}
         </Panel>
@@ -605,7 +605,7 @@ function App() {
             <div className="empty-state compact"><span>暫時未有開賽前 30 分鐘內嘅角球盤。</span><button className="secondary-button compact" onClick={loadHkjcOdds}>重新載入</button></div>
           ) : (
             <div className="fixture-grid">
-              {cornerCardGroups.map((group) => <MarketCardGroup group={group} key={group.matchId} market="corners" />)}
+              {cornerCardGroups.map((group) => <MarketCardGroup group={group} key={group.matchId} market="corners" logos={teamLogos} />)}
             </div>
           )}
         </Panel>
@@ -622,7 +622,7 @@ function App() {
               {handicapCards.map((card) => (
                 <div className={`fixture-card market-card${card.hasHkjc ? " hkjc-card" : ""}`} key={`${card.matchId}-${card.line}`}>
                   <span className="fixture-time">{formatDate(card.commenceTime)}</span>
-                  <strong>{card.homeTeamZh ?? card.homeTeam} vs {card.awayTeamZh ?? card.awayTeam}</strong>
+                  <strong><TeamLogo teamName={card.homeTeam} logos={teamLogos} /> {card.homeTeamZh ?? card.homeTeam} vs {card.awayTeamZh ?? card.awayTeam} <TeamLogo teamName={card.awayTeam} logos={teamLogos} /></strong>
                   {(card.leagueZh ?? card.league) ? <span className="fixture-league">{card.leagueZh ?? card.league}</span> : null}
                   <div className="fixture-meta">
                     <span>{card.bookmakerCount} bookmakers</span>
@@ -707,14 +707,14 @@ function PerformanceBar({ label, value, meta }: { label: string; value: number; 
 
 type TotalsCard = ReturnType<typeof buildTotalsCards>[number];
 
-function MarketCardGroup({ group, market }: { group: { matchId: string; primary: TotalsCard; lines: TotalsCard[] }; market: "totals" | "corners" }) {
+function MarketCardGroup({ group, market, logos }: { group: { matchId: string; primary: TotalsCard; lines: TotalsCard[] }; market: "totals" | "corners"; logos: TeamLogoMap }) {
   const card = group.primary;
   const otherLines = group.lines.filter((line) => line.id !== card.id);
   const lineLabel = market === "corners" ? "角球 Line" : "Line";
   return (
     <article className={card.hasHkjc ? "fixture-card market-card hkjc-card" : "fixture-card market-card"}>
       <span className="fixture-time">{formatDate(card.commenceTime)}</span>
-      <strong>{card.homeTeamZh ?? card.homeTeam} vs {card.awayTeamZh ?? card.awayTeam}</strong>
+      <strong><TeamLogo teamName={card.homeTeam} logos={logos} /> {card.homeTeamZh ?? card.homeTeam} vs {card.awayTeamZh ?? card.awayTeam} <TeamLogo teamName={card.awayTeam} logos={logos} /></strong>
       {(card.leagueZh ?? card.league) ? <span className="fixture-league">{card.leagueZh ?? card.league}</span> : null}
       <div className="fixture-meta">
         <span>{card.bookmakerCount} bookmakers</span>

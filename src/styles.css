@@ -814,6 +814,68 @@ select:focus {
   color: var(--color-text);
 }
 
+.model-readiness {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.model-readiness__item {
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+}
+
+.model-readiness__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.model-readiness__bar {
+  height: 10px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-border);
+}
+
+.model-readiness__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-positive);
+}
+
+.history-group {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.history-group__title {
+  margin: 0;
+  color: var(--color-primary-text);
+  font-size: 0.95rem;
+}
+
+.history-group__empty {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.pending-card__summary {
+  display: grid;
+  gap: 8px;
+  cursor: pointer;
+}
+
 .empty-state.compact {
   min-height: 84px;
 }

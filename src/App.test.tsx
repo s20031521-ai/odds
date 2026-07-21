@@ -46,6 +46,10 @@ describe("App integration source", () => {
     expect(source).toContain('{page === "history" ? <h1 className="page-heading">完場對比</h1> : null}');
     expect(source).toContain('<MatchAnalysisPage');
     expect(source).toContain('matchId={analysisMatchId}');
+    expect(source).toContain("model-readiness");
+    expect(source).toContain("等緊開賽");
+    expect(source).toContain("已完場");
+    expect(source).toContain("PendingCard");
   });
 
   it("starts freshness fail-closed and only trusts a validated health response", () => {

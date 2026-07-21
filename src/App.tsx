@@ -101,6 +101,14 @@ const HDC_REFRESH_MS = 3 * 60 * 1000;
 const initialEntries: ManualEntry[] = [];
 const OFFLINE_WARNING = "目前離線；已隱藏值得買機會，連線後會自動恢復。";
 
+const READINESS_TARGET = 30;
+const READINESS_MODELS: Array<{ market: HistoryMarket; modelVersion: string }> = [
+  { market: "主客和", modelVersion: "consensus-v1" },
+  { market: "大細波", modelVersion: "totals-loo-v1" },
+  { market: "角球", modelVersion: "corner-loo-v1" },
+  { market: "亞洲讓球", modelVersion: "hdc-loo-v2" },
+];
+
 
 function App() {
   const [lastSuccessfulSync, setLastSuccessfulSync] = useState<string | null>(null);
@@ -279,6 +287,8 @@ function App() {
   const comparableMatchCount = useMemo(() => new Set(comparableResultRows.map((row) => row.matchId)).size, [comparableResultRows]);
   const historyStats = useMemo(() => summarizeHistoryRows(marketResultRows), [marketResultRows]);
   const resultRows = historyView === "comparable" ? comparableResultRows : marketResultRows;
+  const marketPendingEntries = useMemo(() => pendingEntries.filter((entry) => entry.market === historyMarket), [pendingEntries, historyMarket]);
+  const fixturesByMatchId = useMemo(() => new Map(fixtures.map((fixture) => [fixture.matchId, fixture])), [fixtures]);
   const qualityWarning = snapshotQuality ? snapshotQualityMessage(snapshotQuality) : null;
   const selectedFixture = fixtures.find((fixture) => fixture.matchId === fixtureId) ?? null;
   const selectedRows = selectedFixture ? rows.filter((row) => row.matchId === selectedFixture.matchId) : [];
@@ -605,6 +615,22 @@ function App() {
       <section className="dashboard-section">
         <Panel title="完場紀錄 vs 預測" icon={<CalendarDays size={18} />}>
           {qualityWarning ? <div className="sample-warning" role="status"><Mascot pose="momonga-alert" /><AlertTriangle size={17} />{qualityWarning}</div> : null}
+          <div className="model-readiness" aria-label="模型樣本進度">
+            {READINESS_MODELS.map(({ market, modelVersion }) => {
+              const readinessEntry = readiness.find((row) => row.market === market && row.modelVersion === modelVersion);
+              const settled = readinessEntry?.settledMatches ?? 0;
+              const percent = Math.min(100, Math.round((settled / READINESS_TARGET) * 100));
+              return (
+                <div className="model-readiness__item" key={modelVersion}>
+                  <div className="model-readiness__head">
+                    <span>{market}</span>
+                    <span>{settled}/{READINESS_TARGET} 場</span>
+                  </div>
+                  <div className="model-readiness__bar" aria-hidden="true"><span style={{ width: `${percent}%` }} /></div>
+                </div>
+              );
+            })}
+          </div>
           <div className="history-toolbar">
             <div className="history-market-tabs" aria-label="完場市場">
               {(["主客和", "角球", "大細波", "亞洲讓球"] as HistoryMarket[]).map((market) => (
@@ -625,28 +651,60 @@ function App() {
             <div aria-live="polite" className="empty-state compact" role="status"><Mascot pose="momonga-loading" /><Loader2 aria-hidden="true" className="spin" size={20} /><span>正在載入完場對比。</span></div>
           ) : historyError ? (
             <div className="empty-state compact" role="alert"><Mascot pose="momonga-alert" /><span>{historyError}</span><button className="secondary-button compact" onClick={loadBacktest}>重新載入</button></div>
-          ) : resultRows.length === 0 ? (
-            <div className="empty-state compact">
-              <Mascot pose="chiikawa-empty" />
-              <span>{marketResultRows.length > 0 ? `未有附帶賽前 snapshot 嘅${historyMarket}記錄。` : `暫時未有${historyMarket}完場記錄。`}</span>
-              {marketResultRows.length > 0 ? <button className="secondary-button compact" onClick={() => setHistoryView("all")}>顯示全部記錄</button> : null}
-            </div>
           ) : (
-            <div className="fixture-grid">
-              {resultRows.map((row) => (
-                <div className="fixture-card market-card" key={row.id}>
-                  <span className="fixture-time">{formatDate(row.commenceTime)}</span>
-                  <strong>{row.homeTeam} vs {row.awayTeam}</strong>
-                  <div className="fixture-meta">
-                    <span>{row.market}{row.line ? ` ${row.line}` : ""}</span>
-                    <span>完場 {row.score}</span>
-                    <span className={row.hit === null ? "" : row.hit ? "positive" : "negative"}>{settlementLabel(row.settlement, row.hit)}</span>
+            <>
+              <section className="history-group" aria-label="等緊開賽">
+                <h3 className="history-group__title">等緊開賽</h3>
+                {marketPendingEntries.length === 0 ? (
+                  <p className="history-group__empty">未有等緊開賽嘅{historyMarket}盤。</p>
+                ) : (
+                  <div className="fixture-list">
+                    {marketPendingEntries.map((entry) => (
+                      <PendingCard entry={entry} fixture={fixturesByMatchId.get(entry.matchId) ?? null} key={entry.id} />
+                    ))}
                   </div>
-                  <div className="simple-pick">估 {row.prediction} → 實際 {row.actual}</div>
-                  {row.modelVersion ? <span className="subtext">{row.modelVersion}{row.source ? ` · ${row.source}` : ""}</span> : null}
-                </div>
-              ))}
-            </div>
+                )}
+              </section>
+              <section className="history-group" aria-label="已完場">
+                <h3 className="history-group__title">已完場</h3>
+                {resultRows.length === 0 ? (
+                  <div className="empty-state compact">
+                    <Mascot pose="chiikawa-empty" />
+                    <span>{marketResultRows.length > 0 ? `未有附帶賽前 snapshot 嘅${historyMarket}記錄。` : `暫時未有${historyMarket}完場記錄。`}</span>
+                    {marketResultRows.length > 0 ? <button className="secondary-button compact" onClick={() => setHistoryView("all")}>顯示全部記錄</button> : null}
+                  </div>
+                ) : (
+                  <div className="fixture-grid">
+                    {resultRows.map((row) => (
+                      <div className="fixture-card market-card" key={row.id}>
+                        <span className="fixture-time">{formatDate(row.commenceTime)}</span>
+                        <strong>{row.homeTeam} vs {row.awayTeam}</strong>
+                        <div className="fixture-meta">
+                          <span>{row.market}{row.line ? ` ${row.line}` : ""}</span>
+                          <span>完場 {row.score}</span>
+                          <span className={row.hit === null ? "" : row.hit ? "positive" : "negative"}>{settlementLabel(row.settlement, row.hit)}</span>
+                        </div>
+                        <div className="simple-pick">估 {row.prediction} → 實際 {row.actual}</div>
+                        {row.modelVersion ? <span className="subtext">{row.modelVersion}{row.source ? ` · ${row.source}` : ""}</span> : null}
+                        {hasPredictionSnapshot(row) ? (
+                          <details className="other-lines">
+                            <summary>賽前快照</summary>
+                            <div className="line-list">
+                              <div className="line-item"><span>盤口</span><span>{row.line ?? "—"}</span></div>
+                              <div className="line-item"><span>賠率</span><span>{typeof row.odds === "number" ? row.odds.toFixed(2) : "—"}</span></div>
+                              <div className="line-item"><span>模型機率</span><span>{typeof row.chance === "number" ? formatPercent(row.chance) : "—"}</span></div>
+                              <div className="line-item"><span>Edge</span><span>{typeof row.edge === "number" ? formatPercent(row.edge) : "—"}</span></div>
+                              <div className="line-item"><span>模型</span><span>{row.modelVersion}{row.source ? ` · ${row.source}` : ""}</span></div>
+                              <div className="line-item"><span>快照時間</span><span>{row.savedAt ? formatDate(row.savedAt) : "—"}</span></div>
+                            </div>
+                          </details>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </>
           )}
         </Panel>
       </section>
@@ -694,6 +752,31 @@ function MarketCardGroup({ group, market, logos }: { group: { matchId: string; p
         </details>
       ) : null}
     </article>
+  );
+}
+
+function PendingCard({ entry, fixture }: { entry: PendingEntry; fixture: { homeTeam: string; awayTeam: string; homeTeamZh?: string; awayTeamZh?: string } | null }) {
+  const teams = fixture ? `${fixture.homeTeamZh ?? fixture.homeTeam} vs ${fixture.awayTeamZh ?? fixture.awayTeam}` : entry.matchId;
+  return (
+    <details className="fixture-card market-card pending-card">
+      <summary className="pending-card__summary">
+        <span className="fixture-time">{entry.commenceTime ? formatDate(entry.commenceTime) : "未設定時間"}</span>
+        <strong>{teams}</strong>
+        <span className="fixture-meta">
+          <span>{entry.market}{entry.line !== null ? ` ${entry.line}` : ""}</span>
+          <span>估 {entry.prediction}</span>
+          {entry.edge !== null ? <span className="positive">Edge {formatPercent(entry.edge)}</span> : null}
+        </span>
+      </summary>
+      <div className="line-list">
+        <div className="line-item"><span>盤口</span><span>{entry.line ?? "—"}</span></div>
+        <div className="line-item"><span>賠率</span><span>{entry.odds !== null ? entry.odds.toFixed(2) : "—"}</span></div>
+        <div className="line-item"><span>模型機率</span><span>{entry.chance !== null ? formatPercent(entry.chance) : "—"}</span></div>
+        <div className="line-item"><span>Edge</span><span>{entry.edge !== null ? formatPercent(entry.edge) : "—"}</span></div>
+        <div className="line-item"><span>模型</span><span>{entry.modelVersion}{entry.source ? ` · ${entry.source}` : ""}</span></div>
+        <div className="line-item"><span>快照時間</span><span>{formatDate(entry.savedAt)}</span></div>
+      </div>
+    </details>
   );
 }
 

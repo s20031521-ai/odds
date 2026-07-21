@@ -40,7 +40,7 @@ export function PickCard(props: {
             ))}
           </ul>
         ) : null}
-        <a className="pick-card__analysis-link" href={`#/fixtures/${encodeURIComponent(opportunity.matchId)}`}>
+        <a className="pick-card__analysis-link" href={`#/analysis?match=${encodeURIComponent(opportunity.matchId)}`}>
           睇單場分析 →
         </a>
       </div>

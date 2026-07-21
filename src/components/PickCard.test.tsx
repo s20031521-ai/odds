@@ -49,7 +49,7 @@ describe("PickCard", () => {
     expect(markup).toContain("模型估 58.0%，莊家開 51.3%");
     expect(markup).toContain("建議注碼 $20"); // displayStake(0.58, 1.95) capped 2% of 1000
     expect(markup).toContain("賠率同步於 2026-07-21T12:00:00Z");
-    expect(markup).toContain('href="#/fixtures/match-1"');
+    expect(markup).toContain('href="#/analysis?match=match-1"');
     expect(markup).toContain("睇單場分析 →");
   });
 
@@ -68,7 +68,7 @@ describe("PickCard", () => {
     const markup = renderToStaticMarkup(
       <PickCard opportunity={spaced} logos={logos} generatedAt={null} />,
     );
-    expect(markup).toContain('href="#/fixtures/match%201"');
+    expect(markup).toContain('href="#/analysis?match=match%201"');
   });
 });
 

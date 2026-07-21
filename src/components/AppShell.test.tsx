@@ -128,6 +128,9 @@ describe("soft-night CSS contract", () => {
       ["--color-muted", "#A89B91"],
       ["--radius-card", "24px"],
       ["--touch-target", "44px"],
+      ["--color-positive-surface", "#DFF5EA"],
+      ["--color-on-primary", "#FFFFFF"],
+      ["--color-primary-hover", "#4A8BC0"],
     ] as const;
 
     for (const [name, value] of expectedTokens) {

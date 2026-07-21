@@ -242,7 +242,7 @@ h3 {
   margin-top: 14px;
   padding: 12px 14px;
   border-radius: 999px;
-  background: #DFF5EA;
+  background: var(--color-positive-surface);
   color: var(--color-positive-text);
   font-size: 1.05rem;
   font-weight: 900;
@@ -471,13 +471,13 @@ select:focus {
   width: 100%;
   padding: 10px 14px;
   background: var(--color-primary);
-  color: #FFFFFF;
+  color: var(--color-on-primary);
   font-weight: 800;
   border-radius: 999px;
 }
 
 .primary-button:hover {
-  background: #4A8BC0;
+  background: var(--color-primary-hover);
 }
 
 .primary-button:disabled {
@@ -538,7 +538,7 @@ select:focus {
 
 .notice.success {
   color: var(--color-positive-text);
-  background: #DFF5EA;
+  background: var(--color-positive-surface);
 }
 
 .notice.warning {
@@ -774,7 +774,7 @@ td {
 
 .badge.value {
   color: var(--color-positive-text);
-  background: #DFF5EA;
+  background: var(--color-positive-surface);
 }
 
 .badge.watch {

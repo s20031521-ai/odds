@@ -3,10 +3,10 @@ import type { Page } from "../route";
 import { KawaiiDecor, Mascot } from "./Kawaii";
 
 const navigationItems = Object.freeze([
-  { route: "dashboard", href: "#/dashboard", label: "值得買" },
-  { route: "fixtures", href: "#/fixtures", label: "全部賽事" },
-  { route: "history", href: "#/history", label: "完場紀錄" },
-  { route: "analysis", href: "#/analysis", label: "模型健康" },
+  { route: "today", href: "#/today", label: "今日" },
+  { route: "fixtures", href: "#/fixtures", label: "賽程" },
+  { route: "analysis", href: "#/analysis", label: "分析" },
+  { route: "history", href: "#/history", label: "紀錄" },
 ] as const);
 
 function Navigation(props: { className: string; label: string; route: Page }) {

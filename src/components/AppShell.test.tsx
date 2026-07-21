@@ -5,10 +5,10 @@ import { describe, expect, test } from "vitest";
 import { AppShell } from "./AppShell";
 
 const navigationItems = [
-  ["#/dashboard", "值得買"],
-  ["#/fixtures", "全部賽事"],
-  ["#/history", "完場紀錄"],
-  ["#/analysis", "模型健康"],
+  ["#/today", "今日"],
+  ["#/fixtures", "賽程"],
+  ["#/analysis", "分析"],
+  ["#/history", "紀錄"],
 ] as const;
 
 function renderShell(

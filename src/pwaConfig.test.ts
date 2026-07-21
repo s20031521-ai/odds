@@ -70,7 +70,7 @@ describe("PWA build contract", () => {
     const html = projectFile("index.html");
 
     expect(html).toContain('name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"');
-    expect(html).toContain('name="theme-color" content="#11182B"');
+    expect(html).toContain('name="theme-color" content="#FFF8F0"');
     expect(html).toContain('name="apple-mobile-web-app-capable" content="yes"');
     expect(html).toContain('name="apple-mobile-web-app-status-bar-style" content="black-translucent"');
     expect(html).toContain('rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png"');

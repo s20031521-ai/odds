@@ -1,26 +1,34 @@
 import { expect, test } from "@playwright/test";
 import { mockApi } from "./helpers";
 
+let requestedPaths: string[];
+
 test.beforeEach(async ({ page }) => {
-  await mockApi(page, "authenticated", { dashboardMode: "simple" });
+  ({ requestedPaths } = await mockApi(page, "authenticated", { dashboardMode: "simple" }));
 });
 
-test("today page shows pick cards with three-line summary", async ({ page }) => {
+test("today page shows server-recorded pick cards with the current quote range", async ({ page }) => {
   await page.goto("/#/today");
   await expect(page.locator("h1")).toContainText("今日");
   const card = page.locator(".pick-card").first();
   await expect(card).toBeVisible();
-  await expect(card.locator(".pick-card__selection")).toContainText("買：");
-  await expect(card.locator(".pick-card__odds")).toBeVisible();
+  await expect(card.locator(".pick-card__match")).toContainText("Value United vs Signal City");
+  await expect(card.locator(".buyable-odds-range__range")).toHaveText("2.30–2.40");
+  await expect(card.locator(".buyable-odds-range__summary")).toContainText("最佳 2.40");
+  expect(requestedPaths).toContain("/api/v1/recommendations/current");
 });
 
-test("pick card expands in place to show edge and stake", async ({ page }) => {
+test("pick card expands the server-recorded per-bookmaker quote details", async ({ page }) => {
   await page.goto("/#/today");
   const card = page.locator(".pick-card").first();
-  await card.locator("summary").click();
-  await expect(card).toHaveAttribute("open", "");
-  await expect(card.locator(".pick-card__details")).toContainText("Edge +");
-  await expect(card.locator(".pick-card__details")).toContainText("建議注碼 $");
+  const quoteDetails = card.locator(".buyable-odds-range__quotes");
+  await quoteDetails.locator("summary").click();
+  await expect(quoteDetails).toHaveAttribute("open", "");
+  await expect(quoteDetails.locator(".buyable-odds-range__quote")).toHaveCount(2);
+  await expect(quoteDetails).toContainText("Book A");
+  await expect(quoteDetails).toContainText("HKJC");
+  await expect(quoteDetails).toContainText("最低 2.06");
+  await expect(quoteDetails).toContainText("Edge +20.00%");
 });
 
 test("legacy #/dashboard lands on today page", async ({ page }) => {

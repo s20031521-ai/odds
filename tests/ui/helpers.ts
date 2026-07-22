@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import type { BuyableOpportunity, CurrentRecommendationsResponse } from "../../src/apiClient";
 import { DASHBOARD_MODE_STORAGE_KEY } from "../../src/dashboardMode";
 
 const FUTURE_KICKOFF = "2030-07-17T12:00:00.000Z";
@@ -51,16 +52,96 @@ export const manyPickEntries = [
   entry("many-6b", "match-many-6", "Lambda City", "Mu County", "Book B", { home: 1.8, draw: 3.6, away: 4.8 }),
 ];
 
+function recordedH2hOpportunity({
+  sampleId,
+  matchId,
+  homeTeam,
+  awayTeam,
+  bestOdds = 2.4,
+}: {
+  sampleId: number;
+  matchId: string;
+  homeTeam: string;
+  awayTeam: string;
+  bestOdds?: number;
+}): BuyableOpportunity {
+  const chance = 0.5;
+  const minimumBuyOdds = 2.06;
+  const lowerOdds = Math.max(minimumBuyOdds, Number((bestOdds - 0.1).toFixed(2)));
+  const observedAt = "2026-07-22T10:00:00.000Z";
+  const quotes = [
+    {
+      bookmaker: "Book A",
+      provider: "hkjc",
+      odds: bestOdds,
+      chance,
+      edge: (bestOdds * chance) - 1,
+      minimumBuyOdds,
+      observedAt,
+    },
+    {
+      bookmaker: "Book B",
+      provider: "the-odds-api",
+      odds: lowerOdds,
+      chance,
+      edge: (lowerOdds * chance) - 1,
+      minimumBuyOdds,
+      observedAt: "2026-07-22T09:58:00.000Z",
+    },
+  ].sort((left, right) => left.odds - right.odds);
+  return {
+    sampleId,
+    fixtureId: `fixture-${matchId}`,
+    matchId,
+    homeTeam,
+    awayTeam,
+    league: "Premier League",
+    commenceTime: FUTURE_KICKOFF,
+    market: "h2h",
+    selection: "home",
+    modelVersion: "consensus-v1",
+    strategyVersion: "unified-buyable-v1",
+    quoteRange: { min: quotes[0].odds, max: quotes[quotes.length - 1].odds, count: quotes.length },
+    bestQuote: quotes[quotes.length - 1],
+    quotes,
+    lastEvaluatedAt: observedAt,
+  };
+}
+
+const currentRecommendations = [
+  recordedH2hOpportunity({ sampleId: 101, matchId: "match-value", homeTeam: "Value United", awayTeam: "Signal City" }),
+  recordedH2hOpportunity({ sampleId: 102, matchId: "match-boundary", homeTeam: "Boundary FC", awayTeam: "Threshold Town", bestOdds: 2.08 }),
+];
+
+const manyPickRecommendations = manyPickEntries
+  .filter((_, index) => index % 2 === 0)
+  .map((item, index) => recordedH2hOpportunity({
+    sampleId: 201 + index,
+    matchId: item.matchId,
+    homeTeam: item.homeTeam,
+    awayTeam: item.awayTeam,
+  }));
+
+function recommendationResponse(opportunities: BuyableOpportunity[]): CurrentRecommendationsResponse {
+  return {
+    generatedAt: "2026-07-22T10:00:00.000Z",
+    strategyVersion: "unified-buyable-v1",
+    opportunities,
+  };
+}
+
 export async function mockApi(
   page: Page,
   scenario: Scenario,
   options: {
     status?: number;
+    recommendationsStatus?: number;
     dashboardMode?: "simple" | "pro";
     onLogin?: Parameters<Page["route"]>[1];
     onLogout?: Parameters<Page["route"]>[1];
   } = {},
 ) {
+  const requestedPaths: string[] = [];
   await page.unroute("**/api/v1/**").catch(() => undefined);
   await page.unroute("**/hkjc-odds.json").catch(() => undefined);
   await page.unroute("http://127.0.0.1:8787/**").catch(() => undefined);
@@ -88,6 +169,7 @@ export async function mockApi(
 
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
+    requestedPaths.push(pathname);
 
     if (pathname === "/api/v1/session") {
       await route.fulfill({
@@ -135,6 +217,25 @@ export async function mockApi(
           handicapEntries: [],
           resultEntries: [],
         }),
+      });
+      return;
+    }
+
+    if (pathname === "/api/v1/recommendations/current") {
+      if (scenario === "live-failed" || options.recommendationsStatus) {
+        await route.fulfill({
+          status: options.recommendationsStatus ?? options.status ?? 503,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "unavailable" }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(recommendationResponse(
+          scenario === "empty" ? [] : scenario === "many-picks" ? manyPickRecommendations : currentRecommendations,
+        )),
       });
       return;
     }
@@ -193,11 +294,8 @@ export async function mockApi(
       return;
     }
 
-    if (pathname === "/api/v1/predictions") {
-      await route.fulfill({ status: 204, body: "" });
-      return;
-    }
-
     throw new Error(`Unmocked app data request: ${route.request().method()} ${route.request().url()}`);
   });
+
+  return { requestedPaths };
 }

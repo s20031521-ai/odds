@@ -85,11 +85,19 @@ test("responsive navigation, touch targets, fixtures, and detail work", async ({
   await expect(page).toHaveURL(/#\/today$/);
 });
 
-test("empty and failed live data fail closed", async ({ page }) => {
-  await mockApi(page, "empty");
+test("empty, failed current, and failed live data all fail closed", async ({ page }) => {
+  const empty = await mockApi(page, "empty");
   await page.goto("/#/dashboard");
   await expect(page.locator(".dashboard-card")).toHaveCount(0);
   await expect(page.locator(".buy-dashboard__empty")).toBeVisible();
+  await expect(page.locator(".current-buyable-range-panel")).toHaveCount(0);
+  expect(empty.requestedPaths).toContain("/api/v1/recommendations/current");
+
+  const failedCurrent = await mockApi(page, "authenticated", { recommendationsStatus: 503 });
+  await page.reload();
+  await expect(page.locator(".dashboard-card")).toHaveCount(0);
+  await expect(page.locator(".current-buyable-range-panel")).toHaveCount(0);
+  expect(failedCurrent.requestedPaths).toContain("/api/v1/recommendations/current");
 
   await mockApi(page, "live-failed");
   await page.reload();

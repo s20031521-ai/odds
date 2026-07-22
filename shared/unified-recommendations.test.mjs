@@ -64,6 +64,14 @@ test("drops ambiguous equal-time duplicates and malformed or unresolved rows", (
   assert.deepEqual(dedupeFreshQuotes([ambiguousA, ambiguousB, malformed, unresolved], EVALUATED_AT), []);
 });
 
+test("drops equal-time canonical duplicates with conflicting output metadata in either input order", () => {
+  const first = quote({ bookmaker: "Book A", provider: "feed-a", odds: 2.1, matchId: "source-a", homeTeam: "Home FC" });
+  const conflicting = quote({ bookmaker: "book-a", provider: "feed-a", odds: 2.1, matchId: "source-b", homeTeam: "Different Home" });
+
+  assert.deepEqual(dedupeFreshQuotes([first, conflicting], EVALUATED_AT), []);
+  assert.deepEqual(dedupeFreshQuotes([conflicting, first], EVALUATED_AT), []);
+});
+
 test("matches analyzeEntries H2H consensus and retains every qualifying quote", () => {
   const books = [
     ["Book A", { home: 2, draw: 3.4, away: 4 }],

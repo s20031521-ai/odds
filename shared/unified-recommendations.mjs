@@ -273,7 +273,7 @@ function resolveEqualTimeQuotes(rows) {
   if (rows.length === 1) return rows[0];
   const native = rows.filter((row) => row.bookmakerKey === "hkjc" && row.provider.trim().toLowerCase() === "hkjc");
   if (native.length === 1) return native[0];
-  const signatures = new Set(rows.map((row) => `${row.provider}|${row.odds}|${row.observedAt}`));
+  const signatures = new Set(rows.map((row) => stableJson(stripInternal(row))));
   return signatures.size === 1 ? [...rows].sort(compareInputs)[0] : null;
 }
 

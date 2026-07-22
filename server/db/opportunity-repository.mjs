@@ -67,7 +67,7 @@ export function createOpportunityRepository(db) {
           } else if (buyableQuotes.length > 0) {
             await client.query(`
               UPDATE prediction_snapshots
-              SET last_qualified_at = $2
+              SET last_qualified_at = GREATEST(last_qualified_at, $2)
               WHERE id = $1
             `, [sample.id, evaluatedAt]);
             outcome.samplesUpdated += 1;
@@ -87,7 +87,7 @@ export function createOpportunityRepository(db) {
           if (existing.rowCount > 0) {
             await client.query(`
               UPDATE recommendation_observations
-              SET last_evaluated_at = $2
+              SET last_evaluated_at = GREATEST(last_evaluated_at, $2)
               WHERE id = $1
             `, [existing.rows[0].id, evaluatedAt]);
             outcome.observationsExtended += 1;
@@ -97,7 +97,13 @@ export function createOpportunityRepository(db) {
                 snapshot_id, fingerprint, first_evaluated_at,
                 last_evaluated_at, inputs, buyable_quotes
               ) VALUES ($1, $2, $3, $3, $4, $5)
-            `, [sample.id, fingerprint, evaluatedAt, observationInputs, buyableQuotes]);
+            `, [
+              sample.id,
+              fingerprint,
+              evaluatedAt,
+              JSON.stringify(observationInputs),
+              JSON.stringify(buyableQuotes),
+            ]);
             outcome.observationsInserted += 1;
           }
         }
@@ -120,7 +126,7 @@ export function createOpportunityRepository(db) {
           SELECT first_evaluated_at, last_evaluated_at, inputs, buyable_quotes
           FROM recommendation_observations
           WHERE snapshot_id = snapshot.id
-          ORDER BY first_evaluated_at DESC, id DESC
+          ORDER BY last_evaluated_at DESC, id DESC
           LIMIT 1
         ) AS observation ON true
         WHERE snapshot.strategy_version = 'unified-buyable-v1'

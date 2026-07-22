@@ -186,6 +186,73 @@ test("opportunity identity includes fixture, selection, model, and strategy", ()
   assert.equal(identities[0], "00000000-0000-4000-8000-000000000001|h2h|home||consensus-v1|unified-buyable-v1");
 });
 
+test("opportunity observations bind JSON arrays, including empty arrays, as valid JSON", async () => {
+  let observationParameters;
+  const client = {
+    release() {},
+    async query(sql, parameters = []) {
+      if (sql.includes("pg_advisory_xact_lock")) return { rowCount: 1, rows: [{}] };
+      if (sql.includes("SELECT id FROM prediction_snapshots")) return { rowCount: 1, rows: [{ id: "sample-1" }] };
+      if (sql.includes("SELECT id FROM recommendation_observations")) return { rowCount: 0, rows: [] };
+      if (sql.includes("INSERT INTO recommendation_observations")) {
+        observationParameters = parameters;
+        return { rowCount: 1, rows: [] };
+      }
+      throw new Error(`unexpected query: ${sql}`);
+    },
+  };
+
+  await createOpportunityRepository(client).recordEvaluation({
+    evaluatedAt: "2026-07-18T10:05:00.000Z",
+    inputs: [],
+    opportunities: [{ ...opportunity(), inputs: [], quotes: [] }],
+  });
+
+  assert.equal(observationParameters[3], "[]");
+  assert.equal(observationParameters[4], "[]");
+  assert.deepEqual(JSON.parse(observationParameters[3]), []);
+  assert.deepEqual(JSON.parse(observationParameters[4]), []);
+});
+
+test("current opportunities select the observation evaluated most recently", async () => {
+  let currentQuery;
+  const db = {
+    async query(sql) {
+      currentQuery = sql;
+      return { rowCount: 0, rows: [] };
+    },
+  };
+  await createOpportunityRepository(db).listCurrent("2026-07-18T10:05:00.000Z");
+  assert.match(currentQuery, /ORDER BY last_evaluated_at DESC, id DESC/);
+});
+
+test("opportunity replay updates use monotonic qualification and evaluation timestamps", async () => {
+  const updateQueries = [];
+  const client = {
+    release() {},
+    async query(sql) {
+      if (sql.includes("pg_advisory_xact_lock")) return { rowCount: 1, rows: [{}] };
+      if (sql.includes("SELECT id FROM prediction_snapshots")) return { rowCount: 1, rows: [{ id: "sample-1" }] };
+      if (sql.includes("SELECT id FROM recommendation_observations")) return { rowCount: 1, rows: [{ id: "observation-1" }] };
+      if (sql.includes("UPDATE prediction_snapshots") || sql.includes("UPDATE recommendation_observations")) {
+        updateQueries.push(sql);
+        return { rowCount: 1, rows: [] };
+      }
+      throw new Error(`unexpected query: ${sql}`);
+    },
+  };
+
+  await createOpportunityRepository(client).recordEvaluation({
+    evaluatedAt: "2026-07-18T10:05:00.000Z",
+    inputs: [],
+    opportunities: [opportunity()],
+  });
+
+  assert.equal(updateQueries.length, 2);
+  assert.match(updateQueries[0], /SET last_qualified_at = GREATEST\(last_qualified_at, \$2\)/);
+  assert.match(updateQueries[1], /SET last_evaluated_at = GREATEST\(last_evaluated_at, \$2\)/);
+});
+
 test("opportunity persistence keeps selection and strategy identities distinct", async (t) => {
   await withDatabase(t, async (pool) => {
     const [{ fixtureId }] = (await createFixtureRepository(pool).resolveBatch([fixtureRow()])).fixtures;
@@ -508,7 +575,7 @@ test("ambiguous fixture matches are audited and left unmatched", async (t) => {
     const repository = createFixtureRepository(pool);
     await repository.resolveBatch([fixtureRow({ matchId: "seed-one", commenceTime: "2026-07-18T11:55:00.000Z" })]);
     await repository.resolveBatch([fixtureRow({ matchId: "seed-two", commenceTime: "2026-07-18T12:05:00.000Z", league: "Other League" })]);
-    const ambiguousRow = fixtureRow({ provider: "provider-b", matchId: "ambiguous", league: undefined });
+    const { league: _league, ...ambiguousRow } = fixtureRow({ provider: "provider-b", matchId: "ambiguous" });
     const result = await repository.resolveBatch([ambiguousRow]);
     assert.deepEqual(result.fixtures, []);
     assert.deepEqual(result.unmatched, [ambiguousRow]);
@@ -575,6 +642,36 @@ test("opportunity evaluations preserve the first sample and append only changed 
     assert.deepEqual(current[0].quotes, []);
     assert.equal(current[0].strategyVersion, "unified-buyable-v1");
     assert.equal((await repository.listForBacktest()).length, 1);
+  });
+});
+
+test("A-B-A observations stay current and out-of-order replays never regress timestamps", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const [{ fixtureId }] = (await createFixtureRepository(pool).resolveBatch([fixtureRow()])).fixtures;
+    const repository = createOpportunityRepository(pool);
+    const first = opportunity({ fixtureId });
+    const second = opportunity({ fixtureId, quotes: [{ ...first.quotes[0], odds: 2.2, edge: 0.122 }] });
+    const record = (evaluatedAt, value) => repository.recordEvaluation({
+      evaluatedAt,
+      inputs: [],
+      opportunities: [value],
+    });
+
+    await record("2026-07-18T10:10:00.000Z", first);
+    await record("2026-07-18T10:20:00.000Z", second);
+    await record("2026-07-18T10:30:00.000Z", first);
+    await record("2026-07-18T10:15:00.000Z", second);
+
+    const [current] = await repository.listCurrent("2026-07-18T10:35:00.000Z");
+    assert.equal(current.quotes[0].odds, 2.1);
+    assert.equal(current.lastEvaluatedAt, "2026-07-18T10:30:00.000Z");
+    assert.equal(current.lastQualifiedAt, "2026-07-18T10:30:00.000Z");
+
+    const observations = await repository.listObservations(current.sampleId);
+    assert.deepEqual(observations.map(({ firstEvaluatedAt, lastEvaluatedAt }) => ({ firstEvaluatedAt, lastEvaluatedAt })), [
+      { firstEvaluatedAt: "2026-07-18T10:10:00.000Z", lastEvaluatedAt: "2026-07-18T10:30:00.000Z" },
+      { firstEvaluatedAt: "2026-07-18T10:20:00.000Z", lastEvaluatedAt: "2026-07-18T10:20:00.000Z" },
+    ]);
   });
 });
 

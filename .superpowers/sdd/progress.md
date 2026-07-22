@@ -88,3 +88,5 @@ Task 8: complete (commits 0c13648..ea2c4e6, full verification re-run by controll
 Final whole-branch review (merge-base 56c5aa4, HEAD 521eda5): ready-to-merge=with-fixes; Important #1 handoff archive ref fixed (docs: pin to 521eda5); Minor #3 integrity COALESCE premise disproven by fix agent's RED test (already coalesced; dead SELECT column only)
 Deferred minors for later: fixture kickoff only moves later (asymmetry undocumented); reconcile stamps empty obs on provider-gap making closing benchmark N/A; arbitrary strategy strings persistable via legacy POST; opportunity identity derived in 4 places (consolidation ticket); readiness unified-only even when zero unified data (plan-mandated); hand-rolled SHA-256 lacks why-comment
 ALL TASKS COMPLETE — unified-buyable-v1
+MERGED to master (ff 56c5aa4..a1c0a60); tests on merged result 264/264 green + build clean; worktree removed; branch deleted
+Production backup/migration/deploy/tag/monitoring remain operator actions per docs/HANDOFF-2026-07-22-unified-buyable-v1.md

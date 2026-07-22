@@ -1,4 +1,10 @@
 import { groupByFixture } from "./fixtureMatch";
+import {
+  fairProbabilitiesForOdds,
+  h2hConsensusForOdds,
+  isValidDecimalOdds,
+  valueEdgeForQuote,
+} from "../shared/unified-recommendations.mjs";
 
 export type OutcomeKey = "home" | "draw" | "away";
 
@@ -60,7 +66,7 @@ const outcomeLabels: Record<OutcomeKey, string> = {
 };
 
 export function isValidOdds(value: number): boolean {
-  return Number.isFinite(value) && value > 1;
+  return isValidDecimalOdds(value);
 }
 
 export function impliedProbability(decimalOdds: number): number {
@@ -77,9 +83,7 @@ export function overround(odds: OddsSet): number {
 
 export function fairProbabilities(odds: OddsSet): OddsSet {
   validateOddsSet(odds);
-  const raw = mapOutcomes((outcome) => impliedProbability(odds[outcome]));
-  const total = sumOutcomes((outcome) => raw[outcome]);
-  return mapOutcomes((outcome) => raw[outcome] / total);
+  return fairProbabilitiesForOdds(odds);
 }
 
 export function marketConsensus(entries: ManualEntry[]): OddsSet | null {
@@ -88,22 +92,11 @@ export function marketConsensus(entries: ManualEntry[]): OddsSet | null {
     return null;
   }
 
-  const averageFair = mapOutcomes((outcome) => {
-    const total = validEntries.reduce((sum, entry) => {
-      return sum + fairProbabilities(entry.odds)[outcome];
-    }, 0);
-    return total / validEntries.length;
-  });
-
-  const total = sumOutcomes((outcome) => averageFair[outcome]);
-  return mapOutcomes((outcome) => averageFair[outcome] / total);
+  return h2hConsensusForOdds(validEntries.map((entry) => entry.odds));
 }
 
 export function valueEdge(decimalOdds: number, fairProbability: number): number {
-  if (!isValidOdds(decimalOdds) || !Number.isFinite(fairProbability) || fairProbability <= 0) {
-    return Number.NEGATIVE_INFINITY;
-  }
-  return decimalOdds * fairProbability - 1;
+  return valueEdgeForQuote(decimalOdds, fairProbability);
 }
 
 export function kellyStake(

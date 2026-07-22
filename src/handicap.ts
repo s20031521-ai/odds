@@ -1,5 +1,6 @@
 import { splitAsianLine, type AsianSettlement } from "./asianTotals";
 import { sameFixture } from "./fixtureMatch";
+import { noVigFirstChance, valueEdgeForQuote } from "../shared/unified-recommendations.mjs";
 
 export type HandicapSide = "主" | "客";
 
@@ -88,8 +89,8 @@ export function buildHandicapCards(entries: HandicapEntry[], edgeThreshold: numb
       const peers = market.filter((entry) => entry.bookmaker !== candidate.bookmaker);
       const homeChance = average(peers.map((entry) => noVig(entry.homeOdds, entry.awayOdds)));
       return [
-        { entry: candidate, side: "主" as const, chance: homeChance, odds: candidate.homeOdds, edge: homeChance * candidate.homeOdds - 1 },
-        { entry: candidate, side: "客" as const, chance: 1 - homeChance, odds: candidate.awayOdds, edge: (1 - homeChance) * candidate.awayOdds - 1 },
+        { entry: candidate, side: "主" as const, chance: homeChance, odds: candidate.homeOdds, edge: valueEdgeForQuote(candidate.homeOdds, homeChance) },
+        { entry: candidate, side: "客" as const, chance: 1 - homeChance, odds: candidate.awayOdds, edge: valueEdgeForQuote(candidate.awayOdds, 1 - homeChance) },
       ];
     });
     const best = candidates.reduce((current, candidate) => candidate.edge > current.edge ? candidate : current);
@@ -103,8 +104,7 @@ function baseCard(owner: HandicapEntry, bookmakerCount: number, bestChance: numb
 }
 
 function noVig(homeOdds: number, awayOdds: number): number {
-  const home = 1 / homeOdds;
-  return home / (home + 1 / awayOdds);
+  return noVigFirstChance(homeOdds, awayOdds);
 }
 
 function average(values: number[]): number {

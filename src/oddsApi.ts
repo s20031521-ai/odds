@@ -1,5 +1,6 @@
 import { hasCompleteOdds, type ManualEntry, type OddsSet } from "./odds";
 import { buildHandicapCards, type HandicapEntry } from "./handicap";
+import { isValidDecimalOdds } from "../shared/unified-recommendations.mjs";
 
 export type TotalsMarketEntry = {
   id: string;
@@ -176,7 +177,7 @@ function isOddsApiPointOutcome(value: unknown): value is { name: string; price: 
 }
 
 function isMarketPrice(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value) && value > 1;
+  return isValidDecimalOdds(value);
 }
 
 function isOddsApiEvent(value: unknown): value is {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -360,7 +360,7 @@ test("a failed SQL migration is rolled back and is never marked applied", async 
 test("the project migrations create the exact table, audit, uniqueness, and auth boundaries", async (t) => {
   requireDatabaseUrl();
   await withIsolatedSchema(t, async (pool) => {
-    assert.deepEqual(await runMigrations(pool, INITIAL_MIGRATIONS_DIR), ["001_initial.sql", "002_import_row_audit.sql", "003_auth_constraints.sql"]);
+    assert.deepEqual(await runMigrations(pool, INITIAL_MIGRATIONS_DIR), ["001_initial.sql", "002_import_row_audit.sql", "003_auth_constraints.sql", "004_unified_buyable.sql"]);
     assert.deepEqual(await runMigrations(pool, INITIAL_MIGRATIONS_DIR), []);
 
     const tables = await pool.query(`
@@ -371,12 +371,16 @@ test("the project migrations create the exact table, audit, uniqueness, and auth
     `);
     assert.deepEqual(tables.rows.map(({ table_name }) => table_name), [
       "collector_state",
+      "fixture_aliases",
+      "fixture_match_audit",
+      "fixtures",
       "import_rows",
       "import_runs",
       "live_odds",
       "login_attempts",
       "owners",
       "prediction_snapshots",
+      "recommendation_observations",
       "results",
       "schema_migrations",
       "sessions",
@@ -396,10 +400,12 @@ test("the project migrations create the exact table, audit, uniqueness, and auth
       ORDER BY relation.relname, constraint_record.conname
     `);
     assert.deepEqual(uniqueConstraints.rows, [
+      { table_name: "fixture_aliases", columns: ["provider", "provider_match_id"] },
       { table_name: "import_runs", columns: ["source_name", "source_sha256", "importer_version"] },
       { table_name: "live_odds", columns: ["identity_key"] },
       { table_name: "owners", columns: ["username"] },
       { table_name: "prediction_snapshots", columns: ["identity_key"] },
+      { table_name: "recommendation_observations", columns: ["snapshot_id", "fingerprint"] },
       { table_name: "results", columns: ["identity_key"] },
       { table_name: "sessions", columns: ["token_hash"] },
     ]);
@@ -424,7 +430,11 @@ test("the project migrations create the exact table, audit, uniqueness, and auth
       ORDER BY source.relname, constraint_record.conname
     `);
     assert.deepEqual(foreignKeys.rows, [
+      { table_name: "fixture_aliases", columns: ["fixture_id"], referenced_table: "fixtures", referenced_columns: ["id"] },
+      { table_name: "fixture_match_audit", columns: ["matched_fixture_id"], referenced_table: "fixtures", referenced_columns: ["id"] },
       { table_name: "import_rows", columns: ["import_run_id"], referenced_table: "import_runs", referenced_columns: ["id"] },
+      { table_name: "prediction_snapshots", columns: ["fixture_id"], referenced_table: "fixtures", referenced_columns: ["id"] },
+      { table_name: "recommendation_observations", columns: ["snapshot_id"], referenced_table: "prediction_snapshots", referenced_columns: ["id"] },
       { table_name: "sessions", columns: ["owner_id"], referenced_table: "owners", referenced_columns: ["id"] },
     ]);
 
@@ -451,6 +461,20 @@ test("the project migrations create the exact table, audit, uniqueness, and auth
     `);
     assert.equal(authIndexes.rowCount, 2);
     assert.match(authIndexes.rows[0].indexdef, /UNIQUE/);
+
+    const unifiedIndexes = await pool.query(`
+      SELECT indexname FROM pg_indexes
+      WHERE schemaname = current_schema() AND indexname IN (
+        'fixtures_kickoff_idx', 'fixture_aliases_fixture_id_idx',
+        'prediction_snapshots_current_strategy_idx', 'recommendation_observations_history_idx'
+      ) ORDER BY indexname
+    `);
+    assert.deepEqual(unifiedIndexes.rows.map(({ indexname }) => indexname), [
+      "fixture_aliases_fixture_id_idx",
+      "fixtures_kickoff_idx",
+      "prediction_snapshots_current_strategy_idx",
+      "recommendation_observations_history_idx",
+    ]);
 
     await assert.rejects(
       pool.query("INSERT INTO owners (id, username, password_hash, created_at) VALUES ($1, 'Not-Normalized', 'hash', now())", [randomUUID()]),
@@ -510,16 +534,59 @@ test("the project migrations create the exact table, audit, uniqueness, and auth
   });
 });
 
+test("the unified migration leaves existing snapshot raw bytes and values untouched", async (t) => {
+  requireDatabaseUrl();
+  await withIsolatedSchema(t, async (pool) => {
+    const filenames = ["001_initial.sql", "002_import_row_audit.sql", "003_auth_constraints.sql"];
+    const files = await Promise.all(filenames.map(async (filename) => [
+      filename,
+      await readFile(path.join(INITIAL_MIGRATIONS_DIR, filename), "utf8"),
+    ]));
+    await withTempMigrations(files, async (directory) => {
+      await runMigrations(pool, directory);
+      const raw = { z: 1, nested: { exact: "unchanged" }, array: [3, 2, 1] };
+      await pool.query(`
+        INSERT INTO prediction_snapshots (identity_key, raw, snapshot_status)
+        VALUES ('pre-004', $1, 'legacy')
+      `, [raw]);
+      const before = await pool.query("SELECT raw, raw::text AS raw_text FROM prediction_snapshots WHERE identity_key = 'pre-004'");
+
+      await writeFile(
+        path.join(directory, "004_unified_buyable.sql"),
+        await readFile(path.join(INITIAL_MIGRATIONS_DIR, "004_unified_buyable.sql"), "utf8"),
+        "utf8",
+      );
+      assert.deepEqual(await runMigrations(pool, directory), ["004_unified_buyable.sql"]);
+      const after = await pool.query(`
+        SELECT raw, raw::text AS raw_text, strategy_version, fixture_id,
+               first_qualified_at, last_qualified_at
+        FROM prediction_snapshots WHERE identity_key = 'pre-004'
+      `);
+      assert.deepEqual(after.rows, [{
+        ...before.rows[0],
+        strategy_version: null,
+        fixture_id: null,
+        first_qualified_at: null,
+        last_qualified_at: null,
+      }]);
+    });
+  });
+});
+
 function expectedInitialColumns() {
   const timestamp = "timestamp with time zone";
   const definitions = {
     collector_state: [["state_key", "text", "NO"], ["state", "jsonb", "NO"], ["updated_at", timestamp, "NO"]],
+    fixture_aliases: [["provider", "text", "NO"], ["provider_match_id", "text", "NO"], ["fixture_id", "uuid", "NO"], ["home_team", "text", "YES"], ["away_team", "text", "YES"], ["commence_time", timestamp, "YES"], ["league", "text", "YES"], ["created_at", timestamp, "NO"]],
+    fixture_match_audit: [["id", "bigint", "NO"], ["provider", "text", "NO"], ["provider_match_id", "text", "NO"], ["reason", "text", "NO"], ["candidate_fixture_ids", "ARRAY", "NO"], ["matched_fixture_id", "uuid", "YES"], ["raw", "jsonb", "NO"], ["created_at", timestamp, "NO"]],
+    fixtures: [["id", "uuid", "NO"], ["home_team", "text", "NO"], ["away_team", "text", "NO"], ["normalized_home_team", "text", "NO"], ["normalized_away_team", "text", "NO"], ["commence_time", timestamp, "NO"], ["league", "text", "YES"], ["created_at", timestamp, "NO"]],
     import_rows: [["import_run_id", "uuid", "NO"], ["source_row", "integer", "NO"], ["idempotency_key", "text", "YES"], ["classification", "text", "YES"], ["rejection_reason", "text", "YES"], ["raw", "jsonb", "NO"], ["record_kind", "text", "NO"]],
     import_runs: [["id", "uuid", "NO"], ["source_name", "text", "YES"], ["source_sha256", "text", "YES"], ["importer_version", "text", "YES"], ["status", "text", "YES"], ["total_rows", "integer", "YES"], ["accepted_rows", "integer", "YES"], ["rejected_rows", "integer", "YES"], ["started_at", timestamp, "YES"], ["finished_at", timestamp, "YES"]],
     live_odds: [["id", "bigint", "NO"], ["identity_key", "text", "NO"], ["entry_id", "text", "YES"], ["provider", "text", "YES"], ["match_id", "text", "YES"], ["home_team", "text", "YES"], ["away_team", "text", "YES"], ["commence_time", timestamp, "YES"], ["market", "text", "YES"], ["selection", "text", "YES"], ["line", "double precision", "YES"], ["odds", "double precision", "YES"], ["observed_at", timestamp, "YES"], ["expires_at", timestamp, "YES"], ["raw", "jsonb", "NO"]],
     login_attempts: [["scope_key", "text", "NO"], ["failed_count", "integer", "NO"], ["window_started_at", timestamp, "NO"], ["blocked_until", timestamp, "YES"]],
     owners: [["id", "uuid", "NO"], ["username", "text", "NO"], ["password_hash", "text", "NO"], ["disabled_at", timestamp, "YES"], ["created_at", timestamp, "NO"]],
-    prediction_snapshots: [["id", "bigint", "NO"], ["identity_key", "text", "NO"], ["match_id", "text", "YES"], ["market", "text", "YES"], ["prediction", "text", "YES"], ["line", "double precision", "YES"], ["odds", "double precision", "YES"], ["chance", "double precision", "YES"], ["edge", "double precision", "YES"], ["saved_at", timestamp, "YES"], ["commence_time", timestamp, "YES"], ["model_version", "text", "YES"], ["source", "text", "YES"], ["snapshot_status", "text", "YES"], ["rejection_reason", "text", "YES"], ["raw", "jsonb", "NO"]],
+    prediction_snapshots: [["id", "bigint", "NO"], ["identity_key", "text", "NO"], ["match_id", "text", "YES"], ["market", "text", "YES"], ["prediction", "text", "YES"], ["line", "double precision", "YES"], ["odds", "double precision", "YES"], ["chance", "double precision", "YES"], ["edge", "double precision", "YES"], ["saved_at", timestamp, "YES"], ["commence_time", timestamp, "YES"], ["model_version", "text", "YES"], ["source", "text", "YES"], ["snapshot_status", "text", "YES"], ["rejection_reason", "text", "YES"], ["raw", "jsonb", "NO"], ["strategy_version", "text", "YES"], ["fixture_id", "uuid", "YES"], ["first_qualified_at", timestamp, "YES"], ["last_qualified_at", timestamp, "YES"]],
+    recommendation_observations: [["id", "bigint", "NO"], ["snapshot_id", "bigint", "NO"], ["fingerprint", "text", "NO"], ["first_evaluated_at", timestamp, "NO"], ["last_evaluated_at", timestamp, "NO"], ["inputs", "jsonb", "NO"], ["buyable_quotes", "jsonb", "NO"]],
     results: [["id", "bigint", "NO"], ["identity_key", "text", "NO"], ["match_id", "text", "YES"], ["market", "text", "YES"], ["actual", "text", "YES"], ["source", "text", "YES"], ["source_priority", "integer", "YES"], ["completed_at", timestamp, "YES"], ["raw", "jsonb", "NO"]],
     schema_migrations: [["version", "text", "NO"], ["checksum_sha256", "text", "NO"], ["applied_at", timestamp, "NO"]],
     sessions: [["id", "uuid", "NO"], ["owner_id", "uuid", "NO"], ["token_hash", "bytea", "NO"], ["csrf_hash", "bytea", "NO"], ["created_at", timestamp, "NO"], ["last_seen_at", timestamp, "NO"], ["idle_expires_at", timestamp, "NO"], ["absolute_expires_at", timestamp, "NO"], ["revoked_at", timestamp, "YES"]],

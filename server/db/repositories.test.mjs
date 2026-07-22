@@ -7,10 +7,12 @@ import test from "node:test";
 import { createPool } from "./pool.mjs";
 import { runMigrations } from "./migrate.mjs";
 import { createCollectorStateRepository } from "./collector-state-repository.mjs";
+import { createFixtureRepository } from "./fixture-repository.mjs";
 import { createOddsRepository } from "./odds-repository.mjs";
+import { createOpportunityRepository } from "./opportunity-repository.mjs";
 import { createResultRepository } from "./result-repository.mjs";
 import { createSnapshotRepository } from "./snapshot-repository.mjs";
-import { resultIdentity } from "../domain/identity.mjs";
+import { opportunityIdentity, resultIdentity } from "../domain/identity.mjs";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 const EXPECTED_DATABASE_URL = "postgresql://odds_test:odds_test@127.0.0.1:55432/odds_test";
@@ -65,6 +67,54 @@ function liveEntry(overrides = {}) {
   };
 }
 
+function legacySnapshot(snapshot) {
+  return { ...snapshot, strategyVersion: snapshot.strategyVersion ?? "legacy-v0" };
+}
+
+function storedLive(entry, provider, observedAt) {
+  return { ...entry, id: entry.id ?? null, provider, matchId: entry.matchId ?? null, observedAt, expiresAt: entry.expiresAt ?? null };
+}
+
+function fixtureRow(overrides = {}) {
+  return {
+    provider: "provider-a",
+    matchId: "provider-match-1",
+    homeTeam: "Alpha FC",
+    awayTeam: "Beta United",
+    commenceTime: "2026-07-18T12:00:00.000Z",
+    league: "Premier League",
+    market: "h2h",
+    selection: "home",
+    odds: 2.1,
+    ...overrides,
+  };
+}
+
+function opportunity(overrides = {}) {
+  return {
+    fixtureId: "00000000-0000-4000-8000-000000000001",
+    matchId: "provider-match-1",
+    homeTeam: "Alpha FC",
+    awayTeam: "Beta United",
+    commenceTime: "2026-07-18T12:00:00.000Z",
+    league: "Premier League",
+    strategyVersion: "unified-buyable-v1",
+    modelVersion: "consensus-v1",
+    market: "h2h",
+    selection: "home",
+    quotes: [{
+      bookmaker: "Book A",
+      provider: "provider-a",
+      odds: 2.1,
+      chance: 0.51,
+      edge: 0.071,
+      minimumBuyOdds: 2.02,
+      observedAt: "2026-07-18T10:00:00.000Z",
+    }],
+    ...overrides,
+  };
+}
+
 test("snapshot insert is immutable, versioned, idempotent, and partially rejects invalid rows", async (t) => {
   await withDatabase(t, async (pool) => {
     const repository = createSnapshotRepository(pool);
@@ -96,14 +146,64 @@ test("snapshot insert is immutable, versioned, idempotent, and partially rejects
 
     const all = await repository.listAll();
     assert.equal(all.length, 3);
-    assert.deepEqual(all.find((row) => row.modelVersion === "model-v1"), first);
-    assert.deepEqual(all.find((row) => row.modelVersion === "model-v2"), newVersion);
-    assert.deepEqual(all.find((row) => row.matchId === "legacy-1"), legacy);
+    assert.deepEqual(all.find((row) => row.modelVersion === "model-v1"), legacySnapshot(first));
+    assert.deepEqual(all.find((row) => row.modelVersion === "model-v2"), legacySnapshot(newVersion));
+    assert.deepEqual(all.find((row) => row.matchId === "legacy-1"), legacySnapshot(legacy));
     assert.deepEqual(
       (await repository.listCurrent()).sort((left, right) => left.modelVersion.localeCompare(right.modelVersion)),
-      [first, newVersion].sort((left, right) => left.modelVersion.localeCompare(right.modelVersion)),
+      [first, newVersion].map(legacySnapshot).sort((left, right) => left.modelVersion.localeCompare(right.modelVersion)),
     );
     assert.equal(all.some((row) => row.matchId === "invalid-1"), false);
+  });
+});
+
+test("legacy snapshot writes reject the server-only unified strategy and reads map missing strategy to legacy-v0", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const repository = createSnapshotRepository(pool);
+    const legacy = currentSnapshot({ matchId: "legacy-strategy" });
+    const unified = currentSnapshot({ matchId: "browser-unified", strategyVersion: "unified-buyable-v1" });
+    assert.deepEqual(await repository.insertBatch([legacy, unified]), {
+      inserted: 1,
+      duplicate: 0,
+      rejected: 1,
+      rejectedByReason: { "server-only-strategy": 1 },
+    });
+    assert.deepEqual(await repository.listAll(), [{ ...legacy, strategyVersion: "legacy-v0" }]);
+    const stored = await pool.query("SELECT raw, strategy_version FROM prediction_snapshots");
+    assert.deepEqual(stored.rows, [{ raw: legacy, strategy_version: null }]);
+  });
+});
+
+test("opportunity identity includes fixture, selection, model, and strategy", () => {
+  const base = opportunity();
+  const identities = [
+    opportunityIdentity(base),
+    opportunityIdentity({ ...base, selection: "away" }),
+    opportunityIdentity({ ...base, modelVersion: "consensus-v2" }),
+    opportunityIdentity({ ...base, strategyVersion: "unified-buyable-v2" }),
+  ];
+  assert.equal(new Set(identities).size, identities.length);
+  assert.equal(identities[0], "00000000-0000-4000-8000-000000000001|h2h|home||consensus-v1|unified-buyable-v1");
+});
+
+test("opportunity persistence keeps selection and strategy identities distinct", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const [{ fixtureId }] = (await createFixtureRepository(pool).resolveBatch([fixtureRow()])).fixtures;
+    const repository = createOpportunityRepository(pool);
+    const evaluatedAt = "2026-07-18T10:05:00.000Z";
+    const base = opportunity({ fixtureId });
+    await repository.recordEvaluation({
+      evaluatedAt,
+      inputs: [],
+      opportunities: [
+        base,
+        { ...base, selection: "away" },
+        { ...base, strategyVersion: "unified-buyable-v2" },
+      ],
+    });
+    const identities = await pool.query("SELECT identity_key FROM prediction_snapshots ORDER BY identity_key");
+    assert.equal(identities.rowCount, 3);
+    assert.equal(new Set(identities.rows.map(({ identity_key }) => identity_key)).size, 3);
   });
 });
 
@@ -146,9 +246,9 @@ test("legacy rows with malformed typed projections preserve raw JSON without rol
     });
     assert.deepEqual(
       (await repository.listAll()).sort((left, right) => left.matchId.localeCompare(right.matchId)),
-      [valid, legacy].sort((left, right) => left.matchId.localeCompare(right.matchId)),
+      [valid, legacy].map(legacySnapshot).sort((left, right) => left.matchId.localeCompare(right.matchId)),
     );
-    assert.deepEqual(await repository.listCurrent(), [valid]);
+    assert.deepEqual(await repository.listCurrent(), [legacySnapshot(valid)]);
   });
 });
 
@@ -243,10 +343,13 @@ test("live odds replacement is provider-scoped, allows an empty clear, and exclu
 
     assert.deepEqual(
       (await repository.listLive("2026-07-18T10:30:00.000Z")).sort((left, right) => left.id.localeCompare(right.id)),
-      [replacement, p2].sort((left, right) => left.id.localeCompare(right.id)),
+      [
+        storedLive(replacement, "provider-1", "2026-07-18T10:15:00.000Z"),
+        storedLive(p2, "provider-2", observedAt),
+      ].sort((left, right) => left.id.localeCompare(right.id)),
     );
     await repository.replaceProviderSnapshot("provider-1", "2026-07-18T10:31:00.000Z", []);
-    assert.deepEqual(await repository.listLive("2026-07-18T10:31:00.000Z"), [p2]);
+    assert.deepEqual(await repository.listLive("2026-07-18T10:31:00.000Z"), [storedLive(p2, "provider-2", observedAt)]);
   });
 });
 
@@ -259,8 +362,31 @@ test("live odds from multiple bookmakers for the same match coexist in one provi
 
     assert.deepEqual(
       (await repository.listLive("2026-07-18T10:30:00.000Z")).sort((left, right) => left.id.localeCompare(right.id)),
-      [bet365, pinnacle].sort((left, right) => left.id.localeCompare(right.id)),
+      [bet365, pinnacle].map((entry) => storedLive(entry, "the-odds-api:sport", "2026-07-18T10:00:00.000Z")).sort((left, right) => left.id.localeCompare(right.id)),
     );
+  });
+});
+
+test("listLive overlays trusted provider observation and source identity metadata", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const repository = createOddsRepository(pool);
+    const raw = liveEntry({
+      id: "trusted-entry",
+      matchId: "trusted-match",
+      expiresAt: "2026-07-18T11:00:00.000Z",
+      provider: "spoofed-provider",
+      observedAt: "1999-01-01T00:00:00.000Z",
+    });
+    await repository.replaceProviderSnapshot("trusted-provider", "2026-07-18T10:00:00.000Z", [raw]);
+    const [stored] = await repository.listLive("2026-07-18T10:30:00.000Z");
+    assert.deepEqual(stored, {
+      ...raw,
+      id: "trusted-entry",
+      provider: "trusted-provider",
+      matchId: "trusted-match",
+      observedAt: "2026-07-18T10:00:00.000Z",
+      expiresAt: "2026-07-18T11:00:00.000Z",
+    });
   });
 });
 
@@ -278,7 +404,7 @@ test("a malformed live row rolls back provider deletion and all replacement inse
       /positive finite odds/i,
     );
 
-    assert.deepEqual(await repository.listLive("2026-07-18T10:30:00.000Z"), [original]);
+    assert.deepEqual(await repository.listLive("2026-07-18T10:30:00.000Z"), [storedLive(original, "provider-1", "2026-07-18T10:00:00.000Z")]);
   });
 });
 
@@ -301,7 +427,7 @@ test("non-finite live lines are rejected without replacing or JSON-coercing the 
       );
       assert.deepEqual(
         (await repository.listLive("2026-07-18T10:30:00.000Z")).sort((left, right) => left.id.localeCompare(right.id)),
-        [...original].sort((left, right) => left.id.localeCompare(right.id)),
+        original.map((entry) => storedLive(entry, "provider-line", "2026-07-18T10:00:00.000Z")).sort((left, right) => left.id.localeCompare(right.id)),
       );
     }
   });
@@ -328,6 +454,127 @@ test("concurrent same-provider replacements finish with one complete snapshot, n
     const secondWon = second.every(({ id }) => ids.has(id));
     assert.equal(ids.size, 100);
     assert.equal(firstWon || secondWon, true);
+  });
+});
+
+test("fixture resolution reuses exact aliases before matching metadata", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const repository = createFixtureRepository(pool);
+    const first = fixtureRow();
+    const initial = await repository.resolveBatch([first]);
+    assert.equal(initial.unmatched.length, 0);
+    assert.equal(initial.fixtures.length, 1);
+    assert.match(initial.fixtures[0].fixtureId, UUID_SCHEMA);
+
+    const changedMetadata = fixtureRow({
+      homeTeam: "Completely Different",
+      awayTeam: "Another Team",
+      commenceTime: undefined,
+    });
+    const exact = await repository.resolveBatch([changedMetadata]);
+    assert.equal(exact.fixtures[0].fixtureId, initial.fixtures[0].fixtureId);
+    const aliases = await pool.query("SELECT provider, provider_match_id, fixture_id FROM fixture_aliases");
+    assert.equal(aliases.rowCount, 1);
+  });
+});
+
+test("fixture resolution auto-links one normalized same-direction candidate within ten minutes", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const repository = createFixtureRepository(pool);
+    const [seed] = (await repository.resolveBatch([fixtureRow()])).fixtures;
+    const [linked] = (await repository.resolveBatch([fixtureRow({
+      provider: "provider-b",
+      matchId: "other-match",
+      homeTeam: " alpha-fc ",
+      awayTeam: "BETA UNITED",
+      commenceTime: "2026-07-18T12:10:00.000Z",
+      league: " premier league ",
+    })])).fixtures;
+    assert.equal(linked.fixtureId, seed.fixtureId);
+
+    const [reversed] = (await repository.resolveBatch([fixtureRow({
+      provider: "provider-c",
+      matchId: "reversed-match",
+      homeTeam: "Beta United",
+      awayTeam: "Alpha FC",
+      commenceTime: "2026-07-18T12:05:00.000Z",
+    })])).fixtures;
+    assert.notEqual(reversed.fixtureId, seed.fixtureId);
+  });
+});
+
+test("ambiguous fixture matches are audited and left unmatched", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const repository = createFixtureRepository(pool);
+    await repository.resolveBatch([fixtureRow({ matchId: "seed-one", commenceTime: "2026-07-18T11:55:00.000Z" })]);
+    await repository.resolveBatch([fixtureRow({ matchId: "seed-two", commenceTime: "2026-07-18T12:05:00.000Z", league: "Other League" })]);
+    const ambiguousRow = fixtureRow({ provider: "provider-b", matchId: "ambiguous", league: undefined });
+    const result = await repository.resolveBatch([ambiguousRow]);
+    assert.deepEqual(result.fixtures, []);
+    assert.deepEqual(result.unmatched, [ambiguousRow]);
+    const audit = await pool.query("SELECT reason, candidate_fixture_ids, matched_fixture_id, raw FROM fixture_match_audit");
+    assert.equal(audit.rowCount, 1);
+    assert.equal(audit.rows[0].reason, "ambiguous-match");
+    assert.equal(audit.rows[0].candidate_fixture_ids.length, 2);
+    assert.equal(audit.rows[0].matched_fixture_id, null);
+    assert.deepEqual(audit.rows[0].raw, ambiguousRow);
+    assert.equal((await pool.query("SELECT 1 FROM fixture_aliases WHERE provider = 'provider-b' AND provider_match_id = 'ambiguous'")).rowCount, 0);
+  });
+});
+
+test("opportunity evaluations preserve the first sample and append only changed fingerprints", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const fixtures = createFixtureRepository(pool);
+    const [{ fixtureId }] = (await fixtures.resolveBatch([fixtureRow()])).fixtures;
+    const repository = createOpportunityRepository(pool);
+    const firstOpportunity = opportunity({ fixtureId });
+    const firstInputs = [fixtureRow({ fixtureId, bookmaker: "Book A", observedAt: "2026-07-18T10:00:00.000Z" })];
+
+    assert.deepEqual(await repository.recordEvaluation({
+      evaluatedAt: "2026-07-18T10:05:00.000Z",
+      inputs: firstInputs,
+      opportunities: [firstOpportunity],
+    }), { samplesInserted: 1, samplesUpdated: 0, observationsInserted: 1, observationsExtended: 0, skipped: 0 });
+    assert.deepEqual(await repository.recordEvaluation({
+      evaluatedAt: "2026-07-18T10:10:00.000Z",
+      inputs: firstInputs,
+      opportunities: [firstOpportunity],
+    }), { samplesInserted: 0, samplesUpdated: 1, observationsInserted: 0, observationsExtended: 1, skipped: 0 });
+
+    const changed = opportunity({ fixtureId, quotes: [{ ...firstOpportunity.quotes[0], odds: 2.2, edge: 0.122 }] });
+    await repository.recordEvaluation({
+      evaluatedAt: "2026-07-18T10:15:00.000Z",
+      inputs: firstInputs,
+      opportunities: [changed],
+    });
+    await repository.recordEvaluation({
+      evaluatedAt: "2026-07-18T10:20:00.000Z",
+      inputs: firstInputs,
+      opportunities: [{ ...changed, quotes: [] }],
+    });
+
+    const samples = await pool.query(`
+      SELECT id, raw, odds, chance, edge, first_qualified_at, last_qualified_at
+      FROM prediction_snapshots WHERE strategy_version = 'unified-buyable-v1'
+    `);
+    assert.equal(samples.rowCount, 1);
+    assert.deepEqual(samples.rows[0].raw, firstOpportunity);
+    assert.equal(samples.rows[0].odds, 2.1);
+    assert.equal(samples.rows[0].chance, 0.51);
+    assert.equal(samples.rows[0].edge, 0.071);
+    assert.equal(samples.rows[0].first_qualified_at.toISOString(), "2026-07-18T10:05:00.000Z");
+    assert.equal(samples.rows[0].last_qualified_at.toISOString(), "2026-07-18T10:15:00.000Z");
+
+    const observations = await repository.listObservations(samples.rows[0].id);
+    assert.equal(observations.length, 3);
+    assert.equal(observations[0].firstEvaluatedAt, "2026-07-18T10:05:00.000Z");
+    assert.equal(observations[0].lastEvaluatedAt, "2026-07-18T10:10:00.000Z");
+    assert.deepEqual(observations.at(-1).buyableQuotes, []);
+    const current = await repository.listCurrent("2026-07-18T10:30:00.000Z");
+    assert.equal(current.length, 1);
+    assert.deepEqual(current[0].quotes, []);
+    assert.equal(current[0].strategyVersion, "unified-buyable-v1");
+    assert.equal((await repository.listForBacktest()).length, 1);
   });
 });
 

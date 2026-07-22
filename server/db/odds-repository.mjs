@@ -44,13 +44,24 @@ export function createOddsRepository(pool) {
 
     async listLive(now) {
       const result = await pool.query(`
-        SELECT raw
+        SELECT raw, entry_id, provider, match_id, observed_at, expires_at
         FROM live_odds
         WHERE expires_at > $1
       `, [now]);
-      return result.rows.map(({ raw }) => raw);
+      return result.rows.map((row) => ({
+        ...row.raw,
+        id: row.entry_id,
+        provider: row.provider,
+        matchId: row.match_id,
+        observedAt: isoOrNull(row.observed_at),
+        expiresAt: isoOrNull(row.expires_at),
+      }));
     },
   };
+}
+
+function isoOrNull(value) {
+  return value instanceof Date ? value.toISOString() : value ?? null;
 }
 
 function validateEntries(entries) {

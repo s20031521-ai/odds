@@ -7,7 +7,9 @@ import { createAuthService } from "./auth/auth-service.mjs";
 import { createApp } from "./app.mjs";
 import { loadServerConfig } from "./config.mjs";
 import { runMigrations } from "./db/migrate.mjs";
+import { createFixtureRepository } from "./db/fixture-repository.mjs";
 import { createOddsRepository } from "./db/odds-repository.mjs";
+import { createOpportunityRepository } from "./db/opportunity-repository.mjs";
 import { createPool } from "./db/pool.mjs";
 import { createResultRepository } from "./db/result-repository.mjs";
 import { createSnapshotRepository } from "./db/snapshot-repository.mjs";
@@ -48,6 +50,8 @@ if (config.runMigrations) {
 }
 
 const repositories = {
+  fixtures: createFixtureRepository(pool),
+  opportunities: createOpportunityRepository(pool),
   snapshots: createSnapshotRepository(pool),
   results: createResultRepository(pool),
   odds: createOddsRepository(pool),

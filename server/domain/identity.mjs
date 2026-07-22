@@ -2,6 +2,17 @@ export function snapshotIdentity(snapshot) {
   return `${snapshot.matchId}|${snapshot.market}|${Number.isFinite(snapshot.line) ? snapshot.line : ""}|${snapshot.modelVersion ?? "legacy-v0"}`;
 }
 
+export function opportunityIdentity(opportunity) {
+  return [
+    opportunity.fixtureId,
+    opportunity.market,
+    opportunity.selection,
+    Number.isFinite(opportunity.line) ? opportunity.line : "",
+    opportunity.modelVersion,
+    opportunity.strategyVersion ?? "legacy-v0",
+  ].join("|");
+}
+
 export function resultIdentity(result) {
   return `${result.matchId}|${result.market}`;
 }

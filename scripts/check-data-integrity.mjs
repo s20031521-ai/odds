@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { summarizeSnapshotQuality } from "../shared/snapshot-policy.mjs";
+import { classifySnapshot } from "../shared/snapshot-policy.mjs";
 
 const root = process.cwd();
 const snapshotPath = path.join(root, "data", "prediction-snapshots.jsonl");
@@ -23,6 +23,16 @@ function readJsonl(file) {
 }
 
 function snapshotKey(item) {
+  if (item.strategyVersion === "unified-buyable-v1") {
+    return [
+      item.fixtureId ?? "",
+      item.market ?? "",
+      item.selection ?? "",
+      Number.isFinite(item.line) ? item.line : "",
+      item.modelVersion ?? "",
+      item.strategyVersion,
+    ].join("|");
+  }
   return `${item.matchId ?? ""}|${item.market ?? ""}|${Number.isFinite(item.line) ? item.line : ""}|${item.modelVersion ?? "legacy-v0"}`;
 }
 
@@ -31,7 +41,9 @@ function resultKey(item) {
 }
 
 function isLateSnapshot(item) {
-  const savedAt = Date.parse(item.savedAt ?? "");
+  const savedAt = Date.parse(item.strategyVersion === "unified-buyable-v1"
+    ? item.firstQualifiedAt ?? ""
+    : item.savedAt ?? "");
   const commenceTime = Date.parse(item.commenceTime ?? "");
   return Number.isFinite(savedAt) && Number.isFinite(commenceTime) && savedAt >= commenceTime;
 }
@@ -55,7 +67,7 @@ function duplicateKeys(rows, keyFn) {
 
 // Pure check core shared by file mode and --database mode.
 export function analyzeRows({ snapshots, results, observations = [] }) {
-  const snapshotQuality = summarizeSnapshotQuality(snapshots);
+  const snapshotQuality = summarizeIntegritySnapshotQuality(snapshots);
   const lateSnapshots = snapshots.filter(isLateSnapshot);
   const duplicateSnapshotKeys = duplicateKeys(snapshots, snapshotKey);
   const duplicateResultKeys = duplicateKeys(results, resultKey);
@@ -108,6 +120,48 @@ export function analyzeRows({ snapshots, results, observations = [] }) {
   };
 }
 
+function summarizeIntegritySnapshotQuality(snapshots) {
+  const summary = { raw: snapshots.length, validCurrent: 0, legacy: 0, invalid: 0, invalidReasons: {} };
+  for (const snapshot of snapshots) {
+    const classification = snapshot?.strategyVersion === "unified-buyable-v1"
+      ? classifyUnifiedSnapshot(snapshot)
+      : classifySnapshot(snapshot);
+    if (classification.status === "valid-current") summary.validCurrent += 1;
+    else if (classification.status === "legacy") summary.legacy += 1;
+    else {
+      summary.invalid += 1;
+      const reason = classification.reason ?? "invalid-snapshot";
+      summary.invalidReasons[reason] = (summary.invalidReasons[reason] ?? 0) + 1;
+    }
+  }
+  return summary;
+}
+
+function classifyUnifiedSnapshot(snapshot) {
+  if (!nonEmpty(snapshot.fixtureId)) return invalid("missing-fixture-id");
+  if (!nonEmpty(snapshot.market)) return invalid("missing-market");
+  if (!nonEmpty(snapshot.selection)) return invalid("missing-selection");
+  if (!nonEmpty(snapshot.modelVersion)) return invalid("missing-model-version");
+  if (snapshot.strategyVersion !== "unified-buyable-v1") return invalid("invalid-strategy-version");
+  if (["handicap", "totals", "corners"].includes(snapshot.market) && !Number.isFinite(snapshot.line)) return invalid("missing-line");
+  if (snapshot.line != null && !Number.isFinite(snapshot.line)) return invalid("invalid-line");
+  if (!validTimestamp(snapshot.commenceTime)) return invalid("invalid-commence-time");
+  if (!validTimestamp(snapshot.firstQualifiedAt)) return invalid("invalid-first-qualified-at");
+  return { status: "valid-current", reason: null };
+}
+
+function invalid(reason) {
+  return { status: "invalid", reason };
+}
+
+function nonEmpty(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function validTimestamp(value) {
+  return nonEmpty(value) && Number.isFinite(Date.parse(value));
+}
+
 export function formatMetrics(metrics) {
   return [
     `snapshots=${metrics.snapshots}`,
@@ -143,12 +197,10 @@ async function runDatabaseMode() {
     throw new Error("--database mode requires DATABASE_URL");
   }
   const { createPool } = await import("../server/db/pool.mjs");
-  const { createSnapshotRepository } = await import("../server/db/snapshot-repository.mjs");
   const { createResultRepository } = await import("../server/db/result-repository.mjs");
   const pool = createPool(databaseUrl);
   try {
     // Strictly read-only: repository listAll() only; no writes, no migrations.
-    const snapshots = await createSnapshotRepository(pool).listAll();
     const results = await createResultRepository(pool).listAll();
     const observationResult = await pool.query(`
       SELECT observation.snapshot_id, observation.fingerprint,
@@ -165,7 +217,9 @@ async function runDatabaseMode() {
       inputs: row.inputs,
     }));
     const snapshotsByIdentity = await pool.query(`
-      SELECT snapshot.id, snapshot.raw,
+      SELECT snapshot.id, snapshot.raw, snapshot.fixture_id, snapshot.market,
+             snapshot.prediction, snapshot.line, snapshot.model_version,
+             snapshot.strategy_version, snapshot.first_qualified_at,
              COALESCE(fixture.commence_time, snapshot.commence_time) AS commence_time
       FROM prediction_snapshots AS snapshot
       LEFT JOIN fixtures AS fixture ON fixture.id = snapshot.fixture_id
@@ -174,6 +228,15 @@ async function runDatabaseMode() {
     const identifiedSnapshots = snapshotsByIdentity.rows.map((row) => ({
       ...row.raw,
       sampleId: row.id,
+      fixtureId: row.fixture_id ?? row.raw.fixtureId,
+      market: row.market ?? row.raw.market,
+      selection: row.prediction ?? row.raw.selection,
+      ...(row.line === null ? {} : { line: row.line }),
+      modelVersion: row.model_version ?? row.raw.modelVersion,
+      strategyVersion: row.strategy_version ?? row.raw.strategyVersion ?? "legacy-v0",
+      firstQualifiedAt: row.first_qualified_at instanceof Date
+        ? row.first_qualified_at.toISOString()
+        : row.first_qualified_at ?? row.raw.firstQualifiedAt,
       commenceTime: row.commence_time instanceof Date
         ? row.commence_time.toISOString()
         : row.commence_time ?? row.raw.commenceTime,

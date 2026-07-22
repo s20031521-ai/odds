@@ -8,6 +8,7 @@ import test from "node:test";
 import { createPostgresSink } from "./lib/postgres-sink.mjs";
 import { withDatabaseUrl } from "./lib/test-db.mjs";
 import { analyzeRows, formatMetrics } from "./check-data-integrity.mjs";
+import { createOpportunityRepository } from "../server/db/opportunity-repository.mjs";
 
 const execFileAsync = promisify(execFile);
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -75,6 +76,37 @@ test("analyzeRows detects duplicate, future-input, and post-kick recommendation 
   assert.match(metrics.failures.join(","), /post-kick recommendation observations/);
 });
 
+test("unified integrity identity keeps distinct selections on the same fixture and line", () => {
+  const home = validUnifiedSnapshot({ selection: "home" });
+  const away = validUnifiedSnapshot({ selection: "away" });
+  const metrics = analyzeRows({ snapshots: [home, away], results: [], observations: [] });
+
+  assert.equal(metrics.duplicateSnapshotKeys, 0);
+  assert.equal(metrics.snapshotQuality.validCurrent, 2);
+  assert.equal(metrics.snapshotQuality.invalid, 0);
+  assert.deepEqual(metrics.failures, []);
+});
+
+test("unified integrity detects a true full-identity duplicate", () => {
+  const row = validUnifiedSnapshot();
+  const metrics = analyzeRows({ snapshots: [row, { ...row }], results: [], observations: [] });
+
+  assert.equal(metrics.duplicateSnapshotKeys, 1);
+  assert.match(metrics.failures.join(","), /duplicate prediction snapshot keys/);
+});
+
+test("unified integrity validates its required identity fields without legacy quote scalars", () => {
+  const metrics = analyzeRows({
+    snapshots: [validUnifiedSnapshot({ fixtureId: undefined })],
+    results: [],
+    observations: [],
+  });
+
+  assert.equal(metrics.snapshotQuality.validCurrent, 0);
+  assert.equal(metrics.snapshotQuality.invalid, 1);
+  assert.equal(metrics.snapshotQuality.invalidReasons["missing-fixture-id"], 1);
+});
+
 test("formatMetrics preserves the legacy file-mode line format", () => {
   const lines = formatMetrics(analyzeRows({ snapshots: [validSnapshot()], results: [validResult()] }));
   assert.deepEqual(lines.map((line) => line.split("=")[0]), [
@@ -114,6 +146,19 @@ test("--database mode applies the same checks over repository rows", async (t) =
     const sink = createPostgresSink({ pool });
     await sink.saveSnapshots([validSnapshot()]);
     await sink.saveResults([validResult({ sourcePriority: 10 })]);
+    const fixtureId = "00000000-0000-4000-8000-000000000042";
+    await pool.query(`
+      INSERT INTO fixtures (id, home_team, away_team, normalized_home_team, normalized_away_team, commence_time)
+      VALUES ($1, 'Home', 'Away', 'home', 'away', '2026-07-19T12:00:00Z')
+    `, [fixtureId]);
+    await createOpportunityRepository(pool).recordEvaluation({
+      evaluatedAt: "2026-07-19T10:00:00Z",
+      inputs: [],
+      opportunities: [{
+        ...validUnifiedSnapshot({ fixtureId, commenceTime: "2026-07-19T12:00:00Z", firstQualifiedAt: undefined }),
+        quotes: [{ bookmaker: "Book", provider: "fixture", odds: 2.1, chance: 0.55, edge: 0.155, minimumBuyOdds: 1.88, observedAt: "2026-07-19T09:59:00Z" }],
+      }],
+    });
 
     const { stdout, stderr } = await execFileAsync(
       process.execPath,
@@ -124,13 +169,14 @@ test("--database mode applies the same checks over repository rows", async (t) =
     assert.equal(stderr, "");
     const lines = stdout.trim().split(/\r?\n/);
     assert.equal(lines[0], "mode=database");
-    assert.match(stdout, /^snapshots=1$/m);
+    assert.match(stdout, /^snapshots=2$/m);
     assert.match(stdout, /^results=1$/m);
     assert.match(stdout, /^lateSnapshots=0$/m);
     assert.match(stdout, /^duplicateSnapshotKeys=0$/m);
     assert.match(stdout, /^duplicateResultKeys=0$/m);
     assert.match(stdout, /^negativeScores=0$/m);
-    assert.match(stdout, /^snapshotQualityValidCurrent=1$/m);
+    assert.match(stdout, /^snapshotQualityValidCurrent=2$/m);
+    assert.match(stdout, /^observations=1$/m);
   });
 });
 
@@ -159,6 +205,21 @@ function validResult(overrides = {}) {
     score: "3-1",
     source: "integrity-test",
     completedAt: "2026-07-18T14:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function validUnifiedSnapshot(overrides = {}) {
+  return {
+    fixtureId: "fixture-integrity-1",
+    matchId: "provider-match-1",
+    market: "handicap",
+    selection: "home",
+    line: -0.5,
+    modelVersion: "hdc-loo-v2",
+    strategyVersion: "unified-buyable-v1",
+    commenceTime: "2026-07-18T12:00:00.000Z",
+    firstQualifiedAt: "2026-07-18T10:00:00.000Z",
     ...overrides,
   };
 }

@@ -14,7 +14,7 @@ import { dataFreshFromHealth, dataHealthWarning, dataLoadsReady, dataLoadStateAf
 
 import { buildTotalsCards, type TotalsMarketEntry } from "./oddsApi";
 import { buildHandicapCards, type HandicapEntry } from "./handicap";
-import { clearBacktestResponseState, cornerPickLabel, excludeLegacyRows, filterHistoryRows, groupMarketCards, hasPredictionSnapshot, isSnapshotQuality, snapshotQualityMessage, summarizeHistoryRows, type SnapshotQuality } from "./marketDisplay";
+import { clearBacktestResponseState, cornerPickLabel, excludeLegacyRows, filterHistoryRows, findMarketReadiness, groupMarketCards, hasPredictionSnapshot, isSnapshotQuality, marketDisplayLabel, snapshotQualityMessage, summarizeHistoryRows, type CanonicalMarket, type SnapshotQuality } from "./marketDisplay";
 
 import { analysisMatchIdFromHash, fixtureIdFromHash, pageFromHash, tabForRouteTransition } from "./route";
 import type { PredictionSnapshot } from "./predictionSnapshots";
@@ -31,6 +31,7 @@ import { buildMatchMarketDetails } from "./matchDetails";
 import { gatePickLabel } from "./kickoffGate";
 import { Mascot } from "./components/Kawaii";
 import { RecommendationObservationHistory } from "./components/BuyableOddsRange";
+import { startCurrentRecommendationsRefresh } from "./currentRecommendations";
 
 
 type ApiStatus =
@@ -88,6 +89,7 @@ type PendingEntry = {
   modelVersion: string;
   source: string | null;
   status: "upcoming" | "settling" | "overdue" | "unknown";
+  sampleId?: number | string;
 };
 
 type LiveOddsPayload = {
@@ -103,11 +105,11 @@ const initialEntries: ManualEntry[] = [];
 const OFFLINE_WARNING = "目前離線；已隱藏值得買機會，連線後會自動恢復。";
 
 const READINESS_TARGET = 30;
-const READINESS_MODELS: Array<{ market: HistoryMarket; modelVersion: string }> = [
-  { market: "主客和", modelVersion: "consensus-v1" },
-  { market: "大細波", modelVersion: "totals-loo-v1" },
-  { market: "角球", modelVersion: "corner-loo-v1" },
-  { market: "亞洲讓球", modelVersion: "hdc-loo-v2" },
+const READINESS_MODELS: Array<{ market: CanonicalMarket; label: HistoryMarket; modelVersion: string }> = [
+  { market: "h2h", label: "主客和", modelVersion: "consensus-v1" },
+  { market: "totals", label: "大細波", modelVersion: "totals-loo-v1" },
+  { market: "corners", label: "角球", modelVersion: "corner-loo-v1" },
+  { market: "handicap", label: "亞洲讓球", modelVersion: "hdc-loo-v2" },
 ];
 
 
@@ -283,7 +285,7 @@ function App() {
   const comparableMatchCount = useMemo(() => new Set(comparableResultRows.map((row) => row.matchId)).size, [comparableResultRows]);
   const historyStats = useMemo(() => summarizeHistoryRows(marketResultRows), [marketResultRows]);
   const resultRows = historyView === "comparable" ? comparableResultRows : marketResultRows;
-  const marketPendingEntries = useMemo(() => pendingEntries.filter((entry) => entry.market === historyMarket), [pendingEntries, historyMarket]);
+  const marketPendingEntries = useMemo(() => filterHistoryRows(pendingEntries, historyMarket), [pendingEntries, historyMarket]);
   const fixturesByMatchId = useMemo(() => new Map(fixtures.map((fixture) => [fixture.matchId, fixture])), [fixtures]);
   const qualityWarning = snapshotQuality ? snapshotQualityMessage(snapshotQuality) : null;
   const selectedFixture = fixtures.find((fixture) => fixture.matchId === fixtureId) ?? null;
@@ -316,27 +318,33 @@ function App() {
   }, [dataLoads]);
 
   useEffect(() => {
-    let cancelled = false;
     if (!auth.authenticated) {
       setRecordedOpportunities([]);
       setRecommendationsGeneratedAt(null);
       setRecommendationsLoaded(false);
-      return () => { cancelled = true; };
+      return;
     }
     setRecommendationsLoaded(false);
-    void apiClient.currentRecommendations().then((response) => {
-      if (cancelled || response.strategyVersion !== "unified-buyable-v1" || !Array.isArray(response.opportunities)) return;
-      setRecordedOpportunities(response.opportunities);
-      setRecommendationsGeneratedAt(response.generatedAt);
-      setRecommendationsLoaded(true);
-    }).catch((error) => {
-      if (cancelled) return;
-      setRecordedOpportunities([]);
-      setRecommendationsGeneratedAt(null);
-      setRecommendationsLoaded(false);
-      if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
+    return startCurrentRecommendationsRefresh({
+      load: apiClient.currentRecommendations,
+      onSuccess: (response) => {
+        if (response.strategyVersion !== "unified-buyable-v1" || !Array.isArray(response.opportunities)) {
+          setRecordedOpportunities([]);
+          setRecommendationsGeneratedAt(null);
+          setRecommendationsLoaded(false);
+          return;
+        }
+        setRecordedOpportunities(response.opportunities);
+        setRecommendationsGeneratedAt(response.generatedAt);
+        setRecommendationsLoaded(true);
+      },
+      onError: (error) => {
+        setRecordedOpportunities([]);
+        setRecommendationsGeneratedAt(null);
+        setRecommendationsLoaded(false);
+        if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
+      },
     });
-    return () => { cancelled = true; };
   }, [apiClient, auth.authenticated]);
 
 
@@ -627,14 +635,14 @@ function App() {
         <Panel title="完場紀錄 vs 預測" icon={<CalendarDays size={18} />}>
           {qualityWarning ? <div className="sample-warning" role="status"><Mascot pose="momonga-alert" /><AlertTriangle size={17} />{qualityWarning}</div> : null}
           <div className="model-readiness" aria-label="模型樣本進度">
-            {READINESS_MODELS.map(({ market, modelVersion }) => {
-              const readinessEntry = readiness.find((row) => row.market === market && row.modelVersion === modelVersion);
+            {READINESS_MODELS.map(({ market, label, modelVersion }) => {
+              const readinessEntry = findMarketReadiness(readiness, market, modelVersion);
               const settled = readinessEntry?.settledMatches ?? 0;
               const percent = Math.min(100, Math.round((settled / READINESS_TARGET) * 100));
               return (
                 <div className="model-readiness__item" key={modelVersion}>
                   <div className="model-readiness__head">
-                    <span>{market}</span>
+                    <span>{label}</span>
                     <span>{settled}/{READINESS_TARGET} 場</span>
                   </div>
                   <div className="model-readiness__bar" aria-hidden="true"><span style={{ width: `${percent}%` }} /></div>
@@ -671,7 +679,12 @@ function App() {
                 ) : (
                   <div className="fixture-list">
                     {marketPendingEntries.map((entry) => (
-                      <PendingCard entry={entry} fixture={fixturesByMatchId.get(entry.matchId) ?? null} key={entry.id} />
+                      <PendingCard
+                        entry={entry}
+                        fixture={fixturesByMatchId.get(entry.matchId) ?? null}
+                        key={entry.id}
+                        loadObservations={loadRecommendationObservations}
+                      />
                     ))}
                   </div>
                 )}
@@ -691,7 +704,7 @@ function App() {
                         <span className="fixture-time">{formatDate(row.commenceTime)}</span>
                         <strong>{row.homeTeam} vs {row.awayTeam}</strong>
                         <div className="fixture-meta">
-                          <span>{row.market}{row.line ? ` ${row.line}` : ""}</span>
+                          <span>{marketDisplayLabel(row.market)}{row.line ? ` ${row.line}` : ""}</span>
                           <span>完場 {row.score}</span>
                           <span className={row.hit === null ? "" : row.hit ? "positive" : "negative"}>{settlementLabel(row.settlement, row.hit)}</span>
                         </div>
@@ -773,7 +786,15 @@ function MarketCardGroup({ group, market, logos }: { group: { matchId: string; p
   );
 }
 
-function PendingCard({ entry, fixture }: { entry: PendingEntry; fixture: { homeTeam: string; awayTeam: string; homeTeamZh?: string; awayTeamZh?: string } | null }) {
+function PendingCard({
+  entry,
+  fixture,
+  loadObservations,
+}: {
+  entry: PendingEntry;
+  fixture: { homeTeam: string; awayTeam: string; homeTeamZh?: string; awayTeamZh?: string } | null;
+  loadObservations: (sampleId: number) => Promise<PredictionObservationsResponse>;
+}) {
   const teams = fixture ? `${fixture.homeTeamZh ?? fixture.homeTeam} vs ${fixture.awayTeamZh ?? fixture.awayTeam}` : entry.matchId;
   return (
     <details className="fixture-card market-card pending-card">
@@ -781,7 +802,7 @@ function PendingCard({ entry, fixture }: { entry: PendingEntry; fixture: { homeT
         <span className="fixture-time">{entry.commenceTime ? formatDate(entry.commenceTime) : "未設定時間"}</span>
         <strong>{teams}</strong>
         <span className="fixture-meta">
-          <span>{entry.market}{entry.line !== null ? ` ${entry.line}` : ""}</span>
+          <span>{marketDisplayLabel(entry.market)}{entry.line !== null ? ` ${entry.line}` : ""}</span>
           <span>估 {entry.prediction}</span>
           {entry.edge !== null ? <span className="positive">Edge {formatPercent(entry.edge)}</span> : null}
         </span>
@@ -794,6 +815,12 @@ function PendingCard({ entry, fixture }: { entry: PendingEntry; fixture: { homeT
         <div className="line-item"><span>模型</span><span>{entry.modelVersion}{entry.source ? ` · ${entry.source}` : ""}</span></div>
         <div className="line-item"><span>快照時間</span><span>{formatDate(entry.savedAt)}</span></div>
       </div>
+      {positiveSampleId(entry.sampleId) ? (
+        <RecommendationObservationHistory
+          sampleId={positiveSampleId(entry.sampleId)!}
+          loadObservations={loadObservations}
+        />
+      ) : null}
     </details>
   );
 }

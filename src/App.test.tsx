@@ -28,7 +28,7 @@ describe("App integration source", () => {
     expect(source).toContain("isModelReadiness");
     expect(source).toContain("isPendingEntry");
     expect(source).toContain("setPendingEntries");
-    expect(source).toContain("apiClient.currentRecommendations()");
+    expect(source).toContain("load: apiClient.currentRecommendations");
     expect(source).toContain("apiClient.predictionObservations(sampleId)");
     expect(source).not.toContain("apiClient.savePredictions");
     expect(source).toContain("apiClient.logout");
@@ -59,7 +59,23 @@ describe("App integration source", () => {
 
     expect(source).toContain("async function loadRecommendationObservations(sampleId: number)");
     expect(source).toContain("loadObservations={loadRecommendationObservations}");
+    expect(source).toMatch(/<PendingCard\s+entry=\{entry\}/);
+    expect(source).toContain("loadObservations={loadRecommendationObservations}");
+    expect(source).toMatch(/function PendingCard[\s\S]{0,3000}RecommendationObservationHistory/);
     expect(source).not.toMatch(/useEffect\(\(\) => \{[\s\S]{0,300}predictionObservations/);
+  });
+
+  it("normalizes unified canonical market keys for history, pending rows, labels, and readiness", () => {
+    const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
+
+    expect(source).toContain('market: "h2h", label: "主客和"');
+    expect(source).toContain('market: "totals", label: "大細波"');
+    expect(source).toContain('market: "corners", label: "角球"');
+    expect(source).toContain('market: "handicap", label: "亞洲讓球"');
+    expect(source).toContain("filterHistoryRows(pendingEntries, historyMarket)");
+    expect(source).toContain("findMarketReadiness(readiness, market, modelVersion)");
+    expect(source).toContain("marketDisplayLabel(row.market)");
+    expect(source).toContain("marketDisplayLabel(entry.market)");
   });
 
   it("preserves standalone History and Analysis page headings after removing the old topbar", () => {
@@ -92,14 +108,19 @@ describe("App integration source", () => {
     expect(source).not.toContain("selectBuyOpportunities");
   });
 
-  it("marks recommendations usable only after the authenticated current response succeeds", () => {
+  it("refreshes current recommendations every three minutes and fails closed", () => {
     const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 
     expect(source).toContain("if (!auth.authenticated)");
-    expect(source).toContain("apiClient.currentRecommendations()");
+    expect(source).toContain('import { startCurrentRecommendationsRefresh } from "./currentRecommendations"');
+    expect(source).toContain("startCurrentRecommendationsRefresh({");
+    expect(source).toContain("load: apiClient.currentRecommendations");
+    expect(source).toContain("onSuccess: (response)");
+    expect(source).toContain("onError: (error)");
     expect(source).toContain('response.strategyVersion !== "unified-buyable-v1"');
     expect(source).toContain("setRecommendationsLoaded(true)");
     expect(source).toContain("setRecommendationsLoaded(false)");
+    expect(source).toContain("setRecordedOpportunities([])");
   });
 
   it("uses the route transition helper when hash navigation changes", () => {

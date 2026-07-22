@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clearBacktestResponseState, cornerPickLabel, excludeLegacyRows, filterHistoryRows, groupMarketCards, hasPredictionSnapshot, isSnapshotQuality, snapshotQualityMessage, summarizeHistoryRows } from "./marketDisplay";
+import { canonicalMarketKey, clearBacktestResponseState, cornerPickLabel, excludeLegacyRows, filterHistoryRows, findMarketReadiness, groupMarketCards, hasPredictionSnapshot, isSnapshotQuality, marketDisplayLabel, snapshotQualityMessage, summarizeHistoryRows } from "./marketDisplay";
 
 describe("backtest response state", () => {
   it("clears response-owned data when a load fails after a success", () => {
@@ -88,6 +88,33 @@ describe("market card presentation", () => {
       { market: "大細波", prediction: "大" },
     ];
     expect(filterHistoryRows(rows, "角球")).toEqual([rows[1]]);
+  });
+
+  it.each([
+    ["h2h", "主客和"],
+    ["totals", "大細波"],
+    ["corners", "角球"],
+    ["handicap", "亞洲讓球"],
+  ] as const)("normalizes canonical %s and legacy display label %s to the same market", (canonical, display) => {
+    const canonicalRow = { market: canonical, sampleId: 11 };
+    const legacyRow = { market: display, sampleId: 12 };
+
+    expect(canonicalMarketKey(canonical)).toBe(canonical);
+    expect(canonicalMarketKey(display)).toBe(canonical);
+    expect(marketDisplayLabel(canonical)).toBe(display);
+    expect(filterHistoryRows([canonicalRow, legacyRow], display)).toEqual([canonicalRow, legacyRow]);
+  });
+
+  it.each([
+    ["h2h", "主客和", "consensus-v1"],
+    ["totals", "大細波", "totals-loo-v1"],
+    ["corners", "角球", "corner-loo-v1"],
+    ["handicap", "亞洲讓球", "hdc-loo-v2"],
+  ] as const)("finds canonical %s readiness from display market %s", (canonical, display, modelVersion) => {
+    const canonicalReadiness = { market: canonical, modelVersion, settledMatches: 4 };
+    const wrongModel = { market: canonical, modelVersion: "other", settledMatches: 99 };
+
+    expect(findMarketReadiness([wrongModel, canonicalReadiness], display, modelVersion)).toBe(canonicalReadiness);
   });
 
   it("summarizes wins and losses while excluding pushes and pending rows", () => {

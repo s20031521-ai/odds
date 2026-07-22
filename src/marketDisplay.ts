@@ -6,6 +6,39 @@ export type SnapshotQuality = {
   invalidReasons: Record<string, number>;
 };
 
+const CANONICAL_MARKETS = {
+  h2h: "主客和",
+  totals: "大細波",
+  corners: "角球",
+  handicap: "亞洲讓球",
+} as const;
+
+export type CanonicalMarket = keyof typeof CANONICAL_MARKETS;
+export type DisplayMarket = (typeof CANONICAL_MARKETS)[CanonicalMarket];
+
+const CANONICAL_BY_MARKET: Readonly<Record<string, CanonicalMarket>> = Object.freeze({
+  ...Object.fromEntries(Object.keys(CANONICAL_MARKETS).map((market) => [market, market])) as Record<CanonicalMarket, CanonicalMarket>,
+  ...Object.fromEntries(Object.entries(CANONICAL_MARKETS).map(([market, label]) => [label, market])) as Record<DisplayMarket, CanonicalMarket>,
+});
+
+export function canonicalMarketKey(market: string): string {
+  return CANONICAL_BY_MARKET[market] ?? market;
+}
+
+export function marketDisplayLabel(market: string): string {
+  const canonical = canonicalMarketKey(market);
+  return canonical in CANONICAL_MARKETS ? CANONICAL_MARKETS[canonical as CanonicalMarket] : market;
+}
+
+export function findMarketReadiness<T extends { market: string; modelVersion: string }>(
+  rows: T[],
+  market: string,
+  modelVersion: string,
+): T | undefined {
+  const canonical = canonicalMarketKey(market);
+  return rows.find((row) => canonicalMarketKey(row.market) === canonical && row.modelVersion === modelVersion);
+}
+
 export type BacktestResponseState<ResultEntry, ModelReadiness> = {
   resultEntries: ResultEntry[];
   readiness: ModelReadiness[];
@@ -64,7 +97,8 @@ export function hasPredictionSnapshot(row: { prediction: string; modelVersion?: 
 }
 
 export function filterHistoryRows<T extends { market: string }>(rows: T[], market: string): T[] {
-  return rows.filter((row) => row.market === market);
+  const canonical = canonicalMarketKey(market);
+  return rows.filter((row) => canonicalMarketKey(row.market) === canonical);
 }
 
 export function summarizeHistoryRows(rows: Array<{ hit: boolean | null; settlement?: string | null; prediction: string; modelVersion?: string }>) {

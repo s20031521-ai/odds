@@ -16,6 +16,8 @@ describe("apiClient", () => {
     await client.login("Owner", "correct horse battery staple");
     await client.liveOdds();
     await client.results();
+    await client.currentRecommendations();
+    await client.predictionObservations(42);
     await client.backtest();
     await client.logout("csrf");
     await client.savePredictions("csrf", [snapshot()]);
@@ -25,6 +27,8 @@ describe("apiClient", () => {
       "/api/v1/auth/login",
       "/api/v1/odds/live",
       "/api/v1/results",
+      "/api/v1/recommendations/current",
+      "/api/v1/predictions/observations?sampleId=42",
       "/api/v1/backtest",
       "/api/v1/auth/logout",
       "/api/v1/predictions",
@@ -50,6 +54,8 @@ describe("apiClient", () => {
     await client.session();
     await client.liveOdds();
     await client.results();
+    await client.currentRecommendations();
+    await client.predictionObservations(42);
     await client.backtest();
     await client.logout("csrf-token");
     await client.savePredictions("csrf-token", [snapshot()]);
@@ -62,6 +68,8 @@ describe("apiClient", () => {
     expect(calls.find((call) => call.input === "/api/v1/session")?.init.headers).not.toHaveProperty("x-csrf-token");
     expect(calls.find((call) => call.input === "/api/v1/odds/live")?.init.headers).not.toHaveProperty("x-csrf-token");
     expect(calls.find((call) => call.input === "/api/v1/results")?.init.headers).not.toHaveProperty("x-csrf-token");
+    expect(calls.find((call) => call.input === "/api/v1/recommendations/current")?.init.headers).not.toHaveProperty("x-csrf-token");
+    expect(calls.find((call) => call.input === "/api/v1/predictions/observations?sampleId=42")?.init.headers).not.toHaveProperty("x-csrf-token");
     expect(calls.find((call) => call.input === "/api/v1/backtest")?.init.headers).not.toHaveProperty("x-csrf-token");
     expect(calls.find((call) => call.input === "/api/v1/auth/logout")?.init.headers).toHaveProperty("x-csrf-token", "csrf-token");
     expect(calls.find((call) => call.input === "/api/v1/predictions")?.init.headers).toHaveProperty("x-csrf-token", "csrf-token");

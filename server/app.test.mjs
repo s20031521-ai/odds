@@ -40,7 +40,7 @@ test("serves the secure same-origin api/v1 contract", async (t) => {
   assert.equal((await request(baseUrl, "GET", "/api/v1/unknown")).status, 404);
   assert.equal((await request(baseUrl, "GET", "/unknown")).status, 404);
   assert.equal((await request(baseUrl, "GET", "/api/v1/session")).body.authenticated, false);
-  for (const path of ["/api/v1/odds/live", "/api/v1/results", "/api/v1/backtest", "/api/v1/predictions"]) {
+  for (const path of ["/api/v1/odds/live", "/api/v1/results", "/api/v1/backtest", "/api/v1/recommendations/current", "/api/v1/predictions/observations?sampleId=1", "/api/v1/predictions"]) {
     const response = await request(baseUrl, path.endsWith("predictions") ? "POST" : "GET", path);
     assert.equal(response.status, 401);
     assert.deepEqual(response.body, { error: "unauthorized" });
@@ -77,6 +77,48 @@ test("serves the secure same-origin api/v1 contract", async (t) => {
 
   assert.equal((await request(baseUrl, "GET", "/api/v1/odds/live", { cookie })).body.entries[0].id, "live-1");
   assert.deepEqual((await request(baseUrl, "GET", "/api/v1/results", { cookie })).body.resultEntries, repositories.results.rows);
+  assert.equal((await request(baseUrl, "POST", "/api/v1/recommendations/current", { cookie })).status, 405);
+  assert.equal((await request(baseUrl, "POST", "/api/v1/predictions/observations?sampleId=1", { cookie })).status, 405);
+  for (const query of ["", "?sampleId=0", "?sampleId=-1", "?sampleId=1.5", "?sampleId=abc"]) {
+    const invalidHistory = await request(baseUrl, "GET", `/api/v1/predictions/observations${query}`, { cookie });
+    assert.equal(invalidHistory.status, 400, query);
+    assert.deepEqual(invalidHistory.body, { error: "bad_request" });
+  }
+
+  const current = await request(baseUrl, "GET", "/api/v1/recommendations/current", { cookie });
+  assert.equal(current.status, 200);
+  assert.equal(current.headers.get("cache-control"), "no-store");
+  assert.deepEqual(current.body, {
+    generatedAt: NOW.toISOString(),
+    strategyVersion: "unified-buyable-v1",
+    opportunities: [{
+      sampleId: 101,
+      fixtureId: "fixture-current",
+      matchId: "match-current",
+      homeTeam: "Alpha",
+      awayTeam: "Beta",
+      league: "Test League",
+      commenceTime: "2026-07-18T10:00:00.000Z",
+      market: "totals",
+      selection: "over",
+      line: 2.5,
+      modelVersion: "totals-loo-v1",
+      strategyVersion: "unified-buyable-v1",
+      quoteRange: { min: 2.02, max: 2.2, count: 2 },
+      bestQuote: quote("Pinnacle", 2.2, "2026-07-17T23:30:00.000Z"),
+      quotes: [
+        quote("Pinnacle", 2.2, "2026-07-17T23:30:00.000Z"),
+        quote("HKJC", 2.02, "2026-07-17T23:40:00.000Z", "hkjc"),
+      ],
+      lastEvaluatedAt: "2026-07-17T23:59:00.000Z",
+    }],
+  });
+
+  const history = await request(baseUrl, "GET", "/api/v1/predictions/observations?sampleId=101", { cookie });
+  assert.equal(history.status, 200);
+  assert.equal(history.headers.get("cache-control"), "no-store");
+  assert.deepEqual(history.body, { sampleId: 101, observations: repositories.opportunities.observations });
+
   const backtest = await request(baseUrl, "GET", "/api/v1/backtest", { cookie });
   assert.equal(backtest.status, 200);
   assert.equal(Array.isArray(backtest.body.rows), true);
@@ -111,14 +153,15 @@ test("serves the secure same-origin api/v1 contract", async (t) => {
       validSnapshot("new"),
       validSnapshot("duplicate"),
       { ...validSnapshot("post-kickoff"), savedAt: "2026-07-18T12:00:00.000Z" },
+      { ...validSnapshot("browser-unified"), strategyVersion: "unified-buyable-v1" },
     ],
   });
   assert.equal(predictions.status, 200);
   assert.deepEqual(predictions.body, {
     inserted: 1,
     duplicate: 1,
-    rejected: 1,
-    rejectedByReason: { "post-kickoff": 1 },
+    rejected: 2,
+    rejectedByReason: { "post-kickoff": 1, "server-only-strategy": 1 },
   });
 
   const logoutWithoutCsrf = await request(baseUrl, "POST", "/api/v1/auth/logout", {
@@ -261,6 +304,14 @@ function createFakeAuth() {
 
 function createFakeRepositories() {
   const rows = [{ matchId: "match-1", market: "totals", actual: "3" }];
+  const observations = [{
+    id: 1,
+    fingerprint: "fingerprint-1",
+    firstEvaluatedAt: "2026-07-17T23:40:00.000Z",
+    lastEvaluatedAt: "2026-07-17T23:59:00.000Z",
+    inputs: [{ bookmaker: "Pinnacle", odds: 2.2 }],
+    buyableQuotes: [quote("Pinnacle", 2.2, "2026-07-17T23:30:00.000Z")],
+  }];
   return {
     odds: {
       async listLive(now) {
@@ -272,6 +323,24 @@ function createFakeRepositories() {
       rows,
       async listAll() { return rows; },
     },
+    opportunities: {
+      observations,
+      async listCurrent(now) {
+        assert.equal(now.toISOString(), NOW.toISOString());
+        return [
+          currentOpportunity(),
+          { ...currentOpportunity(), sampleId: 102, fixtureId: "fixture-empty", quotes: [] },
+          { ...currentOpportunity(), sampleId: 103, fixtureId: "fixture-stale", lastEvaluatedAt: "2026-07-17T23:14:59.999Z" },
+          { ...currentOpportunity(), sampleId: 104, fixtureId: "fixture-past", commenceTime: "2026-07-17T20:00:00.000Z" },
+          { ...currentOpportunity(), sampleId: 105, fixtureId: "fixture-stale-quote", quotes: [quote("Pinnacle", 2.2, "2026-07-17T23:13:59.999Z")] },
+        ];
+      },
+      async listObservations(sampleId) {
+        assert.equal(sampleId, 101);
+        return observations;
+      },
+      async listForBacktest() { return [validSnapshot("match-1")]; },
+    },
     snapshots: {
       async listCurrent() { return [validSnapshot("match-1")]; },
       async insertBatch(snapshots) {
@@ -279,7 +348,9 @@ function createFakeRepositories() {
         let duplicate = 0;
         let inserted = 0;
         for (const snapshot of snapshots) {
-          if (Date.parse(snapshot.savedAt) >= Date.parse(snapshot.commenceTime)) {
+          if (snapshot.strategyVersion === "unified-buyable-v1") {
+            rejectedByReason["server-only-strategy"] = (rejectedByReason["server-only-strategy"] ?? 0) + 1;
+          } else if (Date.parse(snapshot.savedAt) >= Date.parse(snapshot.commenceTime)) {
             rejectedByReason["post-kickoff"] = (rejectedByReason["post-kickoff"] ?? 0) + 1;
           } else if (snapshot.matchId === "duplicate") {
             duplicate += 1;
@@ -292,6 +363,33 @@ function createFakeRepositories() {
       },
     },
   };
+}
+
+function currentOpportunity() {
+  return {
+    sampleId: "101",
+    fixtureId: "fixture-current",
+    matchId: "match-current",
+    homeTeam: "Alpha",
+    awayTeam: "Beta",
+    league: "Test League",
+    commenceTime: "2026-07-18T10:00:00.000Z",
+    market: "totals",
+    selection: "over",
+    line: 2.5,
+    modelVersion: "totals-loo-v1",
+    strategyVersion: "unified-buyable-v1",
+    firstEvaluatedAt: "2026-07-17T23:40:00.000Z",
+    lastEvaluatedAt: "2026-07-17T23:59:00.000Z",
+    quotes: [
+      quote("HKJC", 2.02, "2026-07-17T23:40:00.000Z", "hkjc"),
+      quote("Pinnacle", 2.2, "2026-07-17T23:30:00.000Z"),
+    ],
+  };
+}
+
+function quote(bookmaker, odds, observedAt, provider = "the-odds-api") {
+  return { bookmaker, provider, odds, chance: 0.5, edge: odds * 0.5 - 1, minimumBuyOdds: 2.06, observedAt };
 }
 
 function validSnapshot(matchId) {

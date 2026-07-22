@@ -22,6 +22,58 @@ export type ResultsResponse = {
   resultEntries: unknown[];
 };
 
+export type BuyableQuote = {
+  bookmaker: string;
+  provider: string;
+  odds: number;
+  chance: number;
+  edge: number;
+  minimumBuyOdds: number;
+  observedAt: string;
+};
+
+export type BuyableOpportunity = {
+  sampleId: number;
+  fixtureId: string;
+  matchId?: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeTeamZh?: string;
+  awayTeamZh?: string;
+  league?: string;
+  leagueZh?: string;
+  commenceTime: string;
+  market: "h2h" | "totals" | "corners" | "handicap";
+  selection: "home" | "draw" | "away" | "over" | "under";
+  line?: number;
+  modelVersion: string;
+  strategyVersion: "unified-buyable-v1";
+  quoteRange: { min: number; max: number; count: number };
+  bestQuote: BuyableQuote;
+  quotes: BuyableQuote[];
+  lastEvaluatedAt: string;
+};
+
+export type CurrentRecommendationsResponse = {
+  generatedAt: string;
+  strategyVersion: "unified-buyable-v1";
+  opportunities: BuyableOpportunity[];
+};
+
+export type RecommendationObservation = {
+  id: number | string;
+  fingerprint: string;
+  firstEvaluatedAt: string;
+  lastEvaluatedAt: string;
+  inputs: unknown[];
+  buyableQuotes: BuyableQuote[];
+};
+
+export type PredictionObservationsResponse = {
+  sampleId: number;
+  observations: RecommendationObservation[];
+};
+
 export type BacktestResponse = {
   rows: unknown[];
   summary?: unknown;
@@ -59,6 +111,8 @@ export function createApiClient(fetchImpl: FetchLike = fetch) {
     }),
     liveOdds: () => request<LiveOddsResponse>(fetchImpl, "/api/v1/odds/live"),
     results: () => request<ResultsResponse>(fetchImpl, "/api/v1/results"),
+    currentRecommendations: () => request<CurrentRecommendationsResponse>(fetchImpl, "/api/v1/recommendations/current"),
+    predictionObservations: (sampleId: number) => request<PredictionObservationsResponse>(fetchImpl, `/api/v1/predictions/observations?sampleId=${encodeURIComponent(String(sampleId))}`),
     backtest: () => request<BacktestResponse>(fetchImpl, "/api/v1/backtest"),
     savePredictions: (csrfToken: string, snapshots: PredictionSnapshot[]) => request<PredictionSaveResponse>(fetchImpl, "/api/v1/predictions", {
       method: "POST",

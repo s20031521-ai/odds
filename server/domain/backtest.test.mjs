@@ -77,7 +77,7 @@ test("preserves every inline-self-test Asian handicap and corner settlement bran
   assert.deepEqual(response.rows.map((row) => row.settlement), ["half-win", "half-loss", "half-win", "half-loss", "push", "half-win"]);
 });
 
-test("preserves handicap settlement, distinct-match readiness, and valid snapshot classification", () => {
+test("preserves handicap settlement and classification while excluding legacy snapshots from active readiness", () => {
   const snapshots = [
     { matchId: "hdc", market: HANDICAP, prediction: "主", line: -0.75 },
     { matchId: "upcoming", market: TOTALS, prediction: "細", line: 2.5, commenceTime: "2026-07-11T13:00:00Z", modelVersion: "totals-loo-v1" },
@@ -93,10 +93,8 @@ test("preserves handicap settlement, distinct-match readiness, and valid snapsho
     { matchId: "invalid", market: TOTALS, actual: "3 球" },
     { matchId: "legacy", market: TOTALS, actual: "3 球" },
   ], NOW);
-  const readiness = response.readiness.find((row) => row.market === TOTALS && row.modelVersion === "totals-loo-v1");
-
   assert.equal(response.rows[0].settlement, "half-win");
-  assert.deepEqual({ snapshots: readiness.snapshots, matches: readiness.matches, pendingMatches: readiness.pendingMatches, upcoming: readiness.upcoming, overdue: readiness.overdue, upcomingMatches: readiness.upcomingMatches, overdueMatches: readiness.overdueMatches }, { snapshots: 3, matches: 2, pendingMatches: 2, upcoming: 1, overdue: 2, upcomingMatches: 1, overdueMatches: 1 });
+  assert.deepEqual(response.readiness, []);
   assert.equal(response.snapshotQuality.validCurrent, 4);
   assert.equal(response.snapshotQuality.legacy, 1);
   assert.equal(response.snapshotQuality.invalid, 1);
@@ -221,3 +219,86 @@ test("lists unsettled valid-current snapshots as pending rows with kickoff statu
   assert.equal(response.pending.some((row) => row.matchId === "settled"), false);
   assert.equal(response.pending.some((row) => row.matchId === "legacy"), false);
 });
+
+test("settles unified opportunities independently with return ranges and distinct fixture-market readiness", () => {
+  const snapshots = [
+    unifiedOpportunity({
+      sampleId: 1,
+      fixtureId: "fixture-1",
+      selection: "over",
+      line: 2.5,
+      observations: [
+        observation("2026-07-11T08:00:00Z", [unifiedQuote("Book A", 2), unifiedQuote("Book B", 2.4)]),
+        observation("2026-07-11T09:55:00Z", []),
+      ],
+    }),
+    unifiedOpportunity({
+      sampleId: 2,
+      fixtureId: "fixture-1",
+      selection: "under",
+      line: 3,
+      observations: [
+        observation("2026-07-11T08:05:00Z", [unifiedQuote("Book A", 2.1)]),
+        observation("2026-07-11T09:50:00Z", [unifiedQuote("Book B", 2.3)]),
+      ],
+    }),
+    unifiedOpportunity({ sampleId: 3, fixtureId: "fixture-void", selection: "over", line: 2.5 }),
+    unifiedOpportunity({ sampleId: 4, fixtureId: "fixture-unsettleable", selection: "over", line: 2.5 }),
+    validSnapshot({ matchId: "legacy", market: TOTALS, prediction: "大", line: 2.5 }),
+  ];
+  const response = buildBacktest(snapshots, [
+    { fixtureId: "fixture-1", matchId: "provider-fixture-1", market: "totals", actual: "3 球" },
+    { fixtureId: "fixture-void", market: "totals", actual: "void", status: "void" },
+    { fixtureId: "fixture-unsettleable", market: "totals", status: "unsettleable" },
+    { matchId: "legacy", market: TOTALS, actual: "3 球" },
+  ], NOW);
+
+  const unifiedRows = response.rows.filter((row) => row.strategyVersion === "unified-buyable-v1");
+  assert.deepEqual(unifiedRows.slice(0, 2).map((row) => [row.sampleId, row.settlement]), [[1, "win"], [2, "push"]]);
+  assert.equal(response.rows.find((row) => row.matchId === "legacy")?.settlement, "win", "legacy audit rows survive alongside unified performance");
+  assert.deepEqual(unifiedRows[0].unitProfitRange, { lower: 1, upper: 1.4 });
+  assert.deepEqual(unifiedRows[1].unitProfitRange, { lower: 0, upper: 0 });
+  assert.equal(unifiedRows[0].closingBenchmark, "N/A");
+  assert.deepEqual(unifiedRows[1].closingBenchmark, {
+    evaluatedAt: "2026-07-11T09:50:00Z",
+    quoteRange: { min: 2.3, max: 2.3, count: 1 },
+  });
+
+  assert.equal(response.summary.finished, 2, "void, unsettleable, and legacy strategies do not enter active performance");
+  assert.deepEqual({ hit: response.summary.hit, miss: response.summary.miss, push: response.summary.push }, { hit: 1, miss: 0, push: 1 });
+  assert.deepEqual(response.summary.profitRange, { lower: 1, upper: 1.4 });
+  assert.deepEqual(response.summary.roiRange, { lower: 0.5, upper: 0.7 });
+  const readiness = response.readiness.find((row) => row.market === "totals" && row.modelVersion === "totals-loo-v1");
+  assert.equal(readiness.strategyVersion, "unified-buyable-v1");
+  assert.equal(readiness.settled, 1, "two settled selections on the same fixture and market count once");
+  assert.equal(readiness.settledMatches, 1);
+  assert.equal(response.readiness.some((row) => row.strategyVersion !== "unified-buyable-v1"), false);
+});
+
+function unifiedOpportunity(overrides = {}) {
+  return {
+    sampleId: 1,
+    fixtureId: "fixture-1",
+    matchId: "provider-fixture-1",
+    homeTeam: "Alpha",
+    awayTeam: "Beta",
+    commenceTime: "2026-07-11T10:00:00Z",
+    market: "totals",
+    selection: "over",
+    line: 2.5,
+    modelVersion: "totals-loo-v1",
+    strategyVersion: "unified-buyable-v1",
+    firstQualifiedAt: "2026-07-11T08:00:00Z",
+    lastQualifiedAt: "2026-07-11T09:50:00Z",
+    observations: [observation("2026-07-11T08:00:00Z", [unifiedQuote("Book A", 2)])],
+    ...overrides,
+  };
+}
+
+function observation(lastEvaluatedAt, buyableQuotes) {
+  return { firstEvaluatedAt: lastEvaluatedAt, lastEvaluatedAt, inputs: [], buyableQuotes };
+}
+
+function unifiedQuote(bookmaker, odds) {
+  return { bookmaker, provider: "test", odds, chance: 0.5, edge: odds * 0.5 - 1, minimumBuyOdds: 2.06, observedAt: "2026-07-11T07:55:00Z" };
+}

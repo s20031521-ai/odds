@@ -27,6 +27,8 @@ export function createFixtureRepository(db) {
           );
           const exact = await findAlias(client, identity);
           if (exact) {
+            const metadata = fixtureMetadata(row);
+            if (metadata) await refreshRecognizedKickoff(client, exact.fixture_id, identity, metadata);
             fixtures.push({ ...row, fixtureId: exact.fixture_id });
             continue;
           }
@@ -86,6 +88,26 @@ export function createFixtureRepository(db) {
       });
     },
   };
+}
+
+async function refreshRecognizedKickoff(client, fixtureId, identity, metadata) {
+  await client.query(`
+    UPDATE fixtures
+    SET commence_time = $2
+    WHERE id = $1 AND commence_time IS DISTINCT FROM $2
+  `, [fixtureId, metadata.commenceTime]);
+  await client.query(`
+    UPDATE fixture_aliases
+    SET home_team = $3, away_team = $4, commence_time = $5, league = $6
+    WHERE provider = $1 AND provider_match_id = $2
+  `, [
+    identity.provider,
+    identity.providerMatchId,
+    metadata.homeTeam,
+    metadata.awayTeam,
+    metadata.commenceTime,
+    metadata.league,
+  ]);
 }
 
 async function findAlias(client, { provider, providerMatchId }) {

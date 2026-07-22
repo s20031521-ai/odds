@@ -126,11 +126,13 @@ export function createOpportunityRepository(db) {
         SELECT snapshot.id AS sample_id, snapshot.raw, snapshot.fixture_id,
                snapshot.market, snapshot.prediction, snapshot.line,
                snapshot.model_version, snapshot.strategy_version,
-               snapshot.commence_time, snapshot.first_qualified_at,
+               COALESCE(fixture.commence_time, snapshot.commence_time) AS commence_time,
+               snapshot.first_qualified_at,
                snapshot.last_qualified_at, observation.first_evaluated_at,
                observation.last_evaluated_at, observation.inputs,
                observation.buyable_quotes
         FROM prediction_snapshots AS snapshot
+        LEFT JOIN fixtures AS fixture ON fixture.id = snapshot.fixture_id
         JOIN LATERAL (
           SELECT first_evaluated_at, last_evaluated_at, inputs, buyable_quotes
           FROM recommendation_observations
@@ -139,8 +141,8 @@ export function createOpportunityRepository(db) {
           LIMIT 1
         ) AS observation ON true
         WHERE snapshot.strategy_version = 'unified-buyable-v1'
-          AND snapshot.commence_time > $1
-        ORDER BY snapshot.commence_time, snapshot.id
+          AND COALESCE(fixture.commence_time, snapshot.commence_time) > $1
+        ORDER BY COALESCE(fixture.commence_time, snapshot.commence_time), snapshot.id
       `, [now]);
       return result.rows.map(currentRow);
     },
@@ -160,7 +162,7 @@ export function createOpportunityRepository(db) {
       const result = await db.query(`
         SELECT snapshot.id, snapshot.raw, snapshot.fixture_id,
                snapshot.strategy_version, snapshot.first_qualified_at,
-               snapshot.last_qualified_at,
+               snapshot.last_qualified_at, fixture.commence_time AS registry_commence_time,
                COALESCE(
                  jsonb_agg(
                    jsonb_build_object(
@@ -174,16 +176,18 @@ export function createOpportunityRepository(db) {
                  '[]'::jsonb
                ) AS observations
         FROM prediction_snapshots AS snapshot
+        LEFT JOIN fixtures AS fixture ON fixture.id = snapshot.fixture_id
         LEFT JOIN recommendation_observations AS observation
           ON observation.snapshot_id = snapshot.id
         WHERE snapshot.snapshot_status IN ('valid-current', 'legacy')
-        GROUP BY snapshot.id
+        GROUP BY snapshot.id, fixture.id
         ORDER BY snapshot.id
       `);
       return result.rows.map((row) => ({
         ...row.raw,
         sampleId: row.id,
         fixtureId: row.fixture_id ?? row.raw.fixtureId,
+        ...(row.registry_commence_time ? { commenceTime: isoOrNull(row.registry_commence_time) } : {}),
         strategyVersion: row.strategy_version ?? "legacy-v0",
         firstQualifiedAt: isoOrNull(row.first_qualified_at),
         lastQualifiedAt: isoOrNull(row.last_qualified_at),
@@ -200,9 +204,10 @@ async function reconcileOmittedEvaluations(client, evaluatedAt, evaluatedIdentit
     UPDATE recommendation_observations AS observation
     SET last_evaluated_at = GREATEST(observation.last_evaluated_at, $1)
     FROM prediction_snapshots AS snapshot
+    LEFT JOIN fixtures AS fixture ON fixture.id = snapshot.fixture_id
     WHERE observation.snapshot_id = snapshot.id
       AND snapshot.strategy_version = 'unified-buyable-v1'
-      AND snapshot.commence_time > $1
+      AND COALESCE(fixture.commence_time, snapshot.commence_time) > $1
       AND snapshot.identity_key <> ALL($2::text[])
       AND observation.fingerprint = $3
     RETURNING observation.snapshot_id
@@ -214,8 +219,9 @@ async function reconcileOmittedEvaluations(client, evaluatedAt, evaluatedIdentit
     )
     SELECT snapshot.id, $3, $1, $1, '[]'::jsonb, '[]'::jsonb
     FROM prediction_snapshots AS snapshot
+    LEFT JOIN fixtures AS fixture ON fixture.id = snapshot.fixture_id
     WHERE snapshot.strategy_version = 'unified-buyable-v1'
-      AND snapshot.commence_time > $1
+      AND COALESCE(fixture.commence_time, snapshot.commence_time) > $1
       AND snapshot.identity_key <> ALL($2::text[])
       AND NOT EXISTS (
         SELECT 1

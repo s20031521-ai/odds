@@ -7,7 +7,7 @@ import test from "node:test";
 import { createOddsRepository } from "../server/db/odds-repository.mjs";
 import { createPostgresSink } from "./lib/postgres-sink.mjs";
 import { withDatabase } from "./lib/test-db.mjs";
-import { createPostgresStore, flattenHkjcLive, resultSourcePriority } from "./hkjc-import.mjs";
+import { createPostgresStore, flattenHkjcLive, parseResultRecords, resultDue, resultSourcePriority } from "./hkjc-import.mjs";
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
 const DATA_FILES = [
@@ -51,7 +51,7 @@ test("hkjc-import pg store reads snapshots and results through the repositories"
       source: "market-consensus",
     };
     await sink.saveSnapshots([snapshot]);
-    assert.deepEqual(await store.loadSnapshots(), [snapshot]);
+    assert.deepEqual(await store.loadSnapshots(), [{ ...snapshot, strategyVersion: "legacy-v0" }]);
 
     await store.saveResults([liveResult({ actual: "主勝" })]);
     const results = await store.loadResults();
@@ -213,6 +213,22 @@ test("resultSourcePriority encodes manual > API-Football > historic > live", () 
   assert.ok(resultSourcePriority(manualCornerResult({})) > resultSourcePriority(apiFootballCornerResult({})));
   assert.ok(resultSourcePriority(apiFootballCornerResult({})) > resultSourcePriority(historicResult({})));
   assert.ok(resultSourcePriority(historicResult({})) > resultSourcePriority(liveResult({})));
+});
+
+test("HKJC cancellation emits terminal void rows and API-Football never retries after seven days", () => {
+  const kickoff = Date.parse("2026-07-11T10:00:00.000Z");
+  const rows = parseResultRecords([{
+    id: "50000001",
+    status: "CANCELLED",
+    kickOffTime: new Date(kickoff).toISOString(),
+    homeTeam: { name_en: "Home" },
+    awayTeam: { name_en: "Away" },
+  }]);
+  assert.equal(rows.length, 4);
+  assert.equal(rows.every((row) => row.status === "void" && row.actual === "void"), true);
+
+  assert.equal(resultDue({}, "hkjc-50000001", kickoff + 7 * 24 * 60 * 60_000 - 1, kickoff), true);
+  assert.equal(resultDue({}, "hkjc-50000001", kickoff + 7 * 24 * 60 * 60_000, kickoff), false);
 });
 
 function livePayload() {

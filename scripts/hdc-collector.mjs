@@ -130,7 +130,7 @@ function selfTest() {
   const first = { matchId: "1", market: "亞洲讓球", line: -0.5, modelVersion: MODEL, odds: 2 };
   const later = { ...first, odds: 3 };
   assert(mergeImmutable([first], [later])[0].odds === 2, "immutable snapshot");
-  assert(scoreRows([{ id: "1", completed: true, commence_time: "x", home_team: "A", away_team: "B", scores: [{ name: "A", score: "2" }, { name: "B", score: "1" }] }], "epl").map((row) => row.market).join(",") === "亞洲讓球,大細波", "one score settles HDC and totals");
+  assert(scoreRows([{ id: "1", completed: true, commence_time: "x", home_team: "A", away_team: "B", scores: [{ name: "A", score: "2" }, { name: "B", score: "1" }] }], "epl").map((row) => row.market).join(",") === "h2h,亞洲讓球,大細波", "one score settles H2H, HDC and totals");
   assert(!paidAllowed({ quotaRemaining: MIN_QUOTA }), "quota stop");
   assert(activeSoccerKeys([
     { key: "soccer_brazil_campeonato", group: "Soccer", active: true, has_outrights: false },
@@ -197,18 +197,41 @@ async function discover(key, state, store, now) {
   state.lastDiscoveryAt = new Date(now).toISOString();
   return tracked;
 }
-function scoreRows(payload, sport) {
+export function scoreRows(payload, sport) {
   return (Array.isArray(payload) ? payload : []).flatMap((event) => {
+    const provider = `the-odds-api:${sport}`;
+    if (isVoidStatus(event?.status)) {
+      const base = {
+        matchId: event.id,
+        homeTeam: event.home_team,
+        awayTeam: event.away_team,
+        commenceTime: event.commence_time,
+        actual: "void",
+        status: "void",
+        settlement: "void",
+        source: provider,
+        provider,
+      };
+      return [
+        { ...base, id: `${event.id}-odds-h2h-void`, market: "h2h" },
+        { ...base, id: `${event.id}-odds-hdc-void`, market: "亞洲讓球" },
+        { ...base, id: `${event.id}-odds-totals-void`, market: "大細波" },
+      ];
+    }
     if (!event.completed || !Array.isArray(event.scores)) return [];
     const home = Number(event.scores.find((score) => score.name === event.home_team)?.score);
     const away = Number(event.scores.find((score) => score.name === event.away_team)?.score);
     if (!Number.isFinite(home) || !Number.isFinite(away)) return [];
-    const base = { matchId: event.id, homeScore: home, awayScore: away, actual: `${home}-${away}`, commenceTime: event.commence_time, source: `the-odds-api:${sport}` };
+    const base = { matchId: event.id, homeScore: home, awayScore: away, actual: `${home}-${away}`, commenceTime: event.commence_time, source: provider, provider };
     return [
+      { ...base, id: `${event.id}-odds-h2h-result`, market: "h2h" },
       { ...base, id: `${event.id}-odds-hdc-result`, market: "亞洲讓球" },
-      { ...base, id: `${event.id}-odds-totals-result`, market: "大細波" },
+      { ...base, id: `${event.id}-odds-totals-result`, market: "大細波", actual: `${home + away} 球` },
     ];
   });
+}
+function isVoidStatus(value) {
+  return ["cancelled", "canceled", "abandoned", "void"].includes(String(value ?? "").trim().toLowerCase());
 }
 function dueCornerEvents(payload, now) {
   return (Array.isArray(payload) ? payload : []).filter((event) => {

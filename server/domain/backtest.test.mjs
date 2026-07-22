@@ -131,8 +131,9 @@ test("keeps live cache, score conversion, and health shapes", () => {
   const health = buildHealth({ collector: "2026-07-11T11:40:00Z", hkjc: "2026-07-11T11:50:00Z" }, NOW);
 
   assert.deepEqual(live, { h2hEntries: [{ id: "h2h" }], handicapEntries: [{ id: "hdc" }], totalEntries: [{ id: "totals" }], cornerEntries: [{ id: "corners" }] });
-  assert.equal(scores[1].actual, "3 球");
-  assert.equal(scores[1].market, TOTALS);
+  assert.deepEqual(scores.map(({ market }) => market), ["h2h", HANDICAP, TOTALS]);
+  assert.equal(scores[2].actual, "3 球");
+  assert.equal(scores[2].market, TOTALS);
   assert.deepEqual({ ok: health.ok, dataFresh: health.dataFresh, staleSources: health.staleSources }, { ok: true, dataFresh: true, staleSources: [] });
   const stale = buildHealth({ collector: "2026-07-11T10:00:00Z" }, NOW);
   assert.deepEqual({ ok: stale.ok, dataFresh: stale.dataFresh, staleSources: stale.staleSources, collectorStale: stale.sources.collector.stale, hkjcStale: stale.sources.hkjc.stale }, { ok: true, dataFresh: false, staleSources: ["collector", "hkjc"], collectorStale: true, hkjcStale: true });
@@ -297,6 +298,42 @@ test("settles unified opportunities independently with return ranges and distinc
   assert.equal(readiness.settled, 1, "two settled selections on the same fixture and market count once");
   assert.equal(readiness.settledMatches, 1);
   assert.equal(response.readiness.some((row) => row.strategyVersion !== "unified-buyable-v1"), false);
+});
+
+test("one fixture score settles every unified selection and line using regulation-time markets", () => {
+  const snapshots = [
+    unifiedOpportunity({ sampleId: 11, market: "h2h", selection: "home", line: undefined, modelVersion: "consensus-v1" }),
+    unifiedOpportunity({ sampleId: 12, market: "handicap", selection: "home", line: -0.75, modelVersion: "hdc-loo-v2" }),
+    unifiedOpportunity({ sampleId: 13, market: "totals", selection: "over", line: 2.5 }),
+    unifiedOpportunity({ sampleId: 14, market: "totals", selection: "under", line: 3.5 }),
+    unifiedOpportunity({ sampleId: 15, market: "corners", selection: "over", line: 9.5, modelVersion: "corner-loo-v1" }),
+  ];
+  const response = buildBacktest(snapshots, [
+    { fixtureId: "fixture-1", matchId: "provider-event", market: "h2h", actual: "2-1" },
+    { fixtureId: "fixture-1", matchId: "provider-event", market: "handicap", actual: "2-1" },
+    { fixtureId: "fixture-1", matchId: "provider-event", market: "totals", actual: "3 球" },
+    { fixtureId: "fixture-1", matchId: "provider-event", market: "corners", actual: "10 角球", source: "API-Football" },
+  ], NOW);
+
+  assert.deepEqual(
+    response.rows.filter((row) => row.strategyVersion === "unified-buyable-v1").map((row) => [row.sampleId, row.settlement]),
+    [[11, "win"], [12, "half-win"], [13, "win"], [14, "win"], [15, "win"]],
+  );
+});
+
+test("unresolved unified opportunities become terminal seven days after the current registry kickoff", () => {
+  const kickoff = "2026-07-11T10:00:00.000Z";
+  const snapshot = unifiedOpportunity({ sampleId: 21, fixtureId: "expired-fixture", commenceTime: kickoff });
+  const before = buildBacktest([snapshot], [], Date.parse("2026-07-18T09:59:59.999Z"));
+  assert.equal(before.rows.length, 0);
+  assert.equal(before.pending.length, 1);
+
+  const terminal = buildBacktest([snapshot], [], Date.parse("2026-07-18T10:00:00.000Z"));
+  const row = terminal.rows.find((item) => item.sampleId === 21);
+  assert.equal(row.settlement, "unsettleable");
+  assert.equal(terminal.pending.length, 0);
+  assert.equal(terminal.summary.finished, 0);
+  assert.equal(terminal.readiness.length, 0, "unsettleable opportunities never count toward readiness");
 });
 
 function unifiedOpportunity(overrides = {}) {

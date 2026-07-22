@@ -468,7 +468,11 @@ export function createPostgresStore({ sink, pool }) {
     saveState: (state) => sink.saveCollectorState("hkjc-import", state),
     loadSnapshots: () => snapshots.listAll(),
     loadResults: () => results.listAll(),
-    saveResults: (rows) => sink.saveResults(rows.map((row) => ({ ...row, sourcePriority: resultSourcePriority(row) }))),
+    saveResults: (rows) => sink.saveResults(rows.map((row) => ({
+      ...row,
+      provider: HKJC_PROVIDER,
+      sourcePriority: resultSourcePriority(row),
+    }))),
     async saveLive(payload) {
       await sink.saveLiveOdds(HKJC_PROVIDER, payload.generatedAt, flattenHkjcLive(payload));
     },
@@ -763,7 +767,8 @@ function apiFootballAllowed(state) {
   return !state.quotaExhausted && Number(state.calls ?? 0) < API_FOOTBALL_DAILY_LIMIT;
 }
 
-function resultDue(attempts, matchId, now, kickoff) {
+export function resultDue(attempts, matchId, now, kickoff) {
+  if (Number.isFinite(kickoff) && now >= kickoff + 7 * 24 * 60 * 60_000) return false;
   const attempt = attempts[matchId];
   const lastAttempt = Date.parse(attempt);
   return now - kickoff >= 150 * 60_000
@@ -973,8 +978,26 @@ function formatQueryDate(date) {
   return date.toISOString().slice(0, 10);
 }
 
-function parseResultRecords(matches) {
+export function parseResultRecords(matches) {
   return (Array.isArray(matches) ? matches : []).flatMap((match) => {
+    if (isVoidMatch(match?.status)) {
+      const matchId = `hkjc-${match.id}`;
+      const base = {
+        matchId,
+        homeTeam: match.homeTeam?.name_en || match.homeTeam?.name_ch,
+        awayTeam: match.awayTeam?.name_en || match.awayTeam?.name_ch,
+        commenceTime: match.kickOffTime,
+        actual: "void",
+        status: "void",
+        settlement: "void",
+      };
+      return [
+        { ...base, id: `${matchId}-HAD-void`, market: "主客和" },
+        { ...base, id: `${matchId}-HDC-void`, market: "亞洲讓球" },
+        { ...base, id: `${matchId}-HIL-void`, market: "大細波" },
+        { ...base, id: `${matchId}-CHL-void`, market: "角球" },
+      ];
+    }
     const result = match.runningResultExtra ?? match.runningResult;
     if (!isFinalMatch(match.status) || !result || !Number.isFinite(Number(result.homeScore)) || !Number.isFinite(Number(result.awayScore))) {
       return [];
@@ -995,6 +1018,10 @@ function parseResultRecords(matches) {
       parseHighLowResult(base, match.foPools, "CHL", "角球", totalCorners),
     ].filter(Boolean);
   });
+}
+
+function isVoidMatch(status) {
+  return ["CANCELLED", "CANCELED", "ABANDONED", "VOID"].includes(String(status ?? "").trim().toUpperCase());
 }
 
 function isFinalMatch(status) {

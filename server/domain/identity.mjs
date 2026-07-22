@@ -14,7 +14,16 @@ export function opportunityIdentity(opportunity) {
 }
 
 export function resultIdentity(result) {
-  return `${result.matchId}|${result.market}`;
+  const market = result.fixtureId ? canonicalResultMarket(result.market) : result.market;
+  return `${result.fixtureId ?? result.matchId}|${market}`;
+}
+
+function canonicalResultMarket(value) {
+  if (value === "主客和" || value === "h2h" || value === "moneyline") return "h2h";
+  if (value === "亞洲讓球" || value === "handicap" || value === "spreads") return "handicap";
+  if (value === "大細波" || value === "totals") return "totals";
+  if (value === "角球" || value === "corners" || value === "alternate_totals_corners") return "corners";
+  return value;
 }
 
 export function providerResultIdentity(entry) {

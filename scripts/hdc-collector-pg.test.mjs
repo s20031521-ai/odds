@@ -7,7 +7,7 @@ import test from "node:test";
 import { createOddsRepository } from "../server/db/odds-repository.mjs";
 import { createPostgresSink } from "./lib/postgres-sink.mjs";
 import { withDatabase } from "./lib/test-db.mjs";
-import { createPostgresStore, flattenSportEntries } from "./hdc-collector.mjs";
+import { createPostgresStore, dueScoreSports, flattenSportEntries, scoreRows } from "./hdc-collector.mjs";
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
 const DATA_FILES = [
@@ -188,6 +188,53 @@ test("flattenSportEntries passes league through to flat rows and omits it when m
   const flat = flattenSportEntries(bundle);
   assert.equal(flat.filter((row) => row.market === "h2h").every((row) => row.league === "Liga MX"), true);
   assert.equal(flat.filter((row) => row.market !== "h2h").every((row) => !("league" in row)), true);
+});
+
+test("The Odds API score conversion emits h2h plus existing handicap and totals results", () => {
+  const rows = scoreRows([{
+    id: "score-event",
+    completed: true,
+    commence_time: "2026-07-18T12:00:00.000Z",
+    home_team: "Home",
+    away_team: "Away",
+    scores: [{ name: "Home", score: "2" }, { name: "Away", score: "1" }],
+  }], "soccer_epl");
+
+  assert.deepEqual(rows.map(({ market }) => market), ["h2h", "亞洲讓球", "大細波"]);
+  assert.equal(rows[0].actual, "2-1");
+  assert.equal(rows[2].actual, "3 球");
+  assert.equal(rows.every((row) => row.provider === "the-odds-api:soccer_epl"), true);
+});
+
+test("The Odds API cancellation conversion emits explicit terminal void rows", () => {
+  const rows = scoreRows([{
+    id: "void-event",
+    status: "cancelled",
+    commence_time: "2026-07-18T12:00:00.000Z",
+    home_team: "Home",
+    away_team: "Away",
+  }], "soccer_epl");
+
+  assert.deepEqual(rows.map(({ market }) => market), ["h2h", "亞洲讓球", "大細波"]);
+  assert.equal(rows.every((row) => row.status === "void" && row.actual === "void"), true);
+});
+
+test("score polling never retries completed or seven-day-terminal events", () => {
+  const now = Date.parse("2026-07-25T12:00:00.000Z");
+  const event = (id, ageMs) => ({ id, commence_time: new Date(now - ageMs).toISOString() });
+  const state = {
+    events: { soccer_epl: [
+      event("retry", 2 * 24 * 60 * 60_000),
+      event("terminal", 7 * 24 * 60 * 60_000),
+      event("void", 2 * 24 * 60 * 60_000),
+    ] },
+    completedIds: ["void"],
+    lastScoresAt: {},
+  };
+
+  assert.deepEqual(dueScoreSports(state, now), ["soccer_epl"]);
+  state.completedIds.push("retry");
+  assert.deepEqual(dueScoreSports(state, now), []);
 });
 
 function sportBundle({ bookmaker, h2hOnly = false }) {

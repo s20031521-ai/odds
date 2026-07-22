@@ -591,6 +591,76 @@ test("ambiguous fixture matches are audited and left unmatched", async (t) => {
   });
 });
 
+test("exact fixture aliases accept a recognized postponed kickoff and backtest reads the registry time", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const fixtures = createFixtureRepository(pool);
+    const [{ fixtureId }] = (await fixtures.resolveBatch([fixtureRow()])).fixtures;
+    const postponed = "2026-07-20T12:00:00.000Z";
+    const exact = await fixtures.resolveBatch([fixtureRow({ commenceTime: postponed })]);
+    assert.equal(exact.fixtures[0].fixtureId, fixtureId);
+
+    const fixture = await pool.query("SELECT commence_time FROM fixtures WHERE id = $1", [fixtureId]);
+    assert.equal(fixture.rows[0].commence_time.toISOString(), postponed);
+
+    const opportunities = createOpportunityRepository(pool);
+    await opportunities.recordEvaluation({
+      evaluatedAt: "2026-07-18T10:05:00.000Z",
+      inputs: [],
+      opportunities: [opportunity({ fixtureId })],
+    });
+    const [stored] = await opportunities.listForBacktest();
+    assert.equal(stored.commenceTime, postponed, "current registry kickoff supersedes the sampled kickoff");
+    const current = await opportunities.listCurrent("2026-07-19T12:00:00.000Z");
+    assert.equal(current.length, 1, "postponed opportunity remains current after its original kickoff");
+    assert.equal(current[0].commenceTime, postponed);
+  });
+});
+
+test("result persistence resolves provider aliases and deduplicates same-fixture markets by priority", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const fixtures = createFixtureRepository(pool);
+    const [{ fixtureId }] = (await fixtures.resolveBatch([fixtureRow({ provider: "the-odds-api:soccer_epl", matchId: "odds-event" })])).fixtures;
+    await fixtures.resolveBatch([fixtureRow({ provider: "hkjc", matchId: "hkjc-event" })]);
+    const results = createResultRepository(pool);
+
+    assert.deepEqual(await results.upsertBatch([result({
+      provider: "the-odds-api:soccer_epl",
+      matchId: "odds-event",
+      market: "totals",
+      actual: "3 球",
+      sourcePriority: 0,
+    })]), { inserted: 1, updated: 0, ignored: 0 });
+    assert.deepEqual(await results.upsertBatch([result({
+      provider: "hkjc",
+      matchId: "hkjc-event",
+      market: "totals",
+      actual: "4 球",
+      sourcePriority: 20,
+    })]), { inserted: 0, updated: 1, ignored: 0 });
+
+    const [stored] = await results.listAll();
+    assert.equal(stored.fixtureId, fixtureId);
+    assert.equal(stored.matchId, "hkjc-event", "winning provider ID remains auditable");
+    assert.equal(stored.actual, "4 球");
+  });
+});
+
+test("fixture result identity canonicalizes provider market vocabulary before applying priority", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const fixtures = createFixtureRepository(pool);
+    const [{ fixtureId }] = (await fixtures.resolveBatch([fixtureRow({ provider: "the-odds-api:soccer_epl", matchId: "odds-h2h" })])).fixtures;
+    await fixtures.resolveBatch([fixtureRow({ provider: "hkjc", matchId: "hkjc-h2h" })]);
+    const results = createResultRepository(pool);
+    await results.upsertBatch([result({ provider: "the-odds-api:soccer_epl", matchId: "odds-h2h", market: "h2h", sourcePriority: 0 })]);
+    await results.upsertBatch([result({ provider: "hkjc", matchId: "hkjc-h2h", market: "主客和", sourcePriority: 20 })]);
+
+    const stored = await results.listAll();
+    assert.equal(stored.length, 1);
+    assert.equal(stored[0].fixtureId, fixtureId);
+    assert.equal(stored[0].market, "主客和");
+  });
+});
+
 test("opportunity evaluations preserve the first sample and append only changed fingerprints", async (t) => {
   await withDatabase(t, async (pool) => {
     const fixtures = createFixtureRepository(pool);

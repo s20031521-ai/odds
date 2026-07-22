@@ -7,6 +7,7 @@ export function createResultRepository(db) {
       return inRepositoryTransaction(db, async (client) => {
         const counts = { inserted: 0, updated: 0, ignored: 0 };
         for (const row of results) {
+          const resolved = await resolveFixtureAlias(client, row);
           const outcome = await client.query(`
             INSERT INTO results (
               identity_key, match_id, market, actual, source,
@@ -24,14 +25,14 @@ export function createResultRepository(db) {
                OR EXCLUDED.source_priority > results.source_priority
             RETURNING (xmax = 0) AS inserted
           `, [
-            resultIdentity(row),
-            row.matchId ?? null,
-            row.market ?? null,
-            row.actual ?? null,
-            row.source ?? null,
-            row.sourcePriority ?? 0,
-            row.completedAt ?? null,
-            row,
+            resultIdentity(resolved),
+            resolved.matchId ?? null,
+            resolved.market ?? null,
+            resolved.actual ?? null,
+            resolved.source ?? null,
+            resolved.sourcePriority ?? 0,
+            resolved.completedAt ?? null,
+            resolved,
           ]);
 
           if (outcome.rowCount === 0) counts.ignored += 1;
@@ -47,6 +48,16 @@ export function createResultRepository(db) {
       return result.rows.map(({ raw }) => raw);
     },
   };
+}
+
+async function resolveFixtureAlias(client, row) {
+  if (row?.fixtureId || typeof row?.provider !== "string" || typeof row?.matchId !== "string") return row;
+  const alias = await client.query(`
+    SELECT fixture_id
+    FROM fixture_aliases
+    WHERE provider = $1 AND provider_match_id = $2
+  `, [row.provider, row.matchId]);
+  return alias.rows[0]?.fixture_id ? { ...row, fixtureId: alias.rows[0].fixture_id } : row;
 }
 
 function inRepositoryTransaction(db, callback) {

@@ -2,6 +2,7 @@ import { classifySnapshot, summarizeSnapshotQuality } from "../../shared/snapsho
 import { resultIdentity, snapshotIdentity } from "./identity.mjs";
 
 const SETTLEMENT_GRACE_MS = 180 * 60_000;
+const UNSETTLEABLE_AFTER_MS = 7 * 24 * 60 * 60_000;
 const DATA_FRESH_MS = 45 * 60_000;
 const UNIFIED_STRATEGY_VERSION = "unified-buyable-v1";
 const PERFORMANCE_SETTLEMENTS = new Set(["win", "half-win", "push", "half-loss", "loss"]);
@@ -33,7 +34,8 @@ export function buildBacktest(snapshots, results, now = Date.now()) {
   const snapshotQuality = summarizeSnapshotQuality(stored);
   const legacy = stored.filter((item) => classifySnapshot(item).status === "valid-current");
   const usable = [...unified, ...legacy];
-  const rows = results.flatMap((row) => {
+  const resolvedResults = [...results, ...terminalUnsettleableResults(unified, results, now)];
+  const rows = resolvedResults.flatMap((row) => {
     const matches = snapshotsForResult(usable, row);
     if (matches.length === 0) return {
       ...row,
@@ -76,18 +78,41 @@ export function buildBacktest(snapshots, results, now = Date.now()) {
     : allFinished;
   const legacyFinished = allFinished.filter((row) => row.strategyVersion !== UNIFIED_STRATEGY_VERSION);
   const pending = [
-    ...buildUnifiedPendingRows(unified, rows, results, now),
-    ...buildPendingRows(legacy, legacyFinished, results, now),
+    ...buildUnifiedPendingRows(unified, rows, resolvedResults, now),
+    ...buildPendingRows(legacy, legacyFinished, resolvedResults, now),
   ].sort((left, right) => pendingTime(left.commenceTime) - pendingTime(right.commenceTime) || left.id.localeCompare(right.id));
   return {
     rows,
     summary: summarize(finished),
     byMarket: groupSummary(finished, (row) => row.market),
     buckets: groupSummary(finished, (row) => bucket(row.chance)),
-    readiness: summarizeUnifiedReadiness(unified, rows, finished, results, now),
+    readiness: summarizeUnifiedReadiness(unified, rows, finished, resolvedResults, now),
     pending,
     snapshotQuality,
   };
+}
+
+function terminalUnsettleableResults(snapshots, results, now) {
+  const resolved = new Set(results.flatMap((result) => snapshotsForResult(snapshots, result)
+    .filter((snapshot) => settleResult(snapshot, result))
+    .map(fixtureMarketIdentity)));
+  const terminal = new Map();
+  for (const snapshot of snapshots) {
+    const key = fixtureMarketIdentity(snapshot);
+    const kickoff = Date.parse(snapshot?.commenceTime ?? "");
+    if (resolved.has(key) || terminal.has(key) || !Number.isFinite(kickoff) || now < kickoff + UNSETTLEABLE_AFTER_MS) continue;
+    terminal.set(key, {
+      id: `${snapshot.fixtureId ?? snapshot.matchId}-${canonicalMarket(snapshot.market)}-unsettleable`,
+      fixtureId: snapshot.fixtureId,
+      matchId: snapshot.matchId ?? snapshot.fixtureId,
+      market: snapshot.market,
+      commenceTime: snapshot.commenceTime,
+      status: "unsettleable",
+      resolutionState: "unsettleable",
+      actual: "unsettleable",
+    });
+  }
+  return [...terminal.values()];
 }
 
 function unifiedPerformanceRow(snapshot, result, settlement) {
@@ -565,6 +590,7 @@ export function oddsScoreRows(events) {
     if (!Number.isFinite(home) || !Number.isFinite(away)) return [];
     const base = { matchId: event.id, homeTeam: event.home_team, awayTeam: event.away_team, commenceTime: event.commence_time, score: `${home}-${away}`, actual: `${home}-${away}`, prediction: "未有賽前快照", hit: null };
     return [
+      { ...base, id: `${event.id}-odds-h2h-result`, market: "h2h" },
       { ...base, id: `${event.id}-odds-hdc-result`, market: "亞洲讓球" },
       { ...base, id: `${event.id}-odds-totals-result`, market: "大細波", actual: `${home + away} 球` },
     ];

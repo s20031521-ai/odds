@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-21T01:17:51.359Z",
+  "generatedAt": "2026-07-22T01:17:49.814Z",
   "teams": {
     "AC Oulu": {
       "id": 2077,
@@ -75,6 +75,27 @@
     "Athletico Paranaense": {
       "id": 21006,
       "logo": "/team-logos/21006.png",
+      "needsReview": true
+    },
+    "Atletico Goianiense": {
+      "id": 144,
+      "logo": "/team-logos/144.png"
+    },
+    "Austria Vienna": {
+      "id": 601,
+      "logo": "/team-logos/601.png"
+    },
+    "Avai": {
+      "id": 145,
+      "logo": "/team-logos/145.png"
+    },
+    "Avondale": {
+      "id": 3798,
+      "logo": "/team-logos/3798.png"
+    },
+    "Ayr United": {
+      "id": 23329,
+      "logo": "/team-logos/23329.png",
       "needsReview": true
     },
     "Bayswater City": {

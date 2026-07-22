@@ -191,6 +191,7 @@ test("opportunity observations bind JSON arrays, including empty arrays, as vali
   const client = {
     release() {},
     async query(sql, parameters = []) {
+      if (sql.includes("snapshot.identity_key <> ALL")) return { rowCount: 0, rows: [] };
       if (sql.includes("pg_advisory_xact_lock")) return { rowCount: 1, rows: [{}] };
       if (sql.includes("SELECT id FROM prediction_snapshots")) return { rowCount: 1, rows: [{ id: "sample-1" }] };
       if (sql.includes("SELECT id FROM recommendation_observations")) return { rowCount: 0, rows: [] };
@@ -231,6 +232,7 @@ test("opportunity replay updates use monotonic qualification and evaluation time
   const client = {
     release() {},
     async query(sql) {
+      if (sql.includes("snapshot.identity_key <> ALL")) return { rowCount: 0, rows: [] };
       if (sql.includes("pg_advisory_xact_lock")) return { rowCount: 1, rows: [{}] };
       if (sql.includes("SELECT id FROM prediction_snapshots")) return { rowCount: 1, rows: [{ id: "sample-1" }] };
       if (sql.includes("SELECT id FROM recommendation_observations")) return { rowCount: 1, rows: [{ id: "observation-1" }] };
@@ -642,6 +644,62 @@ test("opportunity evaluations preserve the first sample and append only changed 
     assert.deepEqual(current[0].quotes, []);
     assert.equal(current[0].strategyVersion, "unified-buyable-v1");
     assert.equal((await repository.listForBacktest()).length, 1);
+  });
+});
+
+test("omitted pre-kickoff opportunities receive one recurring empty observation", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const [{ fixtureId }] = (await createFixtureRepository(pool).resolveBatch([fixtureRow()])).fixtures;
+    const repository = createOpportunityRepository(pool);
+    const qualified = opportunity({ fixtureId });
+    await repository.recordEvaluation({
+      evaluatedAt: "2026-07-18T10:05:00.000Z",
+      inputs: [],
+      opportunities: [qualified],
+    });
+    await repository.recordEvaluation({
+      evaluatedAt: "2026-07-18T10:10:00.000Z",
+      inputs: [],
+      opportunities: [],
+    });
+    await repository.recordEvaluation({
+      evaluatedAt: "2026-07-18T10:15:00.000Z",
+      inputs: [],
+      opportunities: [],
+    });
+
+    const [current] = await repository.listCurrent("2026-07-18T10:15:00.000Z");
+    assert.deepEqual(current.quotes, []);
+    assert.equal(current.lastQualifiedAt, "2026-07-18T10:05:00.000Z");
+    const observations = await repository.listObservations(current.sampleId);
+    assert.equal(observations.length, 2);
+    assert.deepEqual(observations.at(-1).inputs, []);
+    assert.deepEqual(observations.at(-1).buyableQuotes, []);
+    assert.equal(observations.at(-1).firstEvaluatedAt, "2026-07-18T10:10:00.000Z");
+    assert.equal(observations.at(-1).lastEvaluatedAt, "2026-07-18T10:15:00.000Z");
+  });
+});
+
+test("omitted post-kickoff opportunities are not reconciled", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const [{ fixtureId }] = (await createFixtureRepository(pool).resolveBatch([fixtureRow()])).fixtures;
+    const repository = createOpportunityRepository(pool);
+    await repository.recordEvaluation({
+      evaluatedAt: "2026-07-18T10:05:00.000Z",
+      inputs: [],
+      opportunities: [opportunity({ fixtureId })],
+    });
+    await repository.recordEvaluation({
+      evaluatedAt: "2026-07-18T12:00:00.000Z",
+      inputs: [],
+      opportunities: [],
+    });
+
+    const samples = await pool.query("SELECT id FROM prediction_snapshots WHERE strategy_version = 'unified-buyable-v1'");
+    assert.equal(samples.rowCount, 1);
+    const observations = await repository.listObservations(samples.rows[0].id);
+    assert.equal(observations.length, 1);
+    assert.equal(observations[0].lastEvaluatedAt, "2026-07-18T10:05:00.000Z");
   });
 });
 

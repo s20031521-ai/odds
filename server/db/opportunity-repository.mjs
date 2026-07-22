@@ -17,6 +17,7 @@ export function createOpportunityRepository(db) {
           observationsExtended: 0,
           skipped: 0,
         };
+        const evaluatedIdentities = new Set(opportunities.map(opportunityIdentity));
 
         for (const opportunity of opportunities) {
           const identity = opportunityIdentity(opportunity);
@@ -108,6 +109,14 @@ export function createOpportunityRepository(db) {
           }
         }
 
+        const reconciled = await reconcileOmittedEvaluations(
+          client,
+          evaluatedAt,
+          [...evaluatedIdentities],
+        );
+        outcome.observationsInserted += reconciled.inserted;
+        outcome.observationsExtended += reconciled.extended;
+
         return outcome;
       });
     },
@@ -182,6 +191,42 @@ export function createOpportunityRepository(db) {
       }));
     },
   };
+}
+
+async function reconcileOmittedEvaluations(client, evaluatedAt, evaluatedIdentities) {
+  const fingerprint = observationFingerprint({ inputs: [], buyableQuotes: [] });
+  const parameters = [evaluatedAt, evaluatedIdentities, fingerprint];
+  const extended = await client.query(`
+    UPDATE recommendation_observations AS observation
+    SET last_evaluated_at = GREATEST(observation.last_evaluated_at, $1)
+    FROM prediction_snapshots AS snapshot
+    WHERE observation.snapshot_id = snapshot.id
+      AND snapshot.strategy_version = 'unified-buyable-v1'
+      AND snapshot.commence_time > $1
+      AND snapshot.identity_key <> ALL($2::text[])
+      AND observation.fingerprint = $3
+    RETURNING observation.snapshot_id
+  `, parameters);
+  const inserted = await client.query(`
+    INSERT INTO recommendation_observations (
+      snapshot_id, fingerprint, first_evaluated_at,
+      last_evaluated_at, inputs, buyable_quotes
+    )
+    SELECT snapshot.id, $3, $1, $1, '[]'::jsonb, '[]'::jsonb
+    FROM prediction_snapshots AS snapshot
+    WHERE snapshot.strategy_version = 'unified-buyable-v1'
+      AND snapshot.commence_time > $1
+      AND snapshot.identity_key <> ALL($2::text[])
+      AND NOT EXISTS (
+        SELECT 1
+        FROM recommendation_observations AS observation
+        WHERE observation.snapshot_id = snapshot.id
+          AND observation.fingerprint = $3
+      )
+    ON CONFLICT (snapshot_id, fingerprint) DO NOTHING
+    RETURNING snapshot_id
+  `, parameters);
+  return { inserted: inserted.rowCount, extended: extended.rowCount };
 }
 
 async function findSample(client, identity) {

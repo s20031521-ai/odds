@@ -116,6 +116,54 @@ test("PostgreSQL sampler fingerprints changed inputs, extends recurrences, and r
   });
 });
 
+test("clearing every provider after qualification records and extends one empty observation", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const sink = createPostgresSink({ pool });
+    await saveBook(sink, "provider-a", "Book A", 2.3, 1.65, "2026-07-18T10:00:00.000Z");
+    await saveBook(sink, "provider-b", "Book B", 2.3, 1.65, "2026-07-18T10:00:00.000Z");
+    await saveBook(sink, "provider-c", "Book C", 1.5, 2, "2026-07-18T10:00:00.000Z");
+    await runUnifiedSampler({ sink, now: NOW });
+
+    for (const provider of ["provider-a", "provider-b", "provider-c"]) {
+      await sink.saveLiveOdds(provider, "2026-07-18T10:20:00.000Z", []);
+    }
+    await runUnifiedSampler({ sink, now: "2026-07-18T10:25:00.000Z" });
+    await runUnifiedSampler({ sink, now: "2026-07-18T10:30:00.000Z" });
+
+    const repository = createOpportunityRepository(pool);
+    const over = (await repository.listCurrent("2026-07-18T10:30:00.000Z"))
+      .find(({ market, selection }) => market === "totals" && selection === "over");
+    assert.ok(over);
+    assert.deepEqual(over.quotes, []);
+    assert.equal(over.lastEvaluatedAt, "2026-07-18T10:30:00.000Z");
+    const observations = await repository.listObservations(over.sampleId);
+    assert.equal(observations.length, 2, "repeated empty cycles reuse one deterministic fingerprint");
+    assert.deepEqual(observations.at(-1).buyableQuotes, []);
+    assert.equal(observations.at(-1).firstEvaluatedAt, "2026-07-18T10:25:00.000Z");
+    assert.equal(observations.at(-1).lastEvaluatedAt, "2026-07-18T10:30:00.000Z");
+  });
+});
+
+test("all rows becoming stale before kickoff records an empty observation", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const sink = createPostgresSink({ pool });
+    await saveBook(sink, "provider-a", "Book A", 2.3, 1.65, "2026-07-18T10:00:00.000Z");
+    await saveBook(sink, "provider-b", "Book B", 2.3, 1.65, "2026-07-18T10:00:00.000Z");
+    await saveBook(sink, "provider-c", "Book C", 1.5, 2, "2026-07-18T10:00:00.000Z");
+    await runUnifiedSampler({ sink, now: NOW });
+    await runUnifiedSampler({ sink, now: "2026-07-18T10:46:00.000Z" });
+
+    const repository = createOpportunityRepository(pool);
+    const over = (await repository.listCurrent("2026-07-18T10:46:00.000Z"))
+      .find(({ market, selection }) => market === "totals" && selection === "over");
+    assert.ok(over);
+    assert.deepEqual(over.inputs, []);
+    assert.deepEqual(over.quotes, []);
+    assert.equal(over.lastEvaluatedAt, "2026-07-18T10:46:00.000Z");
+    assert.equal((await repository.listObservations(over.sampleId)).length, 2);
+  });
+});
+
 test("sampler source contains no provider API path", async () => {
   const source = await readFile(path.join(PROJECT_ROOT, "scripts", "unified-sampler.mjs"), "utf8");
   assert.doesNotMatch(source, /\bfetch\s*\(|hkjc-import|hdc-collector|api-sports\.io|api\.the-odds-api\.com/i);

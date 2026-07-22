@@ -15,7 +15,7 @@ test("today page shows server-recorded pick cards with the current quote range",
   await expect(card.locator(".pick-card__match")).toContainText("Value United vs Signal City");
   await expect(card.locator(".buyable-odds-range__range")).toHaveText("2.30–2.40");
   await expect(card.locator(".buyable-odds-range__summary")).toContainText("最佳 2.40");
-  expect(requestedPaths).toContain("/api/v1/recommendations/current");
+  expect(requestedPaths).toContain("GET /api/v1/recommendations/current");
 });
 
 test("pick card expands the server-recorded per-bookmaker quote details", async ({ page }) => {
@@ -25,6 +25,7 @@ test("pick card expands the server-recorded per-bookmaker quote details", async 
   await quoteDetails.locator("summary").click();
   await expect(quoteDetails).toHaveAttribute("open", "");
   await expect(quoteDetails.locator(".buyable-odds-range__quote")).toHaveCount(2);
+  await expect(quoteDetails.locator(".buyable-odds-range__quote").first()).toContainText("Book A");
   await expect(quoteDetails).toContainText("Book A");
   await expect(quoteDetails).toContainText("HKJC");
   await expect(quoteDetails).toContainText("最低 2.06");

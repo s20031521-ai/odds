@@ -1,55 +1,227 @@
-# Task 4 Report: `MatchAnalysisPage`
+# Task 4 Report: Server-authoritative recommendations and audit API
 
-Branch: `today-first-phase-b`
-Commit: `9e43462 feat: MatchAnalysisPage with picker and not-found states`
+Base: `5000e46`
+Commits:
 
-## 做咗咩
+- `8648eb6 feat: expose recorded buyable recommendation ranges`
+- `d855c87 fix: tighten recorded recommendation contracts`
 
-- **`src/pages/MatchAnalysisPage.test.tsx`**（新增）— 逐字跟 brief Step 1：3 個測試（完整頁 / picker / not-found），用 `renderToStaticMarkup`，無斷言具體時間字串（brief Step 5 註明係特意）。
-- **`src/pages/MatchAnalysisPage.tsx`**（新增）— 逐字跟 brief Step 3：
-  - `matchId === null` → picker：`Mascot pose="chiikawa-empty"` + 「由今日或賽程揀一場波」+ `uniqueMatches` dedupe by matchId 嘅 quick links（`#/analysis?match=<encoded>`，「主 vs 客 · 開賽時間」）。
-  - `matchId` 有但 `header`/`details` null → 「搵唔到呢場波 — 可能已開賽或已下架」+ `href="#/analysis"`「揀返另一場 →」。
-  - 齊料 → header（雙 `TeamLogo` + 「主 vs 客」+ `formatKickoff(commenceTime)` + 聯賽 +「轉場」link）→ 固定次序四張 `MarketDetailCard`（主客和 / 大細波 / 角球 / 亞洲讓球）→ 尾行「賠率同步於 {generatedAt ?? "未有成功同步"}」。
-- **`src/styles/match.css`**（Edit 追加，現有卡面樣式未動）— 按 brief Step 4 骨架加頁面級樣式：`.match-analysis__header .page-heading`、`.match-analysis__meta`、`.match-analysis__picker`（`list-style: none`）、`.match-analysis__picker a`（`display: block; min-height: var(--touch-target)`）、`.match-analysis__sync` / `.match-analysis__back`（muted 細字置中）。brief 嘅 CSS 骨架得 comments，具體值跟 `tokens.css` / `today.css` 慣例填（`--color-surface` / `--color-border` / `--radius-card` / `--shadow-soft` / `--color-muted`）。
+## Implemented
 
-## 測試結果（逐字摘要）
+- Added authenticated, GET-only `GET /api/v1/recommendations/current` and `GET /api/v1/predictions/observations?sampleId=<positive integer>` routes to the exact API inventory.
+- Current recommendations are shaped only from `opportunities.listCurrent(now)`: future kickoff, latest evaluation no older than 45 minutes, non-empty buyable quotes, and quote timestamps within the 45-minute evaluation boundary. Quotes are sorted best-first and expose the persisted bookmaker/provider/odds/chance/edge/minimum/observed fields plus `quoteRange` and `bestQuote`.
+- Observation history returns the persisted audit rows without recomputing recommendations. PostgreSQL `bigint` sample IDs are safely normalized to the numeric browser contract.
+- Legacy prediction POST remains supported; any browser-supplied `strategyVersion: "unified-buyable-v1"` is rejected as `server-only-strategy` before repository insertion.
+- Backtest now reads `opportunities.listForBacktest()`. Active readiness includes only `unified-buyable-v1` and counts settled `fixtureId + market` once. Performance settles each selection/line opportunity, aggregates lower/upper one-unit profit and ROI ranges, uses only the final pre-kick evaluation for the closing benchmark, excludes void/unsettleable outcomes, and counts pushes as settled without a win/loss.
+- Added typed client methods and contracts for current recommendations and observation history.
 
-Step 2（實裝前，預期 fail）：
-```
- FAIL  src/pages/MatchAnalysisPage.test.tsx [ src/pages/MatchAnalysisPage.test.tsx ]
-Error: Cannot find module './MatchAnalysisPage' imported from C:/Users/itadmin/Documents/賭/src/pages/MatchAnalysisPage.test.tsx
- Test Files  1 failed (1)
-      Tests  no tests
-```
+## TDD evidence
 
-Step 5（實裝後）：
-```
- ✓ src/pages/MatchAnalysisPage.test.tsx (3 tests) 8ms
- Test Files  1 passed (1)
-      Tests  3 passed (3)
+### Baseline
+
+`node --test server/app.test.mjs server/domain/backtest.test.mjs`
+
+```text
+tests 12
+pass 12
+fail 0
 ```
 
-全測試（regression check）：
-```
- Test Files  38 passed (38)
-      Tests  245 passed (245)
+The first sandboxed `npm.cmd test -- src/apiClient.test.ts` did not collect tests because Vite could not create `node_modules/.vite-temp/...mjs` (`EPERM: operation not permitted`). Re-running the same command with approved worktree permissions collected normally.
+
+### Initial RED
+
+`node --test server/app.test.mjs server/domain/backtest.test.mjs`
+
+```text
+tests 13
+pass 11
+fail 2
+
+serves the secure same-origin api/v1 contract:
+  404 !== 401
+
+settles unified opportunities independently with return ranges and distinct fixture-market readiness:
+  actual unified rows []
+  expected [[1, "win"], [2, "push"]]
 ```
 
-## tsc 結果
+`npm.cmd test -- src/apiClient.test.ts`
 
-`node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json` → exit 0，無輸出。
+```text
+Test Files  1 failed (1)
+Tests       2 failed | 1 passed (3)
+TypeError: client.currentRecommendations is not a function
+```
+
+These failures were the missing Task 4 route, domain, and client behaviors rather than setup or syntax errors.
+
+### Review regression RED 1: unified-only readiness
+
+After the first GREEN pass, the global constraint that legacy snapshots never count toward unified readiness was made explicit in the legacy domain test.
+
+`node --test server/domain/backtest.test.mjs`
+
+```text
+tests 10
+pass 9
+fail 1
+Expected readiness [] but received legacy readiness rows.
+```
+
+The implementation was narrowed so readiness is always computed from the unified-strategy set; legacy rows/performance remain compatible.
+
+### Review regression RED 2: PostgreSQL bigint sample IDs
+
+The route fixture was changed to the actual `pg` shape (`sampleId: "101"`) while the expected browser contract remained numeric.
+
+`node --test server/app.test.mjs`
+
+```text
+tests 3
+pass 2
+fail 1
+actual sampleId: "101"
+expected sampleId: 101
+```
+
+The API boundary now accepts only a positive safe integer representation and emits a number.
+
+### Code-review RED: mixed legacy + unified audit compatibility
+
+The required review checkpoint reproduced a mixed dataset regression: after the first unified opportunity existed, a settled legacy result was returned as an unmatched result with `settlement: null`. A mixed-strategy assertion was added before changing production code.
+
+`node --test server/domain/backtest.test.mjs`
+
+```text
+tests 10
+pass 9
+fail 1
+legacy audit rows survive alongside unified performance
+null !== "win"
+```
+
+Row matching and pending output now retain valid legacy snapshots alongside unified opportunities. Active readiness and range summary remain unified-only. The reviewer reported no Critical issues; this Important issue was fixed and covered before commit.
+
+## Final GREEN evidence
+
+Using `DATABASE_URL=postgresql://odds_test:odds_test@127.0.0.1:55432/odds_test` for the focused Node command:
+
+`node --test server/app.test.mjs server/domain/backtest.test.mjs`
+
+```text
+tests 13
+pass 13
+fail 0
+duration_ms 135.508
+```
+
+`npm.cmd test -- src/apiClient.test.ts`
+
+```text
+Test Files  1 passed (1)
+Tests       3 passed (3)
+Duration    161ms
+```
+
+`npm.cmd run build`
+
+```text
+tsc --noEmit -p tsconfig.json: exit 0
+vite v6.4.3: 1619 modules transformed
+built in 1.11s
+```
+
+`git diff --check` completed without task-file whitespace errors.
 
 ## Self-review
 
-- ✅ TDD 順序：先寫測試 → 確認 fail（module not found）→ 實裝 → pass → tsc → commit。
-- ✅ 測試同實裝 code 逐字跟 brief，無自由發揮。
-- ✅ 紅線無掂：`src/matchDetails.ts`、`src/components/MarketDetailCard.tsx`、`src/pages/BuyDashboard.tsx`、模型檔全部未修改（commit 只含 3 個檔：`MatchAnalysisPage.tsx`、`.test.tsx`、`match.css`）。
-- ✅ `match.css` 用 Edit 喺尾追加，Task 3 嘅 `.market-detail-grid` / `.market-detail-card*` 樣式原封不動。
-- ✅ 測試無斷言 `formatKickoff` 具體輸出（timezone 安全）。
-- ✅ YAGNI：無加 spec 以外嘅 state / 功能；`uniqueMatches` 只係 dedupe，無 sorting（spec 無要求）。
-- ✅ Commit message 跟 brief Step 6 逐字。
+- Route inventory remains fail-closed: unknown paths are 404 and wrong methods are 405 before handlers run.
+- Both new data routes require an authenticated session and inherit JSON `cache-control: no-store`.
+- Current/API code does not call provider APIs or recommendation math; it only filters and shapes persisted server observations.
+- The 45-minute boundary is inclusive and rejects future observation/evaluation times.
+- Empty latest observations remove an opportunity from current output but remain visible through the audit route.
+- Opportunity identity keeps fixture, market, selection, line, model, and strategy distinct in performance rows.
+- Legacy audit rows and pending behavior remain available both alone and alongside unified opportunities; active readiness and range summary intentionally exclude all legacy strategies.
+- No repository/schema/provider/dependency/model parameter changes were made, so no PostgreSQL integration test was required for this task. The supplied disposable database URL was retained for commands that could consult configuration.
+- Only the six Task 4 source/test files will be staged. Existing `.superpowers` scratch changes, this report, and `package-lock.json` remain unstaged as instructed.
 
 ## Concerns
 
-- Brief Step 4 嘅 CSS 骨架得註釋無具體值，我按現有 design tokens 同 today.css 風格填咗（卡面化 picker link、muted meta/footer）。如有設計稿需要微調，屬 cosmetic 層面，唔影響行為同測試。
-- Picker quick links 次序跟 `opportunities` 原序（dedupe 後先到先得），spec 無要求按開賽時間排序，故無加（YAGNI）。
+- Vitest/build require approved permission to write Vite temporary files under this isolated `C:\tmp` worktree; this is an environment ACL issue, not a test failure.
+- Task 6 will extend result lifecycle/fixture alias resolution. Task 4 already recognizes `void` and `unsettleable` terminal values and fixture-based results without implementing Task 6's repository changes.
+
+## Follow-up review fixes
+
+### Important 1: quote age at response time
+
+The first implementation checked `evaluatedAt - observedAt <= 45 minutes` but did not also require `now - observedAt <= 45 minutes`. The new route fixture combines an evaluation 44 minutes old with a quote 88 minutes old; it remains valid relative to evaluation but must not appear current. The same test keeps an exact 45-minute current-age quote and rejects future evaluation/quote timestamps.
+
+RED, `node --test server/app.test.mjs server/domain/backtest.test.mjs`:
+
+```text
+tests 13
+pass 11
+fail 2
+
+current route included fixture-combined-age-stale as a second opportunity
+```
+
+The quote filter now requires both evaluation age and current age to be within the inclusive `0..45 minutes` range.
+
+Independent GREEN, `node --test server/app.test.mjs`:
+
+```text
+tests 3
+pass 3
+fail 0
+```
+
+### Important 2: explicit backtest audit contract
+
+The backtest repository already returned `firstQualifiedAt`, `lastQualifiedAt`, and observation history, but public rows exposed only the compatibility `savedAt` field and client collections were typed as `unknown`.
+
+RED, focused Node command:
+
+```text
+unified row firstQualifiedAt: undefined
+unified row lastQualifiedAt: undefined
+unified row observationSummary: undefined
+```
+
+RED, `node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json`:
+
+```text
+TS2305: Module './apiClient' has no exported member 'BacktestRow'.
+TS2305: Module './apiClient' has no exported member 'BacktestSummary'.
+```
+
+Matched, unmatched, and pending rows now expose authoritative qualification timestamps plus:
+
+```ts
+type BacktestObservationSummary = {
+  count: number;
+  firstEvaluatedAt: string | null;
+  lastEvaluatedAt: string | null;
+  buyableQuoteCount: number;
+};
+```
+
+`savedAt` remains for compatibility. `BacktestResponse` now uses explicit row, summary, readiness, pending, range, settlement, closing-benchmark, and snapshot-quality types. Typecheck also verifies compatibility with the existing App state setters.
+
+### Follow-up final GREEN
+
+Using the supplied disposable database URL for the focused Node command:
+
+```text
+node --test server/app.test.mjs server/domain/backtest.test.mjs
+tests 13; pass 13; fail 0; duration_ms 137.2409
+
+npm.cmd test -- src/apiClient.test.ts
+Test Files 1 passed (1); Tests 3 passed (3); Duration 160ms
+
+npm.cmd run build
+tsc exit 0; 1619 modules transformed; built in 1.14s
+```
+
+`git diff --check` passed. The follow-up commit stages only the six Task 4 source/test files; this report and all existing scratch/package-lock changes remain unstaged.

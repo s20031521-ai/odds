@@ -1,80 +1,192 @@
-# Task 2 Report: `buildMatchMarketDetails` 純函數
+# Task 2 report: additive fixture and opportunity persistence
 
-## 做咗咩
+## Status
 
-- 新開 `src/matchDetails.ts`（LF）：按 brief Step 3 逐字實裝 `buildMatchMarketDetails`，export `TotalsCard`、`MarketDetail`、`MatchMarketDetails`、`MatchHeaderInfo`、`buildMatchMarketDetails`。冇加 brief 冇要求嘅 export。
-- 新開 `src/matchDetails.test.ts`（LF）：按 brief Step 1 嘅 9 個測試實裝（有兩處最小類型修正，見「Self-review 發現」）。
-- 冇掂任何現有檔案；commit 淨係呢兩個新檔（`git show --stat HEAD`：2 files changed, 222 insertions, 兩個都係 create）。
+Implemented and committed as `b4b6dfd feat: persist unified fixtures and quote observations`.
 
-## Test 結果（逐字摘要）
+The required PostgreSQL GREEN run could not execute in this worker environment. There is no injected `DATABASE_URL`, Docker is not installed, `psql`/a PostgreSQL service is not present, and `127.0.0.1:55432` refuses connections. This is an environment blocker rather than test evidence of a code failure; no passing database result is claimed.
 
-Step 2 紅燈確認：
+## RED
 
-```
-FAIL  src/matchDetails.test.ts [ src/matchDetails.test.ts ]
-Error: Cannot find module './matchDetails' imported from C:/Users/itadmin/Documents/賭/src/matchDetails.test.ts
- Test Files  1 failed (1)
-      Tests  no tests
-```
+Tests were added before production implementation for:
 
-Step 4 綠燈確認（實裝後單檔）：
+- additive tables, columns, constraints, indexes, and byte/value preservation of pre-004 `raw` JSON;
+- null strategy read mapping and rejection of browser/legacy `unified-buyable-v1` writes;
+- exact alias precedence and uniqueness, normalized same-direction team matching within the inclusive ten-minute boundary, league compatibility, and ambiguous-match audit/unmatched behavior;
+- fixture/market/selection/line/model/strategy opportunity identity;
+- immutable first-qualified sample fields, best first-batch legacy scalar quote, identical fingerprint extension, changed fingerprint insertion, and an empty quote observation after a sample exists;
+- trusted `listLive` overlay for entry ID, provider, source match ID, observation time, and expiry.
 
-```
- ✓ src/matchDetails.test.ts (9 tests) 4ms
- Test Files  1 passed (1)
-      Tests  9 passed (9)
+Command:
+
+```text
+node --test server/db/migrate.test.mjs server/db/repositories.test.mjs
 ```
 
-全套測試（regression check）：
+Observed RED summary before implementation:
 
-```
- Test Files  36 passed (36)
-      Tests  238 passed (238)
-```
-
-## tsc 結果
-
-```
-node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json
-tsc exit: 0
+```text
+pass 4
+fail 14
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module .../server/db/fixture-repository.mjs
 ```
 
-（首次跑有 2 個 error，修正測試後 clean，詳見下面。）
+The migration tests also hit their intentional controller URL guard because `DATABASE_URL` was not injected. The missing repository module is the expected feature RED.
 
-## Commit
+## Implementation
 
-- Hash: `5131654c25a44e83e0b8f3d2b97bf8df2a4eab4c`
-- Message: `feat: buildMatchMarketDetails for single-match analysis`
-- Branch: `today-first-phase-b`
+- Added migration `004_unified_buyable.sql` only; migrations 001-003 were not edited.
+- Added source-neutral `fixtures`, unique `fixture_aliases`, ambiguous-match `fixture_match_audit`, nullable snapshot strategy/fixture/qualification columns, and fingerprinted `recommendation_observations` plus requested lookup/history indexes.
+- Added transactionally serialized fixture resolution: exact alias first, normalized same-direction/team-time/league matching second, UUID creation for zero candidates, and audit-without-alias for ambiguity.
+- Added transactional opportunity persistence with six-part identities, immutable first-write parent data, only `last_qualified_at` updates, deterministic observation fingerprints, and empty quote observations for existing samples.
+- Added current/history/backtest repository reads using observation JSON and `legacy-v0` fallback.
+- Legacy snapshot insertion rejects `unified-buyable-v1`; snapshot reads overlay null strategy as `legacy-v0` without rewriting stored raw JSON.
+- Live odds reads overlay trusted relational metadata after raw JSON.
+- Registered fixture and opportunity repositories in the server entry point.
 
-## Self-review（對返 brief 每個 step）
+## GREEN / verification evidence
 
-- [x] Step 1 寫失敗測試：完成，9 個 `it` 同 brief 一致（兩處類型修正除外）。
-- [x] Step 2 跑測試確認 fail：`Cannot find module './matchDetails'`，符合預期。
-- [x] Step 3 實裝：逐字用 brief 嘅 code，包括 `TotalsCard = ReturnType<typeof buildTotalsCards>[number]`、`resolveHeader` structural return、`formatLine` 整數轉 `.toFixed(1)`。
-- [x] Step 4 跑測試確認 pass：9/9 pass。`stake` 斷言 **唔使改**：`displayStake({ market:"大細波", selection:"大 2.5", line:2.5, odds:1.95, chance:0.58, edge:0.131, bookmaker:"Book B" })` 實際回 20，同 brief 註解（kelly(0.58,1.95) → cap 2% of 1000 = 20）一致，斷言原樣通過。
-- [x] Step 5 Commit：完成，只 add 兩個新檔。
-- [x] 紅線：`git status` / commit stat 確認冇現有檔案被改動；模型檔只 import 唔改。
-- [x] YAGNI：冇額外 export 或功能。
+Required database command attempted with the exact controller URL:
 
-## Self-review 發現（同 brief 嘅偏差）
-
-**brief 逐字測試過唔到 tsc。** brief Step 1 嘅 `card()` factory 回傳 `HandicapCard`，再直接畀 `totalCards` 用；但 `TotalsCard`（`ReturnType<typeof buildTotalsCards>[number]`，見 `src/oddsApi.ts:143-148`）比 `HandicapCard` 多咗必填 `id: string`，而且 `bestSide` 係 `"大" | "細" | null`，同 `HandicapCard["bestSide"]`（`"主" | "客"`，`src/handicap.ts:4`）係 disjoint。tsc 報：
-
-```
-src/matchDetails.test.ts(69,88): error TS2741: Property 'id' is missing in type 'HandicapCard' but required in type '{ id: string; bestSide: "大" | "細" | null; ... }'.
-src/matchDetails.test.ts(82,75): error TS2322: Type 'HandicapCard[]' is not assignable to type '{ id: string; bestSide: "大" | "細" | null; ... }[]'.
+```powershell
+$env:DATABASE_URL='postgresql://odds_test:odds_test@127.0.0.1:55432/odds_test'
+node --test server/db/migrate.test.mjs server/db/repositories.test.mjs
 ```
 
-**修正（只改新測試檔，冇掂模型檔）**：兩個 `totalCards` 構造位改為 spread 加欄位——
+Observed infrastructure result:
 
-- `totalCards: [{ ...card(), id: "t1", bestSide: "大" as const }]`
-- `const cards = [{ ...card({ line: 2.0, bestEdge: 0.02 }), id: "t1", bestSide: "大" as const }, { ...card({ line: 3.0, bestEdge: 0.2 }), id: "t2", bestSide: "大" as const }];`
+```text
+tests 37
+pass 5
+fail 32
+Error: connect ECONNREFUSED 127.0.0.1:55432
+```
 
-`bestSide: "大" as const` 收窄到 `"大"`，可同時 assign 入 TotalsCard；runtime 值同 brief 原本一樣（`"大"`、`id` 只係補型別必填欄位），所有斷言逐字不變，9 個測試行為冇變。`handicapCards` 用法（brief 原本就 typecheck）保持逐字。修正後 tsc exit 0、vitest 9/9 pass。
+All 32 database-dependent tests failed at initial connection setup; none reached migration/repository assertions. The five non-database tests passed.
 
-## Concerns
+Additional checks:
 
-1. **後續 task 注意 `TotalsCard` ≠ `HandicapCard`**：Task 3/4/6 consume `TotalsCard` 時要記得佢有必填 `id`，`bestSide` 係 `"大"|"細"|null`（唔係 `"主"|"客"`），`pickLabel` 係 `"買大"/"買細"` 格式。brief 嘅 Interfaces 段落冇講呢個差異。
-2. Git 提示 `LF will be replaced by CRLF the next time Git touches it` — repo 入面兩個檔係 LF 儲存（commit 時 normalized），本地 working copy 都仲係 LF；呢個只係 autocrlf checkout 警告，唔影響行尾要求。
-3. 工作目錄有唔少 pre-existing 嘅 untracked/modified 檔（`data/*`、`scripts/tmp-*`、`.superpowers/sdd/*` 等），唔係我呢個 task 嘅嘢，冇掂。
+```text
+node --check [all changed .mjs and both changed test files]
+exit 0
+
+node --test --test-name-pattern "loadServerConfig|migration CLI|opportunity identity includes" server/db/migrate.test.mjs server/db/repositories.test.mjs
+5 passed, 0 failed
+
+node --test shared/unified-recommendations.test.mjs server/app.test.mjs server/domain/backtest.test.mjs
+23 passed, 0 failed
+
+npx.cmd tsc --noEmit -p tsconfig.json
+exit 0
+
+node server/entry.mjs --self-test
+[server] self-test passed
+
+git diff --cached --check
+exit 0 before commit
+```
+
+`npm.cmd run build` completed TypeScript checking but Vite could not create `node_modules/.vite-temp/...` (`EPERM`); the independent TypeScript check passed. This is separate from the PostgreSQL blocker.
+
+## Files committed
+
+- `db/migrations/004_unified_buyable.sql`
+- `server/db/fixture-repository.mjs`
+- `server/db/opportunity-repository.mjs`
+- `server/db/migrate.test.mjs`
+- `server/db/repositories.test.mjs`
+- `server/db/odds-repository.mjs`
+- `server/db/snapshot-repository.mjs`
+- `server/domain/identity.mjs`
+- `server/entry.mjs`
+
+## Self-review
+
+- Confirmed existing migrations and snapshot raw rows are never updated by migration 004.
+- Confirmed exact alias lookup happens before metadata validation/matching; cross-provider matching preserves home/away direction and uses an inclusive ten-minute window.
+- Confirmed fixture resolution and per-opportunity persistence use transaction advisory locks to avoid concurrent duplicate aliases/samples.
+- Confirmed parent conflict handling changes only `last_qualified_at`, while observation conflict handling changes only `last_evaluated_at`.
+- Confirmed latest/current quote data comes from observation JSON, not the first-write scalar/raw snapshot.
+- Confirmed only the nine Task 2 files were committed. Pre-existing `.superpowers/sdd/progress.md`, `.superpowers/sdd/task-2-brief.md`, and `package-lock.json` changes remain unstaged and untouched by the commit.
+
+## Concerns / follow-up
+
+The additive SQL and real `pg` behavior still require the exact database command above in an environment with the disposable PostgreSQL service listening on port 55432. In particular, the schema-introspection expectations and all transaction/concurrency assertions have not received runtime PostgreSQL GREEN evidence in this worker.
+
+## Review fixes (`7bcf10a fix: harden opportunity observation persistence`)
+
+### Findings addressed
+
+- Observation `inputs` and `buyable_quotes` are now explicitly `JSON.stringify`-encoded before binding to `jsonb`; empty arrays bind as the valid JSON text `[]`, not a PostgreSQL array literal.
+- `listCurrent` now chooses the observation with the greatest `last_evaluated_at`, with descending `id` as a deterministic tie-break. This preserves A as current for A→B→A.
+- Parent `last_qualified_at` and observation `last_evaluated_at` updates now use `GREATEST(existing, incoming)`, preventing out-of-order replay regressions.
+- The ambiguous fixture test now omits the optional `league` field instead of expecting enumerable `league: undefined` to round-trip through JSONB.
+
+### Review RED
+
+Command:
+
+```text
+node --test --test-name-pattern "bind JSON arrays|evaluated most recently|monotonic qualification" server/db/repositories.test.mjs
+```
+
+Observed before implementation:
+
+```text
+tests 3
+pass 0
+fail 3
+[] !== '[]'
+query used ORDER BY first_evaluated_at DESC, id DESC
+update used SET last_qualified_at = $2
+```
+
+The failures directly reproduced the three production issues without requiring PostgreSQL.
+
+### Review GREEN and regression checks
+
+Focused command after implementation:
+
+```text
+node --test --test-name-pattern "bind JSON arrays|evaluated most recently|monotonic qualification" server/db/repositories.test.mjs
+tests 3, pass 3, fail 0
+```
+
+Broader non-database verification:
+
+```text
+node --check server/db/opportunity-repository.mjs
+node --check server/db/repositories.test.mjs
+exit 0
+
+node --test --test-name-pattern "opportunity observations|current opportunities|opportunity replay|opportunity identity includes|loadServerConfig|migration CLI" server/db/migrate.test.mjs server/db/repositories.test.mjs
+tests 8, pass 8, fail 0
+
+node --test shared/unified-recommendations.test.mjs server/app.test.mjs server/domain/backtest.test.mjs
+tests 23, pass 23, fail 0
+
+npx.cmd tsc --noEmit -p tsconfig.json
+exit 0
+
+node server/entry.mjs --self-test
+[server] self-test passed
+
+git diff --cached --check
+exit 0 before review-fix commit
+```
+
+The exact required database command was rerun with the expected URL. Result:
+
+```text
+node --test server/db/migrate.test.mjs server/db/repositories.test.mjs
+tests 41
+pass 8
+fail 33
+Error: connect ECONNREFUSED 127.0.0.1:55432
+```
+
+Every database-dependent test failed during connection setup; the new A→B→A/out-of-order integration regression did not reach its assertions. Real PostgreSQL GREEN therefore remains an environment blocker, not claimed evidence.
+
+### Remaining note
+
+The review's Minor delimiter-collision concern in opportunity identity remains intentionally unchanged, as permitted. The only unresolved verification concern is the unavailable disposable PostgreSQL service.

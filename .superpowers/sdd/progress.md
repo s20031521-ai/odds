@@ -73,3 +73,15 @@ Minor: HDC interval gate仲受 analysisTab 限制 (同 today/fixtures 一致, �
 Task 8: complete (controller-run: vitest 245/245, tsc 0, build OK, playwright 76/76 x2 consecutive; red-line files zero diff; flaky dashboard.spec:44 tablet-landscape 1/3 runs — timing race, deferred, no retry added)
 ALL TASKS COMPLETE — pending final whole-branch review (merge-base f37ffd5)
 MERGED to master (ff f37ffd5..b03ac8f); branch deleted; merged result vitest 245/245
+
+# SDD progress — unified-buyable-v1 (2026-07-22)
+Plan: docs/superpowers/plans/2026-07-22-unified-buyable-v1.md
+Branch base: 56c5aa4; plan commit: c140803
+Task 1: complete (commits c140803..4610dfc, review clean; controller verified engine 11/11, wrappers 33/33, build pass)
+Task 2: complete (commits 4610dfc..7bcf10a, static review clean; controller PostgreSQL 16.14 verified migration/repositories 41/41)
+Task 3: complete (commits 7bcf10a..5000e46, review clean; controller PostgreSQL verified sampler/sink/repositories 37/37 + self-test)
+Task 4: complete (commits 5000e46..d855c87, review clean after freshness/backtest-contract fixes; controller Node 13/13, Vitest 3/3, build pass)
+Task 5: complete (commits d855c87..1f53d60, review clean after canonical-market/polling fixes; controller focused 60/60, build pass; BuyDashboard zero diff)
+Task 6: complete (commits 1f53d60..53073d6, review clean after corners/stale-peer fixes; controller PostgreSQL 66/66 + affected 14/14 + 3 self-tests)
+Task 7: complete (commits 53073d6..0c13648, review clean after strategy-aware integrity fix; controller 35 pass/0 fail/1 Windows symlink skip)
+Task 8: complete (commits 0c13648..HEAD, full verification re-run by controller on resume: vitest 264/264, build pass, 5 self-tests pass, server+db 63/63, sink/collector-pg/integrity 50/50, legacy 6 pass/1 symlink skip, playwright 84/84; red-line zero diff, LF clean; uncommitted UI-test refinement from prior session verified green and committed)

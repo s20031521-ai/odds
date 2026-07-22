@@ -85,24 +85,27 @@ test("responsive navigation, touch targets, fixtures, and detail work", async ({
   await expect(page).toHaveURL(/#\/today$/);
 });
 
-test("empty, failed current, and failed live data all fail closed", async ({ page }) => {
+test("current failures fail closed while a failed live audit feed keeps recorded recommendations", async ({ page }) => {
   const empty = await mockApi(page, "empty");
   await page.goto("/#/dashboard");
   await expect(page.locator(".dashboard-card")).toHaveCount(0);
   await expect(page.locator(".buy-dashboard__empty")).toBeVisible();
   await expect(page.locator(".current-buyable-range-panel")).toHaveCount(0);
-  expect(empty.requestedPaths).toContain("/api/v1/recommendations/current");
+  expect(empty.requestedPaths).toContain("GET /api/v1/recommendations/current");
 
-  const failedCurrent = await mockApi(page, "authenticated", { recommendationsStatus: 503 });
+  const failedCurrent = await mockApi(page, "current-failed");
   await page.reload();
   await expect(page.locator(".dashboard-card")).toHaveCount(0);
   await expect(page.locator(".current-buyable-range-panel")).toHaveCount(0);
-  expect(failedCurrent.requestedPaths).toContain("/api/v1/recommendations/current");
+  expect(failedCurrent.requestedPaths).toContain("GET /api/v1/recommendations/current");
 
-  await mockApi(page, "live-failed");
+  const failedLive = await mockApi(page, "live-failed");
   await page.reload();
   await expect(page.getByRole("alert")).toBeVisible();
-  await expect(page.locator(".dashboard-card")).toHaveCount(0);
+  await expect(page.locator(".dashboard-card")).toHaveCount(2);
+  await expect(page.locator(".current-buyable-range-panel")).toBeVisible();
+  await expect(page.locator(".buyable-odds-range__range").first()).toHaveText("2.30–2.40");
+  expect(failedLive.requestedPaths).toContain("GET /api/v1/recommendations/current");
 });
 
 test("401 from protected API clears the session and returns to login", async ({ page }) => {

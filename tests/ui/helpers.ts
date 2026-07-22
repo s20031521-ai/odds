@@ -5,7 +5,7 @@ import { DASHBOARD_MODE_STORAGE_KEY } from "../../src/dashboardMode";
 const FUTURE_KICKOFF = "2030-07-17T12:00:00.000Z";
 const PAST_KICKOFF = "2020-07-17T12:00:00.000Z";
 
-export type Scenario = "authenticated" | "guest" | "empty" | "live-failed" | "backtest-failed" | "many-picks";
+export type Scenario = "authenticated" | "guest" | "empty" | "live-failed" | "current-failed" | "backtest-failed" | "many-picks";
 
 export function entry(id: string, matchId: string, homeTeam: string, awayTeam: string, bookmaker: string, odds: { home: number; draw: number; away: number }, commenceTime = FUTURE_KICKOFF, league?: string) {
   return { id, matchId, homeTeam, awayTeam, commenceTime, bookmaker, odds, ...(league ? { league } : {}) };
@@ -88,7 +88,8 @@ function recordedH2hOpportunity({
       minimumBuyOdds,
       observedAt: "2026-07-22T09:58:00.000Z",
     },
-  ].sort((left, right) => left.odds - right.odds);
+  ].sort((left, right) => right.odds - left.odds);
+  const quoteOdds = quotes.map((quote) => quote.odds);
   return {
     sampleId,
     fixtureId: `fixture-${matchId}`,
@@ -101,8 +102,8 @@ function recordedH2hOpportunity({
     selection: "home",
     modelVersion: "consensus-v1",
     strategyVersion: "unified-buyable-v1",
-    quoteRange: { min: quotes[0].odds, max: quotes[quotes.length - 1].odds, count: quotes.length },
-    bestQuote: quotes[quotes.length - 1],
+    quoteRange: { min: Math.min(...quoteOdds), max: Math.max(...quoteOdds), count: quotes.length },
+    bestQuote: quotes[0],
     quotes,
     lastEvaluatedAt: observedAt,
   };
@@ -135,7 +136,6 @@ export async function mockApi(
   scenario: Scenario,
   options: {
     status?: number;
-    recommendationsStatus?: number;
     dashboardMode?: "simple" | "pro";
     onLogin?: Parameters<Page["route"]>[1];
     onLogout?: Parameters<Page["route"]>[1];
@@ -169,7 +169,8 @@ export async function mockApi(
 
   await page.route("**/api/v1/**", async (route) => {
     const { pathname } = new URL(route.request().url());
-    requestedPaths.push(pathname);
+    const method = route.request().method();
+    requestedPaths.push(`${method} ${pathname}`);
 
     if (pathname === "/api/v1/session") {
       await route.fulfill({
@@ -221,10 +222,10 @@ export async function mockApi(
       return;
     }
 
-    if (pathname === "/api/v1/recommendations/current") {
-      if (scenario === "live-failed" || options.recommendationsStatus) {
+    if (pathname === "/api/v1/recommendations/current" && method === "GET") {
+      if (scenario === "current-failed") {
         await route.fulfill({
-          status: options.recommendationsStatus ?? options.status ?? 503,
+          status: options.status ?? 503,
           contentType: "application/json",
           body: JSON.stringify({ error: "unavailable" }),
         });

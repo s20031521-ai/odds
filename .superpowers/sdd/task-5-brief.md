@@ -1,48 +1,39 @@
-### Task 5: PickCard「睇單場分析」改指新頁
+### Task 5: Today, professional, match, and history display
 
 **Files:**
-- Modify: `src/components/PickCard.tsx:43`
-- Test: `src/components/PickCard.test.tsx:52,71`（同步改 locked 字串）
+- Create: `src/components/BuyableOddsRange.tsx`
+- Create: `src/components/BuyableOddsRange.test.tsx`
+- Modify: `src/App.tsx`, `src/pages/DashboardPage.tsx`, `src/pages/TodayPage.tsx`, `src/components/PickCard.tsx`, `src/pages/MatchAnalysisPage.tsx`, relevant CSS and tests
+- Must not modify: `src/pages/BuyDashboard.tsx`
 
 **Interfaces:**
-- Consumes: Task 1 嘅 route convention（`#/analysis?match=<encoded>`）。
+- App loads `apiClient.currentRecommendations()` after authentication and uses it as the only Today/pro opportunity source.
+- `BuyableOddsRange` renders summary and disclosure rows without recalculating model values.
 
-- [ ] **Step 1: 先改測試（RED）**
+- [ ] **Step 1: Write failing component/page tests**
 
-`src/components/PickCard.test.tsx:52` 改做：
+  Assert summary copy for exact selection/line, sampled min-max, best quote, bookmaker count and timestamp; expanded rows for bookmaker/provider/price/minimum/edge/observed time; explicit same-line warning; stale/empty current response hidden; Today uses server data rather than locally computed candidates; pro mode renders a sibling range panel; match/history links lazy-load observations; and `BuyDashboard.tsx` content hash remains unchanged.
 
-```ts
-    expect(markup).toContain('href="#/analysis?match=match-1"');
-```
+- [ ] **Step 2: Run RED UI tests**
 
-`:71` 改做：
+  Run: `npm.cmd test -- src/components/BuyableOddsRange.test.tsx src/pages/TodayPage.test.tsx src/pages/DashboardPage.test.tsx src/pages/MatchAnalysisPage.test.tsx src/App.test.tsx`
 
-```ts
-    expect(markup).toContain('href="#/analysis?match=match%201"');
-```
+- [ ] **Step 3: Implement progressive disclosure**
 
-- [ ] **Step 2: 跑測試確認 fail**
+  Keep the first layer compact: selection/line, sampled range, best, count, evaluated time. Native `<details>` shows exact per-bookmaker thresholds. Match analysis/history fetch observations only on explicit navigation or expansion. Do not infer that a different line is buyable.
 
-Run: `node node_modules/vitest/vitest.mjs run src/components/PickCard.test.tsx`
-Expected: FAIL（兩條 href 斷言）
+- [ ] **Step 4: Remove browser writes for the new strategy**
 
-- [ ] **Step 3: 改 `src/components/PickCard.tsx:43`**
+  Stop the App effect that creates/posts recommendation snapshots. Retain legacy local snapshot helpers only where historical compatibility tests still require them. Map recorded opportunity summaries into the existing `BuyOpportunity` shape solely for the unchanged professional dashboard.
 
-```tsx
-        <a className="pick-card__analysis-link" href={`#/analysis?match=${encodeURIComponent(opportunity.matchId)}`}>
-```
+- [ ] **Step 5: Run GREEN tests, build, and commit**
 
-- [ ] **Step 4: 跑測試確認 pass**
+  Run: `npm.cmd test -- src/components/BuyableOddsRange.test.tsx src/pages/TodayPage.test.tsx src/pages/DashboardPage.test.tsx src/pages/MatchAnalysisPage.test.tsx src/App.test.tsx`
 
-Run: `node node_modules/vitest/vitest.mjs run src/components/PickCard.test.tsx`
-Expected: PASS
+  Run: `npm.cmd run build`
 
-- [ ] **Step 5: Commit**
-
-```bash
-git add src/components/PickCard.tsx src/components/PickCard.test.tsx
-git commit -m "feat: point pick card analysis link at match analysis page"
-```
-
----
+  ```powershell
+  git add src
+  git commit -m "feat: show server-recorded buyable odds ranges"
+  ```
 

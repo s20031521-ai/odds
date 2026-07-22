@@ -31,30 +31,10 @@ test("hdc-collector pg store round-trips collector state through the injected st
   });
 });
 
-test("hdc-collector pg store keeps snapshots immutable and upserts results by source priority", async (t) => {
+test("hdc-collector pg store upserts results by source priority without a snapshot writer", async (t) => {
   await withDatabase(t, async (pool) => {
     const store = createPostgresStore(createPostgresSink({ pool }));
-    const snapshot = {
-      matchId: "hdc-store-match-1",
-      market: "亞洲讓球",
-      prediction: "主",
-      line: -0.5,
-      odds: 2.05,
-      chance: 0.58,
-      edge: 0.05,
-      savedAt: "2026-07-18T10:00:00.000Z",
-      commenceTime: COMMENCE,
-      modelVersion: "hdc-loo-v2",
-      source: "background:epl:leave-one-out",
-    };
-
-    assert.deepEqual(await store.saveSnapshots([snapshot]), { inserted: 1, duplicate: 0, rejected: 0, rejectedByReason: {} });
-    const again = await store.saveSnapshots([{ ...snapshot, odds: 9.9 }]);
-    assert.deepEqual(again, { inserted: 0, duplicate: 1, rejected: 0, rejectedByReason: {} });
-
-    const rows = await pool.query("SELECT raw FROM prediction_snapshots");
-    assert.equal(rows.rows.length, 1);
-    assert.equal(rows.rows[0].raw.odds, 2.05, "first snapshot wins");
+    assert.equal("saveSnapshots" in store, false);
 
     const low = { matchId: "hdc-store-match-1", market: "亞洲讓球", actual: "主", score: "2-0", source: "background:epl", sourcePriority: 5, completedAt: "2026-07-18T14:00:00.000Z" };
     const high = { ...low, actual: "客", score: "0-1", sourcePriority: 30 };
@@ -141,19 +121,6 @@ test("hdc-collector pg store writes no JSON or JSONL files", async (t) => {
     const store = createPostgresStore(createPostgresSink({ pool }));
 
     await store.saveState({ events: {}, lastOddsAt: {}, lastScoresAt: {}, completedIds: [], quotaRemaining: 100 });
-    await store.saveSnapshots([{
-      matchId: "no-files-match",
-      market: "大細波",
-      prediction: "大",
-      line: 2.5,
-      odds: 2.05,
-      chance: 0.58,
-      edge: 0.05,
-      savedAt: "2026-07-18T10:00:00.000Z",
-      commenceTime: COMMENCE,
-      modelVersion: "totals-loo-v1",
-      source: "background:epl:leave-one-out",
-    }]);
     await store.saveResults([{ matchId: "no-files-match", market: "大細波", actual: "大", score: "3-1", source: "background:epl", sourcePriority: 10, completedAt: "2026-07-18T14:00:00.000Z" }]);
     await store.saveLive({ soccer_epl: sportBundle({ bookmaker: "BookA" }) }, NOW);
 
@@ -188,6 +155,15 @@ test("flattenSportEntries passes league through to flat rows and omits it when m
   const flat = flattenSportEntries(bundle);
   assert.equal(flat.filter((row) => row.market === "h2h").every((row) => row.league === "Liga MX"), true);
   assert.equal(flat.filter((row) => row.market !== "h2h").every((row) => !("league" in row)), true);
+});
+
+test("hdc collector has no embedded HKJC import or legacy recommendation snapshot write", async () => {
+  const source = await readFile(path.join(PROJECT_ROOT, "hdc-collector.mjs"), "utf8");
+  assert.doesNotMatch(source, /hkjc-import\.mjs|refreshHkjc|execFile/);
+  assert.doesNotMatch(source, /saveSnapshots|background-hdc-snapshots/);
+  assert.doesNotMatch(source, /buildHandicapCards|buildTotalsCards/);
+  assert.match(source, /saveLive/);
+  assert.match(source, /saveResults/);
 });
 
 test("The Odds API score conversion emits h2h plus existing handicap and totals results", () => {

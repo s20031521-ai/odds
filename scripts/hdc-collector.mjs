@@ -2,8 +2,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import process from "node:process";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { createServer as createViteServer } from "vite";
 import { createStorageBackend } from "./lib/storage-backend.mjs";
@@ -12,13 +10,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DATA = path.join(ROOT, "data");
 const STATE_PATH = path.join(DATA, "hdc-collector-state.json");
 const LOCK_PATH = path.join(DATA, "hdc-collector.lock");
-const SNAPSHOT_PATH = path.join(DATA, "background-hdc-snapshots.jsonl");
 const RESULT_PATH = path.join(DATA, "background-result-archive.jsonl");
 const LIVE_PATH = path.join(DATA, "background-hdc-odds.json");
 const API = "https://api.the-odds-api.com/v4";
-const MODEL = "hdc-loo-v2";
-const TOTALS_MODEL = "totals-loo-v1";
-const EDGE_THRESHOLD = 0.03;
 const MIN_QUOTA = 50;
 const DISCOVERY_MS = 15 * 60_000;
 const ODDS_WINDOW_MS = 25 * 60_000;
@@ -26,9 +20,7 @@ const ODDS_NEAR_MS = 5 * 60_000;
 const SCORE_DELAY_MS = 180 * 60_000;
 const SCORE_RETRY_MS = 12 * 60 * 60_000;
 const RATE_LIMIT_COOLDOWN_MS = 15 * 60_000;
-const HKJC_REFRESH_MS = 15 * 60_000;
 const LOCK_STALE_MS = 30 * 60_000;
-const execFileAsync = promisify(execFile);
 export function activeSoccerKeys(sports) {
   return (Array.isArray(sports) ? sports : [])
     .filter((sport) => sport?.active === true && sport?.group === "Soccer" && sport?.has_outrights !== true && !String(sport?.key ?? "").endsWith("_winner"))
@@ -95,7 +87,6 @@ export const dueScoreSports = (state, now) => Object.entries(state.events ?? {})
   });
   return unresolved && elapsed(state.lastScoresAt?.[sport], now, SCORE_RETRY_MS) ? [sport] : [];
 });
-const snapshotKey = (row) => `${row.matchId}|${row.market}|${row.line}|${row.modelVersion}`;
 const resultKey = (row) => `${row.matchId}|${row.market}`;
 // Best-effort league attachment: discovered events carry sport_title (e.g. "EPL");
 // live entries are matched by event id. Missing data leaves entries untouched.
@@ -105,7 +96,7 @@ export function withLeague(entries, events) {
   return (Array.isArray(entries) ? entries : []).map((entry) =>
     entry?.league || !entry?.matchId || !titles.has(entry.matchId) ? entry : { ...entry, league: titles.get(entry.matchId) });
 }
-export function mergeImmutable(current, incoming, keyOf = snapshotKey) {
+export function mergeImmutable(current, incoming, keyOf) {
   const map = new Map(current.map((row) => [keyOf(row), row]));
   for (const row of incoming) if (!map.has(keyOf(row))) map.set(keyOf(row), row);
   return [...map.values()];
@@ -127,9 +118,6 @@ function selfTest() {
   assert(dueScoreSports({ ...scoreState, lastScoresAt: { epl: new Date(now - 11 * 60 * 60_000).toISOString() } }, now).length === 0, "waits 12h before score retry");
   assert(!paidAllowed({ quotaRemaining: 50 }, now), "keeps fifty credits in reserve");
   assert(!paidAllowed({ quotaRemaining: 257, quotaBlockedUntil: now + 60_000 }, now), "honors provider cooldown");
-  const first = { matchId: "1", market: "亞洲讓球", line: -0.5, modelVersion: MODEL, odds: 2 };
-  const later = { ...first, odds: 3 };
-  assert(mergeImmutable([first], [later])[0].odds === 2, "immutable snapshot");
   assert(scoreRows([{ id: "1", completed: true, commence_time: "x", home_team: "A", away_team: "B", scores: [{ name: "A", score: "2" }, { name: "B", score: "1" }] }], "epl").map((row) => row.market).join(",") === "h2h,亞洲讓球,大細波", "one score settles H2H, HDC and totals");
   assert(!paidAllowed({ quotaRemaining: MIN_QUOTA }), "quota stop");
   assert(activeSoccerKeys([
@@ -241,12 +229,10 @@ function dueCornerEvents(payload, now) {
 }
 
 async function collectOdds(sports, key, state, store, now) {
-  if (!sports.length || !paidAllowed(state, now)) return { snapshots: [], entriesBySport: {} };
+  if (!sports.length || !paidAllowed(state, now)) return { entriesBySport: {} };
   const vite = await createViteServer({ root: ROOT, server: { middlewareMode: true }, appType: "custom", logLevel: "silent" });
   try {
-    const { buildTotalsCards, parseOddsApiCorners, parseOddsApiEvents, parseOddsApiHandicaps, parseOddsApiTotals } = await vite.ssrLoadModule("/src/oddsApi.ts");
-    const { buildHandicapCards } = await vite.ssrLoadModule("/src/handicap.ts");
-    const snapshots = [];
+    const { parseOddsApiCorners, parseOddsApiEvents, parseOddsApiHandicaps, parseOddsApiTotals } = await vite.ssrLoadModule("/src/oddsApi.ts");
     const entriesBySport = {};
     for (const sport of sports) {
       if (!paidAllowed(state, now)) break;
@@ -273,16 +259,8 @@ async function collectOdds(sports, key, state, store, now) {
         totalEntries: withLeague(totalEntries, state.events?.[sport]),
         cornerEntries: withLeague(cornerEntries, state.events?.[sport]),
       };
-      for (const card of buildHandicapCards(handicapEntries, EDGE_THRESHOLD)) {
-        if (!card.pickLabel.startsWith("買 ")) continue;
-        snapshots.push({ matchId: card.matchId, market: "亞洲讓球", prediction: card.bestSide, side: card.bestSide, line: card.line, bookmaker: card.bestBookmaker, odds: card.bestOdds, chance: card.bestChance, edge: card.bestEdge, commenceTime: card.commenceTime, savedAt: new Date(now).toISOString(), modelVersion: MODEL, source: `background:${sport}:leave-one-out` });
-      }
-      for (const card of buildTotalsCards(totalEntries, EDGE_THRESHOLD)) {
-        if (!card.pickLabel.startsWith("買")) continue;
-        snapshots.push({ matchId: card.matchId, market: "大細波", prediction: card.bestSide, line: card.line, bookmaker: card.bestBookmaker, odds: card.bestOdds, chance: card.bestChance, edge: card.bestEdge, commenceTime: card.commenceTime, savedAt: new Date(now).toISOString(), modelVersion: TOTALS_MODEL, source: `background:${sport}:leave-one-out` });
-      }
     }
-    return { snapshots, entriesBySport };
+    return { entriesBySport };
   } finally { await vite.close(); }
 }
 async function collectScores(sports, key, state, store, now) {
@@ -296,12 +274,6 @@ async function collectScores(sports, key, state, store, now) {
     state.completedIds = [...new Set([...state.completedIds, ...converted.map((row) => row.matchId)])];
   }
   return rows;
-}
-
-async function refreshHkjc(state, now) {
-  if (!elapsed(state.lastHkjcAt, now, HKJC_REFRESH_MS)) return;
-  await execFileAsync(process.execPath, [path.join(ROOT, "scripts", "hkjc-import.mjs")], { cwd: ROOT, windowsHide: true });
-  state.lastHkjcAt = new Date(now).toISOString();
 }
 
 const LIVE_EXPIRY_MS = 3 * 60 * 60_000;
@@ -327,10 +299,6 @@ export function createFileStore() {
     },
     async saveState(state) {
       await writeAtomic(STATE_PATH, JSON.stringify(state, null, 2) + "\n");
-    },
-    async saveSnapshots(rows) {
-      const old = await readJsonl(SNAPSHOT_PATH);
-      await writeJsonl(SNAPSHOT_PATH, mergeImmutable(old, rows));
     },
     async saveResults(rows) {
       const old = await readJsonl(RESULT_PATH);
@@ -361,7 +329,6 @@ export function createPostgresStore(sink) {
       return (await sink.loadCollectorState("hdc-collector")) ?? DEFAULT_STATE();
     },
     saveState: (state) => sink.saveCollectorState("hdc-collector", state),
-    saveSnapshots: (rows) => sink.saveSnapshots(rows),
     saveResults: (rows) => sink.saveResults(rows),
     async saveLive(entriesBySport, now) {
       for (const [sport, bundle] of Object.entries(entriesBySport)) {
@@ -423,10 +390,8 @@ async function main({ dryRun = false, store } = {}) {
     console.log(JSON.stringify({ tracked, oddsSports, scoreSports, quotaRemaining: state.quotaRemaining ?? null }));
     return;
   }
-  await refreshHkjc(state, now);
-  const { snapshots, entriesBySport } = await collectOdds(oddsSports, key, state, store, now);
+  const { entriesBySport } = await collectOdds(oddsSports, key, state, store, now);
   const results = await collectScores(scoreSports, key, state, store, now);
-  await store.saveSnapshots(snapshots);
   await store.saveResults(results);
   await store.saveLive(entriesBySport, now);
   await store.saveState(state);

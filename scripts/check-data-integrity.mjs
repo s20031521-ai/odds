@@ -54,19 +54,42 @@ function duplicateKeys(rows, keyFn) {
 }
 
 // Pure check core shared by file mode and --database mode.
-export function analyzeRows({ snapshots, results }) {
+export function analyzeRows({ snapshots, results, observations = [] }) {
   const snapshotQuality = summarizeSnapshotQuality(snapshots);
   const lateSnapshots = snapshots.filter(isLateSnapshot);
   const duplicateSnapshotKeys = duplicateKeys(snapshots, snapshotKey);
   const duplicateResultKeys = duplicateKeys(results, resultKey);
   const negativeScores = results.filter(hasProviderNegativeScore);
   const snapshotsMissingCommenceTime = snapshots.filter((item) => !item.commenceTime);
+  const duplicateObservationFingerprints = duplicateKeys(
+    observations,
+    (item) => `${item.snapshotId ?? item.sampleId ?? ""}|${item.fingerprint ?? ""}`,
+  );
+  const snapshotKickoffs = new Map(snapshots.flatMap((item) => {
+    const id = item.sampleId ?? item.id;
+    return id == null ? [] : [[String(id), Date.parse(item.commenceTime ?? "")]];
+  }));
+  const futureObservationInputs = observations.flatMap((observation) => {
+    const evaluatedAt = Date.parse(observation.lastEvaluatedAt ?? observation.firstEvaluatedAt ?? "");
+    return (Array.isArray(observation.inputs) ? observation.inputs : []).filter((input) => {
+      const observedAt = Date.parse(input?.observedAt ?? "");
+      return Number.isFinite(observedAt) && Number.isFinite(evaluatedAt) && observedAt > evaluatedAt;
+    });
+  });
+  const postKickObservations = observations.filter((observation) => {
+    const kickoff = snapshotKickoffs.get(String(observation.snapshotId ?? observation.sampleId ?? ""));
+    const evaluatedAt = Date.parse(observation.lastEvaluatedAt ?? observation.firstEvaluatedAt ?? "");
+    return Number.isFinite(kickoff) && Number.isFinite(evaluatedAt) && evaluatedAt >= kickoff;
+  });
 
   const failures = [];
   if (lateSnapshots.length) failures.push(`${lateSnapshots.length} post-kick prediction snapshots`);
   if (duplicateSnapshotKeys.length) failures.push(`${duplicateSnapshotKeys.length} duplicate prediction snapshot keys`);
   if (duplicateResultKeys.length) failures.push(`${duplicateResultKeys.length} duplicate result archive keys`);
   if (negativeScores.length) failures.push(`${negativeScores.length} negative provider scores`);
+  if (duplicateObservationFingerprints.length) failures.push(`${duplicateObservationFingerprints.length} duplicate recommendation observation fingerprints`);
+  if (futureObservationInputs.length) failures.push(`${futureObservationInputs.length} future observation inputs`);
+  if (postKickObservations.length) failures.push(`${postKickObservations.length} post-kick recommendation observations`);
 
   return {
     snapshots: snapshots.length,
@@ -77,6 +100,10 @@ export function analyzeRows({ snapshots, results }) {
     negativeScores: negativeScores.length,
     snapshotsMissingCommenceTime: snapshotsMissingCommenceTime.length,
     snapshotQuality,
+    observations: observations.length,
+    duplicateObservationFingerprints: duplicateObservationFingerprints.length,
+    futureObservationInputs: futureObservationInputs.length,
+    postKickObservations: postKickObservations.length,
     failures,
   };
 }
@@ -94,6 +121,10 @@ export function formatMetrics(metrics) {
     `snapshotQualityLegacy=${metrics.snapshotQuality.legacy}`,
     `snapshotQualityInvalid=${metrics.snapshotQuality.invalid}`,
     `snapshotQualityInvalidReasons=${JSON.stringify(metrics.snapshotQuality.invalidReasons)}`,
+    `observations=${metrics.observations}`,
+    `duplicateObservationFingerprints=${metrics.duplicateObservationFingerprints}`,
+    `futureObservationInputs=${metrics.futureObservationInputs}`,
+    `postKickObservations=${metrics.postKickObservations}`,
   ];
 }
 
@@ -119,7 +150,35 @@ async function runDatabaseMode() {
     // Strictly read-only: repository listAll() only; no writes, no migrations.
     const snapshots = await createSnapshotRepository(pool).listAll();
     const results = await createResultRepository(pool).listAll();
-    report(analyzeRows({ snapshots, results }), { databaseMode: true });
+    const observationResult = await pool.query(`
+      SELECT observation.snapshot_id, observation.fingerprint,
+             observation.first_evaluated_at, observation.last_evaluated_at,
+             observation.inputs, snapshot.commence_time
+      FROM recommendation_observations AS observation
+      JOIN prediction_snapshots AS snapshot ON snapshot.id = observation.snapshot_id
+    `);
+    const observations = observationResult.rows.map((row) => ({
+      snapshotId: row.snapshot_id,
+      fingerprint: row.fingerprint,
+      firstEvaluatedAt: row.first_evaluated_at,
+      lastEvaluatedAt: row.last_evaluated_at,
+      inputs: row.inputs,
+    }));
+    const snapshotsByIdentity = await pool.query(`
+      SELECT snapshot.id, snapshot.raw,
+             COALESCE(fixture.commence_time, snapshot.commence_time) AS commence_time
+      FROM prediction_snapshots AS snapshot
+      LEFT JOIN fixtures AS fixture ON fixture.id = snapshot.fixture_id
+      WHERE snapshot.snapshot_status IN ('valid-current', 'legacy')
+    `);
+    const identifiedSnapshots = snapshotsByIdentity.rows.map((row) => ({
+      ...row.raw,
+      sampleId: row.id,
+      commenceTime: row.commence_time instanceof Date
+        ? row.commence_time.toISOString()
+        : row.commence_time ?? row.raw.commenceTime,
+    }));
+    report(analyzeRows({ snapshots: identifiedSnapshots, results, observations }), { databaseMode: true });
   } finally {
     await pool.end();
   }

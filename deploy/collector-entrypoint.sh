@@ -5,11 +5,10 @@
 # so this script starts as root, composes the env from /run/secrets, then
 # drops to uid/gid 1000 (node) via setpriv before running the supervisor loop.
 #
-# Loop cadence: hdc-collector every 5 minutes. The collector is state-driven
-# (discovery 15 min, odds window 25/5 min, score delay 3 h), so idle cycles
-# make ZERO provider calls. hkjc-import (free HKJC source) runs every 3rd
-# cycle (~15 min). Paid quota is guarded inside hdc-collector (keeps 50
-# credits in reserve, honors provider cooldowns).
+# Loop cadence: provider ingestion and the PostgreSQL-only unified sampler run
+# every 5 minutes. hkjc-import (free HKJC source) runs every 3rd cycle
+# (~15 min). Each command is isolated so a provider failure never prevents the
+# sampler from evaluating whatever fresh database rows remain.
 set -eu
 
 PG_PW="$(cat /run/secrets/pg_app_password)"
@@ -30,6 +29,7 @@ while :; do
   if [ $((i % 3)) -eq 0 ]; then
     node scripts/hkjc-import.mjs || echo "[collector-loop] hkjc-import exited nonzero" >&2
   fi
+  node scripts/unified-sampler.mjs || echo "[collector-loop] unified-sampler exited nonzero" >&2
   i=$((i + 1))
   sleep 300
 done

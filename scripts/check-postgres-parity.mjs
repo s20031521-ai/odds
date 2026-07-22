@@ -60,18 +60,20 @@ export async function checkPostgresParity({ pool, sourceRoot, importerVersion = 
   const auditSnapshots = dbAudit.filter(({ record_kind }) => record_kind === "snapshot").map(({ raw }) => raw);
   const fileResultRows = expectedAudit.filter(({ record_kind, classification }) => record_kind === "result" && classification !== "invalid").map(({ raw }) => raw);
   const expectedResults = prioritizeResults(fileResultRows);
-  const dbSnapshots = await createSnapshotRepository(pool).listAll();
-  const dbCurrent = await createSnapshotRepository(pool).listCurrent();
+  const dbSnapshots = (await createSnapshotRepository(pool).listAll()).filter(isLegacySnapshot);
+  const dbCurrent = (await createSnapshotRepository(pool).listCurrent()).filter(isLegacySnapshot);
   const dbResults = await createResultRepository(pool).listAll();
   const acceptedSnapshots = fileSnapshots.filter((row) => classifySnapshot(row).status !== "invalid");
   const currentSnapshots = fileSnapshots.filter((row) => classifySnapshot(row).status === "valid-current");
+  const acceptedSnapshotsWithStrategy = acceptedSnapshots.map(withLegacyStrategy);
+  const currentSnapshotsWithStrategy = currentSnapshots.map(withLegacyStrategy);
   const orderedExpectedResults = orderByIdentity(expectedResults, resultIdentity);
   const orderedDbResults = orderByIdentity(dbResults, resultIdentity);
 
-  parityDeepEqual(sortedIdentities(dbSnapshots, snapshotIdentity), sortedIdentities(acceptedSnapshots, snapshotIdentity), "snapshot identity set");
+  parityDeepEqual(sortedIdentities(dbSnapshots, snapshotIdentity), sortedIdentities(acceptedSnapshotsWithStrategy, snapshotIdentity), "snapshot identity set");
   parityDeepEqual(
     domainRepresentatives(dbSnapshots, snapshotIdentity),
-    domainRepresentatives(acceptedSnapshots, snapshotIdentity),
+    domainRepresentatives(acceptedSnapshotsWithStrategy, snapshotIdentity),
     "snapshot domain representatives",
   );
   parityDeepEqual(sortedIdentities(dbResults, resultIdentity), sortedIdentities(expectedResults, resultIdentity), "result identity set");
@@ -87,10 +89,19 @@ export async function checkPostgresParity({ pool, sourceRoot, importerVersion = 
   parityDeepEqual(dbBacktest.readiness, fileBacktest.readiness, "audit readiness");
   parityDeepEqual(
     buildBacktest(orderByIdentity(dbCurrent, snapshotIdentity), orderedDbResults, now).readiness,
-    buildBacktest(orderByIdentity(currentSnapshots, snapshotIdentity), orderedExpectedResults, now).readiness,
+    buildBacktest(orderByIdentity(currentSnapshotsWithStrategy, snapshotIdentity), orderedExpectedResults, now).readiness,
     "repository current readiness",
   );
   parityEqual(new Set(dbBacktest.rows.map(({ matchId }) => matchId)).size, new Set(fileBacktest.rows.map(({ matchId }) => matchId)).size, "distinct matches");
+
+  const strategyCounts = await pool.query(`
+    SELECT count(*)::int AS strategy_rows,
+           count(*) FILTER (WHERE strategy_version IS NULL)::int AS legacy_strategy_rows,
+           count(*) FILTER (WHERE strategy_version = 'unified-buyable-v1')::int AS unified_strategy_rows
+    FROM prediction_snapshots
+    WHERE snapshot_status IN ('valid-current', 'legacy')
+  `);
+  const observationCount = await pool.query("SELECT count(*)::int AS observation_rows FROM recommendation_observations");
 
   return {
     status: "ok",
@@ -102,8 +113,20 @@ export async function checkPostgresParity({ pool, sourceRoot, importerVersion = 
     snapshotInvalid: snapshotAudit.filter(({ classification }) => classification === "invalid").length,
     distinctMatches: new Set(fileBacktest.rows.map(({ matchId }) => matchId)).size,
     settlements: fileBacktest.summary.finished,
+    strategyRows: strategyCounts.rows[0].strategy_rows,
+    legacyStrategyRows: strategyCounts.rows[0].legacy_strategy_rows,
+    unifiedStrategyRows: strategyCounts.rows[0].unified_strategy_rows,
+    observationRows: observationCount.rows[0].observation_rows,
     sourceHashes: Object.fromEntries(sources.map(({ sourceName, sourceSha256 }) => [sourceName, sourceSha256])),
   };
+}
+
+function withLegacyStrategy(row) {
+  return { ...row, strategyVersion: row.strategyVersion ?? "legacy-v0" };
+}
+
+function isLegacySnapshot(row) {
+  return (row.strategyVersion ?? "legacy-v0") === "legacy-v0";
 }
 
 function prioritizeResults(rows) {

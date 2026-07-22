@@ -44,6 +44,37 @@ test("analyzeRows detects late snapshots, duplicates, and negative scores like f
   assert.match(metrics.failures.join(","), /negative provider scores/);
 });
 
+test("analyzeRows detects duplicate, future-input, and post-kick recommendation observations", () => {
+  const snapshot = validSnapshot({ sampleId: 42 });
+  const observation = {
+    snapshotId: 42,
+    fingerprint: "same",
+    firstEvaluatedAt: "2026-07-18T11:00:00.000Z",
+    lastEvaluatedAt: "2026-07-18T11:05:00.000Z",
+    inputs: [{ observedAt: "2026-07-18T11:06:00.000Z" }],
+  };
+  const postKick = {
+    snapshotId: 42,
+    fingerprint: "post-kick",
+    firstEvaluatedAt: "2026-07-18T11:59:00.000Z",
+    lastEvaluatedAt: "2026-07-18T12:01:00.000Z",
+    inputs: [],
+  };
+  const metrics = analyzeRows({
+    snapshots: [snapshot],
+    results: [],
+    observations: [observation, { ...observation }, postKick],
+  });
+
+  assert.equal(metrics.observations, 3);
+  assert.equal(metrics.duplicateObservationFingerprints, 1);
+  assert.equal(metrics.futureObservationInputs, 2);
+  assert.equal(metrics.postKickObservations, 1);
+  assert.match(metrics.failures.join(","), /duplicate recommendation observation fingerprints/);
+  assert.match(metrics.failures.join(","), /future observation inputs/);
+  assert.match(metrics.failures.join(","), /post-kick recommendation observations/);
+});
+
 test("formatMetrics preserves the legacy file-mode line format", () => {
   const lines = formatMetrics(analyzeRows({ snapshots: [validSnapshot()], results: [validResult()] }));
   assert.deepEqual(lines.map((line) => line.split("=")[0]), [
@@ -58,6 +89,10 @@ test("formatMetrics preserves the legacy file-mode line format", () => {
     "snapshotQualityLegacy",
     "snapshotQualityInvalid",
     "snapshotQualityInvalidReasons",
+    "observations",
+    "duplicateObservationFingerprints",
+    "futureObservationInputs",
+    "postKickObservations",
   ]);
 });
 

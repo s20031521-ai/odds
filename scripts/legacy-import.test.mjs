@@ -9,6 +9,7 @@ import pg from "pg";
 
 import { createPool } from "../server/db/pool.mjs";
 import { runMigrations } from "../server/db/migrate.mjs";
+import { createOpportunityRepository } from "../server/db/opportunity-repository.mjs";
 import { importLegacyArchives } from "./import-legacy-to-postgres.mjs";
 import { checkPostgresParity } from "./check-postgres-parity.mjs";
 
@@ -100,10 +101,36 @@ test("imports every physical row into an idempotent audit ledger and preserves s
     assert.deepEqual((await pool.query("SELECT statement_count, row_count FROM run_insert_probe")).rows, [{ statement_count: 0, row_count: 0 }]);
     assert.deepEqual(await sourceHashes(root), before);
 
+    const fixtureId = randomUUID();
+    await pool.query(`
+      INSERT INTO fixtures (id, home_team, away_team, normalized_home_team, normalized_away_team, commence_time)
+      VALUES ($1, 'Unified Home', 'Unified Away', 'unified home', 'unified away', '2026-07-19T12:00:00Z')
+    `, [fixtureId]);
+    await createOpportunityRepository(pool).recordEvaluation({
+      evaluatedAt: "2026-07-19T10:00:00Z",
+      inputs: [],
+      opportunities: [{
+        fixtureId,
+        matchId: "unified-1",
+        homeTeam: "Unified Home",
+        awayTeam: "Unified Away",
+        commenceTime: "2026-07-19T12:00:00Z",
+        market: "h2h",
+        selection: "home",
+        modelVersion: "consensus-v1",
+        strategyVersion: "unified-buyable-v1",
+        quotes: [{ bookmaker: "Book", provider: "fixture", odds: 2.1, chance: 0.55, edge: 0.155, minimumBuyOdds: 1.88, observedAt: "2026-07-19T09:59:00Z" }],
+      }],
+    });
+
     const parity = await checkPostgresParity({ pool, sourceRoot: root, now: Date.parse("2026-07-18T14:00:00Z") });
     assert.equal(parity.status, "ok");
     assert.equal(parity.snapshotRows, 6);
     assert.equal(parity.resultRows, 4);
+    assert.equal(parity.strategyRows, 4);
+    assert.equal(parity.legacyStrategyRows, 3);
+    assert.equal(parity.unifiedStrategyRows, 1);
+    assert.equal(parity.observationRows, 1);
 
     const reversedRepositoryPool = {
       connect: (...args) => pool.connect(...args),

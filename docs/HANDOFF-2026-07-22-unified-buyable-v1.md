@@ -73,7 +73,9 @@ Run these before syncing or rebuilding production. Keep the generated artifacts
 outside the repository and verify that both files are non-empty.
 
 ```bash
-git archive --format=tar.gz --output=/opt/odds-tool/backups/unified-buyable-v1-$(date +%F-%H%M).tar.gz 521eda5
+# REF must be the fast-forward merge commit on master (or release tag) created
+# from codex/unified-buyable-v1; reviewed application-code HEAD is 521eda5.
+git archive --format=tar.gz --output=/opt/odds-tool/backups/unified-buyable-v1-$(date +%F-%H%M).tar.gz REF
 sudo -A docker exec odds-tool-postgres-1 pg_dump -U postgres -d odds -Fc > /opt/odds-tool/backups/odds-unified-buyable-v1-$(date +%F-%H%M).dump
 ```
 

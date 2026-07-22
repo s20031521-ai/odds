@@ -616,6 +616,22 @@ test("exact fixture aliases accept a recognized postponed kickoff and backtest r
   });
 });
 
+test("an unchanged peer alias cannot regress a shared postponed kickoff", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const fixtures = createFixtureRepository(pool);
+    const original = fixtureRow({ commenceTime: "2026-07-18T12:00:00.000Z" });
+    const [{ fixtureId }] = (await fixtures.resolveBatch([original])).fixtures;
+    await fixtures.resolveBatch([fixtureRow({ provider: "provider-b", matchId: "peer", commenceTime: original.commenceTime })]);
+
+    const postponed = "2026-07-20T12:00:00.000Z";
+    await fixtures.resolveBatch([fixtureRow({ commenceTime: postponed })]);
+    await fixtures.resolveBatch([fixtureRow({ provider: "provider-b", matchId: "peer", commenceTime: original.commenceTime })]);
+
+    const row = await pool.query("SELECT commence_time FROM fixtures WHERE id = $1", [fixtureId]);
+    assert.equal(row.rows[0].commence_time.toISOString(), postponed);
+  });
+});
+
 test("result persistence resolves provider aliases and deduplicates same-fixture markets by priority", async (t) => {
   await withDatabase(t, async (pool) => {
     const fixtures = createFixtureRepository(pool);

@@ -28,7 +28,9 @@ export function createFixtureRepository(db) {
           const exact = await findAlias(client, identity);
           if (exact) {
             const metadata = fixtureMetadata(row);
-            if (metadata) await refreshRecognizedKickoff(client, exact.fixture_id, identity, metadata);
+            if (metadata && Date.parse(metadata.commenceTime) !== Date.parse(exact.commence_time)) {
+              await refreshRecognizedKickoff(client, exact.fixture_id, identity, metadata);
+            }
             fixtures.push({ ...row, fixtureId: exact.fixture_id });
             continue;
           }
@@ -94,7 +96,7 @@ async function refreshRecognizedKickoff(client, fixtureId, identity, metadata) {
   await client.query(`
     UPDATE fixtures
     SET commence_time = $2
-    WHERE id = $1 AND commence_time IS DISTINCT FROM $2
+    WHERE id = $1 AND commence_time < $2
   `, [fixtureId, metadata.commenceTime]);
   await client.query(`
     UPDATE fixture_aliases
@@ -112,7 +114,7 @@ async function refreshRecognizedKickoff(client, fixtureId, identity, metadata) {
 
 async function findAlias(client, { provider, providerMatchId }) {
   const result = await client.query(`
-    SELECT fixture_id
+    SELECT fixture_id, commence_time
     FROM fixture_aliases
     WHERE provider = $1 AND provider_match_id = $2
   `, [provider, providerMatchId]);

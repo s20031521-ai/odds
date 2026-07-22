@@ -5,9 +5,11 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { createOddsRepository } from "../server/db/odds-repository.mjs";
+import { createFixtureRepository } from "../server/db/fixture-repository.mjs";
+import { createOpportunityRepository } from "../server/db/opportunity-repository.mjs";
 import { createPostgresSink } from "./lib/postgres-sink.mjs";
 import { withDatabase } from "./lib/test-db.mjs";
-import { createPostgresStore, flattenHkjcLive, parseResultRecords, resultDue, resultSourcePriority } from "./hkjc-import.mjs";
+import { cornerResultMatchIds, createPostgresStore, flattenHkjcLive, parseResultRecords, resultDue, resultSourcePriority } from "./hkjc-import.mjs";
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
 const DATA_FILES = [
@@ -229,6 +231,34 @@ test("HKJC cancellation emits terminal void rows and API-Football never retries 
 
   assert.equal(resultDue({}, "hkjc-50000001", kickoff + 7 * 24 * 60 * 60_000 - 1, kickoff), true);
   assert.equal(resultDue({}, "hkjc-50000001", kickoff + 7 * 24 * 60 * 60_000, kickoff), false);
+});
+
+test("unified canonical corner opportunities resolve their HKJC alias for API-Football fallback", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const fixtures = createFixtureRepository(pool);
+    const [{ fixtureId }] = (await fixtures.resolveBatch([{
+      provider: "the-odds-api:soccer_epl", matchId: "odds-corner", homeTeam: "Home", awayTeam: "Away",
+      commenceTime: COMMENCE_UTC, market: "corners", selection: "over", line: 9.5, odds: 2.1,
+    }])).fixtures;
+    await fixtures.resolveBatch([{
+      provider: "hkjc", matchId: "hkjc-m1", homeTeam: "Home", awayTeam: "Away",
+      commenceTime: COMMENCE_UTC, market: "corners", selection: "over", line: 9.5, odds: 2.0,
+    }]);
+    await createOpportunityRepository(pool).recordEvaluation({
+      evaluatedAt: GENERATED_AT,
+      inputs: [],
+      opportunities: [{
+        fixtureId, matchId: "odds-corner", homeTeam: "Home", awayTeam: "Away", commenceTime: COMMENCE_UTC,
+        market: "corners", selection: "over", line: 9.5, modelVersion: "corner-loo-v1",
+        strategyVersion: "unified-buyable-v1",
+        quotes: [{ bookmaker: "Book", provider: "the-odds-api:soccer_epl", odds: 2.1, chance: 0.51, edge: 0.071, minimumBuyOdds: 2.02, observedAt: GENERATED_AT }],
+      }],
+    });
+
+    const store = createPostgresStore({ sink: createPostgresSink({ pool }), pool });
+    const loaded = await store.loadSnapshots();
+    assert.deepEqual([...cornerResultMatchIds(loaded)], ["hkjc-m1"]);
+  });
 });
 
 function livePayload() {

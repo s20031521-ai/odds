@@ -466,7 +466,22 @@ export function createPostgresStore({ sink, pool }) {
       return (await sink.loadCollectorState("hkjc-import")) ?? {};
     },
     saveState: (state) => sink.saveCollectorState("hkjc-import", state),
-    loadSnapshots: () => snapshots.listAll(),
+    async loadSnapshots() {
+      const rows = await snapshots.listAll();
+      const fixtureIds = [...new Set(rows
+        .filter((row) => row?.strategyVersion === "unified-buyable-v1" && isCornerMarket(row?.market) && row?.fixtureId)
+        .map((row) => row.fixtureId))];
+      if (fixtureIds.length === 0) return rows;
+      const aliases = await pool.query(`
+        SELECT fixture_id, provider_match_id
+        FROM fixture_aliases
+        WHERE provider = $1 AND fixture_id = ANY($2::uuid[])
+      `, [HKJC_PROVIDER, fixtureIds]);
+      const byFixture = new Map(aliases.rows.map((row) => [row.fixture_id, row.provider_match_id]));
+      return rows.map((row) => byFixture.has(row.fixtureId)
+        ? { ...row, resultMatchId: byFixture.get(row.fixtureId) }
+        : row);
+    },
     loadResults: () => results.listAll(),
     saveResults: (rows) => sink.saveResults(rows.map((row) => ({
       ...row,
@@ -861,7 +876,7 @@ function parseApiFootballCornerOdds(payload, match) {
 async function fetchApiFootballCornerResults(historicMatches, snapshots, existingResults, state, now = Date.now()) {
   const apiKey = process.env.API_FOOTBALL_KEY;
   if (!apiKey) return [];
-  const wanted = new Set(snapshots.filter((row) => row?.market === "角球").map((row) => row.matchId));
+  const wanted = cornerResultMatchIds(snapshots);
   const complete = new Set(existingResults.filter((row) => row?.market === "角球").map((row) => row.matchId));
   const candidates = historicMatches
     .filter((match) => {
@@ -1018,6 +1033,17 @@ export function parseResultRecords(matches) {
       parseHighLowResult(base, match.foPools, "CHL", "角球", totalCorners),
     ].filter(Boolean);
   });
+}
+
+export function cornerResultMatchIds(snapshots) {
+  return new Set((Array.isArray(snapshots) ? snapshots : [])
+    .filter((row) => isCornerMarket(row?.market))
+    .map((row) => row.resultMatchId ?? row.matchId)
+    .filter((matchId) => typeof matchId === "string" && matchId.length > 0));
+}
+
+function isCornerMarket(value) {
+  return value === "角球" || value === "corners" || value === "alternate_totals_corners";
 }
 
 function isVoidMatch(status) {

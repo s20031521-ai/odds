@@ -64,6 +64,7 @@ Owner 喺 2026-07-22 約 01:30（香港時間）喺 fixtures 頁見到阿侯斯 
 3. **`BuyDashboard.tsx`（專業模式）冇 gate**：紅線唔准改，所以專業版 dashboard 開賽後理論上仲會出「買」label。要改要 owner 明確豁免。
 4. **Client snapshot POST 係 fire-and-forget**：`void apiClient.savePredictions(...)` 回應（包括 server rejected 原因）完全唔睇，靜默失敗冇人知。今次排查確認唔係出事原因（owner 係賽後先見到張卡），但係潛在盲點。
 5. **Stale SW**：owner 部署後要 hard refresh 先見新版；已知歷史教訓（§11.3 #6）。
+6. **The-odds-api 主客和 pick 出得街但唔會落 sample**（2026-07-22 上午查實）：今日頁「買主勝 @16.00」Larne vs Red Star Belgrade 張卡係 the-odds-api h2h 嚟（hex matchId），而 `toSnapshot` 規則主客和／角球淨記 `hkjc-` 場 → 冇記錄。同一場波 HKJC 都有 cover（`hkjc-50071516`，有結果），但兩個 namespace 冇 join。即係話：**主客和 model 嘅 sample 只會嚟自 HKJC 場，但 UI 會顯示國際盤嘅主客和 pick** — 顯示同採樣範圍唔一致，日後要決定係設計定 gap。（當晚首個真 sample 係另一場：Fenerbahce vs Gornik Zabrze 客勝 @18.55，01:56 落 snapshot，已 settle → MISS，主客和 1/30。）
 
 ---
 

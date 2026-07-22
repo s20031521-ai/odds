@@ -469,6 +469,7 @@ scp -i ~/.ssh/astra_vm_ed25519 -P 169 /tmp/.ap.sh hugo@118.140.60.206:/tmp/.ap.s
   - `BuyDashboard.tsx`（專業模式）紅線冇郁 → 專業版開賽後理論上仲會出「買」label；要改要 owner 明確豁免。
   - Client snapshot POST 係 fire-and-forget（`void apiClient.savePredictions(...)`），server rejected 原因冇人睇 — 潛在盲點，未改。
   - 系統冇接 HKJC 即場盤；開賽後顯示嘅係賽前 closing odds。即場投注如要做係新模型（新 modelVersion、獨立儲 30 場），唔可以溝入現行 sample。
+  - **主客和採樣範圍 vs 顯示範圍唔一致**：`toSnapshot` 主客和／角球淨記 `hkjc-` 場，但今日頁會顯示 the-odds-api h2h 嘅主客和 pick（唔會落 sample）；同一場波兩個 namespace（hex vs `hkjc-*`）冇 join。2026-07-22 實例：Larne 買主勝卡冇記錄；當晚首個真 sample 係 Fenerbahce 客勝 @18.55（已 settle，MISS → 主客和 1/30）。
 - **Today-first Phase A deferred minors（v1.1.0 新增；v1.2.0 已清咗一部分）**：
   - ~~`PickCard` 展開區「賠率同步於」顯示 raw ISO timestamp~~ ✅ v1.2.0 已改用 `formatKickoff`（dynamic test assertion）。
   - ~~stale 狀態下「即將開賽」section 仲會顯示~~ ✅ v1.2.0 `TodayPage` 喺 `dataFresh` false 時收埋個 section（連測試）。

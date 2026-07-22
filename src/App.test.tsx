@@ -7,7 +7,7 @@ describe("App integration source", () => {
     const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 
     expect(source).toContain('import { AppShell } from "./components/AppShell"');
-    expect(source).toContain('import { DashboardPage } from "./pages/DashboardPage"');
+    expect(source).toContain('import { DashboardPage, recordedOpportunitiesForDashboard } from "./pages/DashboardPage"');
     expect(source).toContain('import { AllFixtures } from "./pages/AllFixtures"');
     expect(source).toContain('import { LoginPage } from "./pages/LoginPage"');
     expect(source).toContain('createApiClient');
@@ -28,7 +28,9 @@ describe("App integration source", () => {
     expect(source).toContain("isModelReadiness");
     expect(source).toContain("isPendingEntry");
     expect(source).toContain("setPendingEntries");
-    expect(source).toContain("apiClient.savePredictions");
+    expect(source).toContain("apiClient.currentRecommendations()");
+    expect(source).toContain("apiClient.predictionObservations(sampleId)");
+    expect(source).not.toContain("apiClient.savePredictions");
     expect(source).toContain("apiClient.logout");
     expect(source).toContain("normalizeLiveOddsPayload");
     expect(source).toContain("isManualEntry");
@@ -38,6 +40,26 @@ describe("App integration source", () => {
     expect(source).toContain("onLogout={handleLogout}");
     expect(source).not.toContain("127.0.0.1:8787");
     expect(source).not.toContain("/hkjc-odds.json");
+  });
+
+  it("uses recorded server opportunities as the only Today and professional source", () => {
+    const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
+
+    expect(source).toContain("const [recordedOpportunities, setRecordedOpportunities]");
+    expect(source).toContain("recordedOpportunitiesForDashboard(activeRecordedOpportunities)");
+    expect(source).toContain("recordedOpportunities={activeRecordedOpportunities}");
+    expect(source).toMatch(/<DashboardPage[\s\S]{0,240}opportunities=\{buyOpportunities\}/);
+    expect(source).not.toMatch(/<MatchAnalysisPage[\s\S]{0,240}opportunities=\{buyOpportunities\}/);
+    expect(source).not.toContain("selectBuyOpportunities(buyCandidates");
+    expect(source).not.toContain("buildBuyCandidates({");
+  });
+
+  it("loads observation history only from an explicit callback passed to match/history disclosures", () => {
+    const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
+
+    expect(source).toContain("async function loadRecommendationObservations(sampleId: number)");
+    expect(source).toContain("loadObservations={loadRecommendationObservations}");
+    expect(source).not.toMatch(/useEffect\(\(\) => \{[\s\S]{0,300}predictionObservations/);
   });
 
   it("preserves standalone History and Analysis page headings after removing the old topbar", () => {
@@ -61,25 +83,23 @@ describe("App integration source", () => {
     expect(source).toMatch(/catch \{[\s\S]*?setDataFresh\(false\)/);
   });
 
-  it("wires a one-shot next-kickoff timer into the selector clock", () => {
+  it("does not run a browser-side candidate selector clock", () => {
     const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 
-    expect(source).toContain("candidateSelectionRuntime");
-    expect(source).toContain("const [selectionNow, setSelectionNow]");
-    expect(source).toContain("now: selectionNow");
-    expect(source).toContain("window.setTimeout");
-    expect(source).toContain("setSelectionNow(runtime.now)");
+    expect(source).not.toContain("candidateSelectionRuntime");
+    expect(source).not.toContain("selectionNow");
+    expect(source).not.toContain("buildBuyCandidates");
+    expect(source).not.toContain("selectBuyOpportunities");
   });
 
-  it("refreshes candidate timing from one fresh timestamp without a selectionNow effect loop", () => {
+  it("marks recommendations usable only after the authenticated current response succeeds", () => {
     const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 
-    expect(source).toContain("candidateSelectionRuntime(buyCandidates, Date.now())");
-    expect(source).toContain("setSelectionNow(runtime.now)");
-    expect(source).toContain("window.setTimeout(refreshSelectionRuntime, runtime.nextDelay)");
-    expect(source).toContain("}, [buyCandidates]);");
-    expect(source).not.toContain("nextCandidateKickoffDelay(buyCandidates, selectionNow)");
-    expect(source).not.toContain("}, [buyCandidates, selectionNow]);");
+    expect(source).toContain("if (!auth.authenticated)");
+    expect(source).toContain("apiClient.currentRecommendations()");
+    expect(source).toContain('response.strategyVersion !== "unified-buyable-v1"');
+    expect(source).toContain("setRecommendationsLoaded(true)");
+    expect(source).toContain("setRecommendationsLoaded(false)");
   });
 
   it("uses the route transition helper when hash navigation changes", () => {
@@ -89,14 +109,15 @@ describe("App integration source", () => {
     expect(source).toContain("setAnalysisTab((current) => tabForRouteTransition(current, window.location.hash))");
   });
 
-  it("combines online status with health freshness before showing active opportunities", () => {
+  it("combines online status with a successful recorded response before showing opportunities", () => {
     const source = readFileSync(new URL("./App.tsx", import.meta.url), "utf8");
 
     expect(source).toContain('import { canShowActiveOpportunities, useConnectivityState } from "./pwa"');
     expect(source).toContain("const connectivity = useConnectivityState(lastSuccessfulSync)");
-    expect(source).toContain("const opportunitiesTrusted = canShowActiveOpportunities(connectivity, dataFresh && dataLoadsReady(dataLoads))");
-    expect(source).toContain("dataFresh: opportunitiesTrusted");
-    expect(source).toContain("dataFresh={opportunitiesTrusted}");
+    expect(source).toContain("const recommendationsTrusted = canShowActiveOpportunities(connectivity, recommendationsLoaded)");
+    expect(source).toContain("const activeRecordedOpportunities = recommendationsTrusted ? recordedOpportunities : []");
+    expect(source).toContain("recordedOpportunities={activeRecordedOpportunities}");
+    expect(source).toContain("dataFresh={recommendationsTrusted}");
   });
 
   it("recomputes freshness when same-origin live odds load state changes", () => {
@@ -123,7 +144,7 @@ describe("App integration source", () => {
     expect(source).toContain("dataLoadWarning(dataLoads)");
     expect(source).toContain('dataLoadStateAfter(current, "hkjc", false)');
     expect(source).toContain('dataLoadStateAfter(current, "hdc", false)');
-    expect(source).toContain("dataFresh && dataLoadsReady(dataLoads)");
+    expect(source).toContain("const recommendationsTrusted = canShowActiveOpportunities(connectivity, recommendationsLoaded)");
   });
 
   it("shows the exact offline warning and does not replace health validation on reconnect", () => {
@@ -132,7 +153,7 @@ describe("App integration source", () => {
     expect(source).toContain('const OFFLINE_WARNING = "目前離線；已隱藏值得買機會，連線後會自動恢復。"');
     expect(source).toContain('const dashboardWarning = [loadWarning, dataWarning].filter(Boolean).join(" ")');
     expect(source).toContain("connectivity.online ? dashboardWarning : OFFLINE_WARNING");
-    expect(source).toContain("canShowActiveOpportunities(connectivity, dataFresh && dataLoadsReady(dataLoads))");
+    expect(source).toContain("canShowActiveOpportunities(connectivity, recommendationsLoaded)");
     expect(source).not.toContain("setDataFresh(connectivity.online)");
     expect(source).toContain("formatFixtureDayHeading");
     expect(source).toContain("buyMatchIds");

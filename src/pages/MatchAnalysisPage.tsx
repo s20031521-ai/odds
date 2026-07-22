@@ -1,4 +1,5 @@
-import type { BuyOpportunity } from "../buyOpportunities";
+import type { BuyableOpportunity } from "../apiClient";
+import { BuyableOddsRange, type ObservationLoader } from "../components/BuyableOddsRange";
 import { Mascot } from "../components/Kawaii";
 import { MarketDetailCard } from "../components/MarketDetailCard";
 import { formatKickoff } from "../components/PickCard";
@@ -17,12 +18,13 @@ export function MatchAnalysisPage(props: {
   matchId: string | null;
   header: MatchHeaderInfo | null;
   details: MatchMarketDetails | null;
-  opportunities: BuyOpportunity[];
+  recordedOpportunities: BuyableOpportunity[];
   logos: TeamLogoMap;
   generatedAt: string | null;
+  loadObservations?: ObservationLoader;
 }): React.ReactElement {
   if (!props.matchId) {
-    const matches = uniqueMatches(props.opportunities);
+    const matches = uniqueMatches(props.recordedOpportunities);
     return (
       <section className="match-analysis">
         <div className="today-empty" role="status">
@@ -57,6 +59,7 @@ export function MatchAnalysisPage(props: {
     );
   }
 
+  const postKickoff = isPostKickoff(header.commenceTime);
   return (
     <section className="match-analysis">
       <header className="match-analysis__header">
@@ -74,21 +77,39 @@ export function MatchAnalysisPage(props: {
       </header>
       <div className="market-detail-grid">
         {MARKETS.map(({ key, label }) => (
-          <MarketDetailCard key={key} market={label} detail={details[key]} postKickoff={isPostKickoff(header.commenceTime)} />
+          <MarketDetailCard key={key} market={label} detail={details[key]} postKickoff={postKickoff} />
         ))}
       </div>
+      {!postKickoff && props.recordedOpportunities.some((opportunity) => (opportunity.matchId ?? opportunity.fixtureId) === props.matchId) ? (
+        <section className="match-analysis__buyable" aria-label="目前可買價">
+          <h2>目前可買價</h2>
+          {props.recordedOpportunities
+            .filter((opportunity) => (opportunity.matchId ?? opportunity.fixtureId) === props.matchId)
+            .map((opportunity) => (
+              <BuyableOddsRange key={opportunity.sampleId} opportunity={opportunity} loadObservations={props.loadObservations} />
+            ))}
+        </section>
+      ) : null}
       <p className="match-analysis__sync">賠率同步於 {props.generatedAt ?? "未有成功同步"}</p>
     </section>
   );
 }
 
-function uniqueMatches(opportunities: BuyOpportunity[]): Array<Pick<BuyOpportunity, "matchId" | "homeTeam" | "awayTeam" | "homeTeamZh" | "awayTeamZh" | "commenceTime">> {
+function uniqueMatches(opportunities: BuyableOpportunity[]): Array<{ matchId: string; homeTeam: string; awayTeam: string; homeTeamZh?: string; awayTeamZh?: string; commenceTime: string }> {
   const seen = new Set<string>();
-  const matches: Array<Pick<BuyOpportunity, "matchId" | "homeTeam" | "awayTeam" | "homeTeamZh" | "awayTeamZh" | "commenceTime">> = [];
+  const matches: Array<{ matchId: string; homeTeam: string; awayTeam: string; homeTeamZh?: string; awayTeamZh?: string; commenceTime: string }> = [];
   for (const opportunity of opportunities) {
-    if (seen.has(opportunity.matchId)) continue;
-    seen.add(opportunity.matchId);
-    matches.push(opportunity);
+    const matchId = opportunity.matchId ?? opportunity.fixtureId;
+    if (seen.has(matchId)) continue;
+    seen.add(matchId);
+    matches.push({
+      matchId,
+      homeTeam: opportunity.homeTeam,
+      awayTeam: opportunity.awayTeam,
+      ...(opportunity.homeTeamZh ? { homeTeamZh: opportunity.homeTeamZh } : {}),
+      ...(opportunity.awayTeamZh ? { awayTeamZh: opportunity.awayTeamZh } : {}),
+      commenceTime: opportunity.commenceTime,
+    });
   }
   return matches;
 }

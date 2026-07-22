@@ -1,4 +1,5 @@
-import type { BuyOpportunity } from "../buyOpportunities";
+import type { BuyableOpportunity } from "../apiClient";
+import type { ObservationLoader } from "../components/BuyableOddsRange";
 import { EmptyState } from "../components/EmptyState";
 import { FreshnessBar } from "../components/FreshnessBar";
 import { formatKickoff, PickCard } from "../components/PickCard";
@@ -9,13 +10,14 @@ const MAX_PICK_CARDS = 5;
 const UPCOMING_FIXTURE_COUNT = 3;
 
 export function TodayPage(props: {
-  opportunities: BuyOpportunity[];
+  opportunities: BuyableOpportunity[];
   fixtures: Fixture[];
   generatedAt: string | null;
   dataFresh: boolean;
   logos: TeamLogoMap;
   now?: number;
   onShowAll?: () => void;
+  loadObservations?: ObservationLoader;
 }): React.ReactElement {
   const now = props.now ?? Date.now();
   const active = props.dataFresh ? props.opportunities : [];
@@ -36,10 +38,10 @@ export function TodayPage(props: {
         <div className="today-page__picks">
           {visible.map((opportunity) => (
             <PickCard
-              key={opportunity.matchId}
+              key={opportunity.sampleId}
               opportunity={opportunity}
               logos={props.logos}
-              generatedAt={props.generatedAt}
+              loadObservations={props.loadObservations}
             />
           ))}
           {overflow > 0 && props.onShowAll ? (

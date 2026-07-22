@@ -17,21 +17,20 @@ import { buildHandicapCards, type HandicapEntry } from "./handicap";
 import { clearBacktestResponseState, cornerPickLabel, excludeLegacyRows, filterHistoryRows, groupMarketCards, hasPredictionSnapshot, isSnapshotQuality, snapshotQualityMessage, summarizeHistoryRows, type SnapshotQuality } from "./marketDisplay";
 
 import { analysisMatchIdFromHash, fixtureIdFromHash, pageFromHash, tabForRouteTransition } from "./route";
-import { savePredictionSnapshots, type PredictionSnapshot } from "./predictionSnapshots";
+import type { PredictionSnapshot } from "./predictionSnapshots";
 import { bestH2hPick } from "./picks";
 import { AppShell } from "./components/AppShell";
-import { buildBuyCandidates } from "./buyCandidates";
-import { BUY_EDGE_THRESHOLD, candidateSelectionRuntime, selectBuyOpportunities } from "./buyOpportunities";
-import { DashboardPage } from "./pages/DashboardPage";
+import { DashboardPage, recordedOpportunitiesForDashboard } from "./pages/DashboardPage";
 import { TeamLogo, type TeamLogoMap } from "./components/TeamLogo";
 import { AllFixtures } from "./pages/AllFixtures";
 import { canShowActiveOpportunities, useConnectivityState } from "./pwa";
-import { ApiError, createApiClient, type SessionState } from "./apiClient";
+import { ApiError, createApiClient, type BuyableOpportunity, type PredictionObservationsResponse, type SessionState } from "./apiClient";
 import { LoginPage } from "./pages/LoginPage";
 import { MatchAnalysisPage } from "./pages/MatchAnalysisPage";
 import { buildMatchMarketDetails } from "./matchDetails";
 import { gatePickLabel } from "./kickoffGate";
 import { Mascot } from "./components/Kawaii";
+import { RecommendationObservationHistory } from "./components/BuyableOddsRange";
 
 
 type ApiStatus =
@@ -65,6 +64,7 @@ type ResultEntry = {
   edge?: number;
   savedAt?: string;
   snapshotStatus?: string;
+  sampleId?: number | string;
 };
 
 type ModelReadiness = {
@@ -133,7 +133,9 @@ function App() {
   const [dataWarning, setDataWarning] = useState("");
   const [dataFresh, setDataFresh] = useState(false);
   const [dataLoads, setDataLoads] = useState<DataLoadState>({ hkjc: null, hdc: null });
-  const [selectionNow, setSelectionNow] = useState(() => Date.now());
+  const [recordedOpportunities, setRecordedOpportunities] = useState<BuyableOpportunity[]>([]);
+  const [recommendationsGeneratedAt, setRecommendationsGeneratedAt] = useState<string | null>(null);
+  const [recommendationsLoaded, setRecommendationsLoaded] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(() => pageFromHash(window.location.hash) === "history");
   const [historyView, setHistoryView] = useState<"comparable" | "all">("comparable");
   const [historyMarket, setHistoryMarket] = useState<HistoryMarket>("主客和");
@@ -218,6 +220,9 @@ function App() {
     setHandicapEntries([]);
     setResultEntries([]);
     setSnapshotQuality(null);
+    setRecordedOpportunities([]);
+    setRecommendationsGeneratedAt(null);
+    setRecommendationsLoaded(false);
     setDataFresh(false);
   }
 
@@ -252,22 +257,12 @@ function App() {
     pickLabel: cornerPickLabel(card.pickLabel, card.bookmakerCount),
   })), [cornerEntries, settings.edgeThreshold]);
   const handicapCards = useMemo(() => buildHandicapCards(handicapEntries, settings.edgeThreshold), [handicapEntries, settings.edgeThreshold]);
-  const opportunitiesTrusted = canShowActiveOpportunities(connectivity, dataFresh && dataLoadsReady(dataLoads));
+  const recommendationsTrusted = canShowActiveOpportunities(connectivity, recommendationsLoaded);
+  const activeRecordedOpportunities = recommendationsTrusted ? recordedOpportunities : [];
   const loadWarning = dataLoadWarning(dataLoads);
   const dashboardWarning = [loadWarning, dataWarning].filter(Boolean).join(" ");
-  const buyCandidates = useMemo(() => buildBuyCandidates({
-    fixtures,
-    h2hRows: rows,
-    totalCards,
-    cornerCards,
-    handicapCards,
-  }), [fixtures, rows, totalCards, cornerCards, handicapCards]);
-  const buyOpportunities = useMemo(() => selectBuyOpportunities(buyCandidates, {
-    now: selectionNow,
-    edgeThreshold: BUY_EDGE_THRESHOLD,
-    dataFresh: opportunitiesTrusted,
-  }), [buyCandidates, opportunitiesTrusted, selectionNow]);
-  const buyMatchIds = useMemo(() => new Set(buyOpportunities.map((opportunity) => opportunity.matchId)), [buyOpportunities]);
+  const buyOpportunities = useMemo(() => recordedOpportunitiesForDashboard(activeRecordedOpportunities), [activeRecordedOpportunities]);
+  const buyMatchIds = useMemo(() => new Set(activeRecordedOpportunities.map((opportunity) => opportunity.matchId ?? opportunity.fixtureId)), [activeRecordedOpportunities]);
   const fixtureLeagueOptions = useMemo(() => [...new Set(dashboardFixtures.map((fixture) => fixture.leagueZh ?? fixture.league).filter((league): league is string => Boolean(league)))].sort((left, right) => left.localeCompare(right, "zh-Hant-HK")), [dashboardFixtures]);
   const visibleFixtureDayGroups = useMemo(() => {
     const query = fixtureSearch.trim().toLowerCase();
@@ -321,19 +316,28 @@ function App() {
   }, [dataLoads]);
 
   useEffect(() => {
-    let timer: number | undefined;
-    const refreshSelectionRuntime = () => {
-      const runtime = candidateSelectionRuntime(buyCandidates, Date.now());
-      setSelectionNow(runtime.now);
-      if (runtime.nextDelay !== null) {
-        timer = window.setTimeout(refreshSelectionRuntime, runtime.nextDelay);
-      }
-    };
-    refreshSelectionRuntime();
-    return () => {
-      if (timer !== undefined) window.clearTimeout(timer);
-    };
-  }, [buyCandidates]);
+    let cancelled = false;
+    if (!auth.authenticated) {
+      setRecordedOpportunities([]);
+      setRecommendationsGeneratedAt(null);
+      setRecommendationsLoaded(false);
+      return () => { cancelled = true; };
+    }
+    setRecommendationsLoaded(false);
+    void apiClient.currentRecommendations().then((response) => {
+      if (cancelled || response.strategyVersion !== "unified-buyable-v1" || !Array.isArray(response.opportunities)) return;
+      setRecordedOpportunities(response.opportunities);
+      setRecommendationsGeneratedAt(response.generatedAt);
+      setRecommendationsLoaded(true);
+    }).catch((error) => {
+      if (cancelled) return;
+      setRecordedOpportunities([]);
+      setRecommendationsGeneratedAt(null);
+      setRecommendationsLoaded(false);
+      if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
+    });
+    return () => { cancelled = true; };
+  }, [apiClient, auth.authenticated]);
 
 
   useEffect(() => {
@@ -382,16 +386,9 @@ function App() {
     }
   }
 
-  useEffect(() => {
-    if (!auth.authenticated || !csrfToken) return;
-    const snapshots = collectPredictionSnapshots(dashboardFixtures, rows, totalCards, cornerCards, handicapCards, settings.edgeThreshold);
-    if (snapshots.length > 0) {
-      savePredictionSnapshots(snapshots);
-      void apiClient.savePredictions(csrfToken, snapshots).catch((error) => {
-        if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
-      });
-    }
-  }, [apiClient, auth.authenticated, csrfToken, dashboardFixtures, rows, totalCards, cornerCards, handicapCards, settings.edgeThreshold]);
+  async function loadRecommendationObservations(sampleId: number): Promise<PredictionObservationsResponse> {
+    return apiClient.predictionObservations(sampleId);
+  }
 
 
   async function refreshHdcOdds() {
@@ -485,7 +482,15 @@ function App() {
         content={(
         <>
       {page === "today" ? (
-        <DashboardPage opportunities={buyOpportunities} fixtures={dashboardFixtures} generatedAt={lastSuccessfulSync} dataFresh={opportunitiesTrusted} logos={teamLogos} />
+        <DashboardPage
+          opportunities={buyOpportunities}
+          recordedOpportunities={activeRecordedOpportunities}
+          fixtures={dashboardFixtures}
+          generatedAt={recommendationsGeneratedAt}
+          dataFresh={recommendationsTrusted}
+          logos={teamLogos}
+          loadObservations={loadRecommendationObservations}
+        />
       ) : null}
       {page === "history" ? <h1 className="page-heading">完場對比</h1> : null}
 
@@ -552,9 +557,10 @@ function App() {
           matchId={analysisMatchId}
           header={matchAnalysis?.header ?? null}
           details={matchAnalysis?.details ?? null}
-          opportunities={buyOpportunities}
+          recordedOpportunities={activeRecordedOpportunities}
           logos={teamLogos}
           generatedAt={lastSuccessfulSync}
+          loadObservations={loadRecommendationObservations}
         />
       ) : null}
 
@@ -703,6 +709,9 @@ function App() {
                               <div className="line-item"><span>快照時間</span><span>{row.savedAt ? formatDate(row.savedAt) : "—"}</span></div>
                             </div>
                           </details>
+                        ) : null}
+                        {positiveSampleId(row.sampleId) ? (
+                          <RecommendationObservationHistory sampleId={positiveSampleId(row.sampleId)!} loadObservations={loadRecommendationObservations} />
                         ) : null}
                       </div>
                     ))}
@@ -1151,6 +1160,11 @@ function settlementLabel(settlement: ResultEntry["settlement"], hit: boolean | n
   if (settlement === "win" || hit === true) return "中";
   if (settlement === "loss" || hit === false) return "錯";
   return "待對比";
+}
+
+function positiveSampleId(value: number | string | undefined): number | null {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
 function formatHandicapLine(line: number): string {

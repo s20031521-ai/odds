@@ -1,9 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { BuyOpportunity } from "../buyOpportunities";
+import { recordedOpportunity } from "../testFixtures/recordedOpportunity";
 import type { TeamLogoMap } from "../components/TeamLogo";
 import { DASHBOARD_MODE_STORAGE_KEY, type StorageLike } from "../dashboardMode";
-import { DashboardPage } from "./DashboardPage";
+import { DashboardPage, recordedOpportunitiesForDashboard } from "./DashboardPage";
 
 const opportunities: BuyOpportunity[] = [
   {
@@ -26,9 +27,24 @@ function storageWith(value: string): StorageLike {
 }
 
 describe("DashboardPage", () => {
+  it("maps recorded summaries only for the unchanged professional dashboard without duplicating the line", () => {
+    const mapped = recordedOpportunitiesForDashboard([recordedOpportunity]);
+
+    expect(mapped).toHaveLength(1);
+    expect(mapped[0].primary).toMatchObject({
+      market: "大細波",
+      selection: "大",
+      line: 2.5,
+      odds: 2.04,
+      chance: 0.55,
+      edge: 0.122,
+      bookmaker: "Beta",
+    });
+  });
+
   it("defaults to simple mode when nothing is stored", () => {
     const markup = renderToStaticMarkup(
-      <DashboardPage opportunities={opportunities} fixtures={[]} generatedAt="now" dataFresh logos={testLogos} />,
+      <DashboardPage opportunities={opportunities} recordedOpportunities={[recordedOpportunity]} fixtures={[]} generatedAt="now" dataFresh logos={testLogos} />,
     );
 
     expect(markup).toContain("today-page");
@@ -41,6 +57,7 @@ describe("DashboardPage", () => {
     const markup = renderToStaticMarkup(
       <DashboardPage
         opportunities={opportunities}
+        recordedOpportunities={[recordedOpportunity]}
         fixtures={[]}
         generatedAt="now"
         dataFresh
@@ -50,6 +67,8 @@ describe("DashboardPage", () => {
     );
 
     expect(markup).toContain("buy-dashboard__kpis");
+    expect(markup).toContain("current-buyable-range-panel");
+    expect(markup).toContain("1.91–2.04");
     expect(markup).toContain("值得買 Dashboard");
     expect(markup).not.toContain("today-page");
     expect(markup).toMatch(/aria-pressed="true"[^>]*>專業<\/button>/);
@@ -59,6 +78,7 @@ describe("DashboardPage", () => {
     const markup = renderToStaticMarkup(
       <DashboardPage
         opportunities={opportunities}
+        recordedOpportunities={[recordedOpportunity]}
         fixtures={[]}
         generatedAt="now"
         dataFresh
@@ -72,7 +92,7 @@ describe("DashboardPage", () => {
 
   it("keeps the toggle available in the stale state", () => {
     const markup = renderToStaticMarkup(
-      <DashboardPage opportunities={[]} fixtures={[]} generatedAt={null} dataFresh={false} logos={testLogos} />,
+      <DashboardPage opportunities={[]} recordedOpportunities={[]} fixtures={[]} generatedAt={null} dataFresh={false} logos={testLogos} />,
     );
 
     expect(markup).toContain("dashboard-mode-bar");
@@ -80,9 +100,9 @@ describe("DashboardPage", () => {
   });
 
   it("passes logos through to the active dashboard", () => {
-    const logos: TeamLogoMap = { Home: { id: 1, logo: "/team-logos/1.png" } };
+    const logos: TeamLogoMap = { Arsenal: { id: 1, logo: "/team-logos/1.png" } };
     const markup = renderToStaticMarkup(
-      <DashboardPage opportunities={opportunities} fixtures={[]} generatedAt="now" dataFresh logos={logos} />,
+      <DashboardPage opportunities={opportunities} recordedOpportunities={[recordedOpportunity]} fixtures={[]} generatedAt="now" dataFresh logos={logos} />,
     );
 
     expect(markup).toContain('src="/team-logos/1.png"');
@@ -92,6 +112,7 @@ describe("DashboardPage", () => {
     const markup = renderToStaticMarkup(
       <DashboardPage
         opportunities={opportunities}
+        recordedOpportunities={[recordedOpportunity]}
         fixtures={[]}
         generatedAt="2026-07-21T11:50:00Z"
         dataFresh
@@ -101,5 +122,18 @@ describe("DashboardPage", () => {
     );
     expect(markup).toContain("today-page");
     expect(markup).toContain("pick-card");
+    expect(markup).toContain("1.91–2.04");
+  });
+
+  it("hides stale or empty recorded opportunities from both modes", () => {
+    const stale = renderToStaticMarkup(
+      <DashboardPage opportunities={opportunities} recordedOpportunities={[recordedOpportunity]} fixtures={[]} generatedAt="now" dataFresh={false} logos={testLogos} />,
+    );
+    const emptyPro = renderToStaticMarkup(
+      <DashboardPage opportunities={[]} recordedOpportunities={[]} fixtures={[]} generatedAt="now" dataFresh storage={storageWith("pro")} logos={testLogos} />,
+    );
+
+    expect(stale).not.toContain("buyable-odds-range");
+    expect(emptyPro).not.toContain("current-buyable-range-panel");
   });
 });

@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import type { BuyOpportunity } from "../buyOpportunities";
+import type { BuyableOpportunity } from "../apiClient";
+import { recordedOpportunity } from "../testFixtures/recordedOpportunity";
 import type { TeamLogoMap } from "../components/TeamLogo";
 import type { Fixture } from "../odds";
 import { TodayPage } from "./TodayPage";
@@ -8,13 +9,15 @@ import { TodayPage } from "./TodayPage";
 const NOW = Date.parse("2026-07-21T12:00:00Z");
 const logos: TeamLogoMap = {};
 
-const opportunity = (matchId: string, edge: number): BuyOpportunity => ({
+const opportunity = (matchId: string, edge: number): BuyableOpportunity => ({
+  ...recordedOpportunity,
+  sampleId: Number(matchId.replace(/\D/g, "")) || 1,
+  fixtureId: `fixture-${matchId}`,
   matchId,
   homeTeam: `Home ${matchId}`,
   awayTeam: `Away ${matchId}`,
-  commenceTime: "2026-07-21T20:00:00",
-  primary: { market: "大細波", selection: "大", line: 2.5, odds: 1.95, chance: 0.58, edge, bookmaker: "Alpha" },
-  alternatives: [],
+  bestQuote: { ...recordedOpportunity.bestQuote, edge },
+  quotes: recordedOpportunity.quotes.map((quote) => ({ ...quote, edge })),
 });
 
 const fixture = (matchId: string): Fixture => ({
@@ -39,6 +42,7 @@ describe("TodayPage", () => {
     expect(markup).toContain("today-page");
     expect(markup).toContain("賠率更新於 10 分鐘前");
     expect(markup).toContain("pick-card");
+    expect(markup).toContain("1.91–2.04");
     expect(markup).toContain("即將開賽");
     expect(markup).toContain("查看全部賽事");
   });
@@ -48,7 +52,7 @@ describe("TodayPage", () => {
     const markup = renderToStaticMarkup(
       <TodayPage {...baseProps} opportunities={seven} fixtures={[]} dataFresh onShowAll={() => {}} />,
     );
-    expect(markup.match(/<details/g)).toHaveLength(5);
+    expect(markup.match(/class="pick-card"/g)).toHaveLength(5);
     expect(markup).toContain("仲有 2 個盤 →");
   });
 
@@ -65,7 +69,7 @@ describe("TodayPage", () => {
       <TodayPage {...baseProps} opportunities={[opportunity("m1", 0.13)]} fixtures={[fixture("m1")]} dataFresh={false} />,
     );
     expect(markup).toContain("數據舊咗，唔好住落注 — 更新緊");
-    expect(markup).not.toContain("<details");
+    expect(markup).not.toContain("buyable-odds-range");
     expect(markup).not.toContain("today-page__upcoming");
   });
 

@@ -111,3 +111,81 @@
   color: var(--color-text);
   text-decoration: none;
 }
+
+.current-buyable-range-panel,
+.match-analysis__buyable {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.buyable-odds-range {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 14px;
+}
+
+.buyable-odds-range__summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.buyable-odds-range__range {
+  color: var(--color-primary-text);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.buyable-odds-range__summary time,
+.buyable-odds-range__warning,
+.buyable-odds-range__quote time {
+  color: var(--color-muted);
+  font-size: 0.82rem;
+}
+
+.buyable-odds-range__warning {
+  margin: 8px 0;
+}
+
+.buyable-odds-range__quotes summary,
+.recommendation-observations summary {
+  color: var(--color-primary-text);
+  cursor: pointer;
+  font-weight: 600;
+  min-height: var(--touch-target);
+  padding: 10px 0;
+}
+
+.buyable-odds-range__quote-list {
+  display: grid;
+  gap: 8px;
+}
+
+.buyable-odds-range__quote {
+  border-top: 1px dashed var(--color-border);
+  display: grid;
+  gap: 4px 10px;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  padding: 10px 0;
+}
+
+.recommendation-observations__timeline {
+  display: grid;
+  gap: 12px;
+  padding-left: 1.25rem;
+}
+
+.recommendation-observations__timeline > li {
+  display: grid;
+  gap: 6px;
+}
+
+.recommendation-observations__timeline code,
+.recommendation-observations__timeline pre {
+  max-width: 100%;
+  overflow: auto;
+  white-space: pre-wrap;
+}

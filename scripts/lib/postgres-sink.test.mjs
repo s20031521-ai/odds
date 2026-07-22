@@ -78,13 +78,73 @@ test("postgres sink replaces only the requested provider live odds and rolls bac
     await sink.saveLiveOdds("provider-b", observedAt, [providerB]);
     await sink.saveLiveOdds("provider-a", observedAt, [providerASecond]);
 
-    assert.deepEqual(sortById(await odds.listLive("2026-07-18T10:30:00.000Z")), sortById([providerASecond, providerB]));
+    assert.deepEqual(sortById(await odds.listLive("2026-07-18T10:30:00.000Z")), sortById([
+      { ...providerASecond, provider: "provider-a", observedAt },
+      { ...providerB, provider: "provider-b", observedAt },
+    ]));
 
     await assert.rejects(
       sink.saveLiveOdds("provider-a", observedAt, [{ ...providerASecond, id: "bad", odds: Number.NaN }]),
       /positive finite odds/,
     );
-    assert.deepEqual(sortById(await odds.listLive("2026-07-18T10:30:00.000Z")), sortById([providerASecond, providerB]));
+    assert.deepEqual(sortById(await odds.listLive("2026-07-18T10:30:00.000Z")), sortById([
+      { ...providerASecond, provider: "provider-a", observedAt },
+      { ...providerB, provider: "provider-b", observedAt },
+    ]));
+  });
+});
+
+test("postgres sink exposes the unified live-read, fixture-resolution, and evaluation pipeline", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const sink = createPostgresSink({ pool });
+    const observedAt = "2026-07-18T10:00:00.000Z";
+    await sink.saveLiveOdds("provider-a", observedAt, [liveEntry({
+      provider: "spoofed",
+      bookmaker: "Book A",
+      observedAt: "1999-01-01T00:00:00.000Z",
+    })]);
+
+    const liveRows = await sink.listLiveOdds("2026-07-18T10:30:00.000Z");
+    assert.equal(liveRows.length, 1);
+    assert.equal(liveRows[0].provider, "provider-a");
+    assert.equal(liveRows[0].observedAt, observedAt);
+    const resolved = await sink.resolveFixtures(liveRows);
+    assert.equal(resolved.fixtures.length, 1);
+    assert.match(resolved.fixtures[0].fixtureId, UUID_SCHEMA);
+
+    const opportunity = {
+      fixtureId: resolved.fixtures[0].fixtureId,
+      matchId: liveRows[0].matchId,
+      homeTeam: liveRows[0].homeTeam,
+      awayTeam: liveRows[0].awayTeam,
+      commenceTime: liveRows[0].commenceTime,
+      strategyVersion: "unified-buyable-v1",
+      modelVersion: "totals-loo-v1",
+      market: "totals",
+      selection: "over",
+      line: 2.5,
+      quotes: [{
+        bookmaker: "Book A",
+        provider: "provider-a",
+        odds: 2.1,
+        chance: 0.51,
+        edge: 0.071,
+        minimumBuyOdds: 2.02,
+        observedAt,
+      }],
+    };
+    assert.deepEqual(await sink.recordRecommendationEvaluation({
+      evaluatedAt: "2026-07-18T10:30:00.000Z",
+      inputs: resolved.fixtures,
+      opportunities: [opportunity],
+    }), {
+      samplesInserted: 1,
+      samplesUpdated: 0,
+      observationsInserted: 1,
+      observationsExtended: 0,
+      skipped: 0,
+    });
+    assert.equal((await pool.query("SELECT 1 FROM recommendation_observations")).rowCount, 1);
   });
 });
 

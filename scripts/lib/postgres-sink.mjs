@@ -1,5 +1,7 @@
 import { createCollectorStateRepository } from "../../server/db/collector-state-repository.mjs";
+import { createFixtureRepository } from "../../server/db/fixture-repository.mjs";
 import { createOddsRepository } from "../../server/db/odds-repository.mjs";
+import { createOpportunityRepository } from "../../server/db/opportunity-repository.mjs";
 import { createResultRepository } from "../../server/db/result-repository.mjs";
 import { createSnapshotRepository } from "../../server/db/snapshot-repository.mjs";
 
@@ -9,6 +11,8 @@ export function createPostgresSink({ pool, clock = () => new Date() }) {
   }
 
   const liveOdds = createOddsRepository(pool);
+  const fixtures = createFixtureRepository(pool);
+  const opportunities = createOpportunityRepository(pool);
   const snapshots = createSnapshotRepository(pool);
   const results = createResultRepository(pool);
   const collectorState = createCollectorStateRepository(pool);
@@ -51,6 +55,20 @@ export function createPostgresSink({ pool, clock = () => new Date() }) {
       assertNonEmptyString(provider, "provider");
       assertValidDate(observedAt, "observedAt");
       return liveOdds.replaceProviderSnapshot(provider, new Date(Date.parse(observedAt)).toISOString(), entries);
+    },
+
+    async listLiveOdds(now) {
+      assertValidDate(now, "live odds query time");
+      return liveOdds.listLive(new Date(Date.parse(now)).toISOString());
+    },
+
+    async resolveFixtures(rows) {
+      if (!Array.isArray(rows)) throw new TypeError("fixture rows must be an array");
+      return fixtures.resolveBatch(rows);
+    },
+
+    async recordRecommendationEvaluation(value) {
+      return opportunities.recordEvaluation(value);
     },
 
     async saveSnapshots(rows) {

@@ -142,7 +142,7 @@ function currentOpportunity(row, now) {
   const evaluatedAt = Date.parse(row?.lastEvaluatedAt ?? "");
   if (sampleId === null || !Number.isFinite(kickoff) || kickoff <= now || !freshAt(evaluatedAt, now)) return null;
   const quotes = (Array.isArray(row?.quotes) ? row.quotes : [])
-    .filter((quote) => freshQuote(quote, evaluatedAt))
+    .filter((quote) => freshQuote(quote, evaluatedAt, now))
     .map((quote) => ({ ...quote }))
     .sort(compareQuotes);
   if (quotes.length === 0) return null;
@@ -175,11 +175,14 @@ function freshAt(timestamp, now) {
   return Number.isFinite(timestamp) && age >= 0 && age <= FRESHNESS_MS;
 }
 
-function freshQuote(quote, evaluatedAt) {
+function freshQuote(quote, evaluatedAt, now) {
   const observedAt = Date.parse(quote?.observedAt ?? "");
-  const age = evaluatedAt - observedAt;
+  const evaluationAge = evaluatedAt - observedAt;
+  const currentAge = now - observedAt;
   return Number.isFinite(quote?.odds) && quote.odds > 1
-    && Number.isFinite(observedAt) && age >= 0 && age <= FRESHNESS_MS;
+    && Number.isFinite(observedAt)
+    && evaluationAge >= 0 && evaluationAge <= FRESHNESS_MS
+    && currentAge >= 0 && currentAge <= FRESHNESS_MS;
 }
 
 function compareQuotes(left, right) {

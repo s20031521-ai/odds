@@ -35,7 +35,18 @@ export function buildBacktest(snapshots, results, now = Date.now()) {
   const usable = [...unified, ...legacy];
   const rows = results.flatMap((row) => {
     const matches = snapshotsForResult(usable, row);
-    if (matches.length === 0) return { ...row, prediction: "未有賽前快照", hit: null, settlement: null, odds: undefined, chance: undefined, modelVersion: undefined };
+    if (matches.length === 0) return {
+      ...row,
+      prediction: "未有賽前快照",
+      hit: null,
+      settlement: null,
+      odds: undefined,
+      chance: undefined,
+      modelVersion: undefined,
+      firstQualifiedAt: null,
+      lastQualifiedAt: null,
+      observationSummary: observationSummary(),
+    };
     return matches.map((snapshot) => {
       const settlement = settleResult(snapshot, row);
       if (isUnifiedOpportunity(snapshot)) return unifiedPerformanceRow(snapshot, row, settlement);
@@ -48,6 +59,9 @@ export function buildBacktest(snapshots, results, now = Date.now()) {
         chance: snapshot.chance,
         edge: snapshot.edge,
         savedAt: snapshot.savedAt,
+        firstQualifiedAt: snapshot.firstQualifiedAt ?? null,
+        lastQualifiedAt: snapshot.lastQualifiedAt ?? null,
+        observationSummary: observationSummary(snapshot.observations),
         snapshotStatus: "valid-current",
         modelVersion: snapshot.modelVersion,
         source: snapshot.source,
@@ -85,7 +99,7 @@ function unifiedPerformanceRow(snapshot, result, settlement) {
     id: `${result.id ?? `${result.fixtureId ?? result.matchId}-${result.market}`}|${unifiedOpportunityIdentity(snapshot)}`,
     sampleId: snapshot.sampleId,
     fixtureId: snapshot.fixtureId,
-    matchId: snapshot.matchId ?? result.matchId,
+    matchId: snapshot.matchId ?? result.matchId ?? snapshot.fixtureId,
     market: snapshot.market,
     selection: snapshot.selection,
     prediction: snapshot.selection,
@@ -94,6 +108,9 @@ function unifiedPerformanceRow(snapshot, result, settlement) {
     chance: bestQuote?.chance,
     edge: bestQuote?.edge,
     savedAt: snapshot.firstQualifiedAt,
+    firstQualifiedAt: snapshot.firstQualifiedAt ?? null,
+    lastQualifiedAt: snapshot.lastQualifiedAt ?? null,
+    observationSummary: observationSummary(snapshot.observations),
     snapshotStatus: "valid-current",
     modelVersion: snapshot.modelVersion,
     strategyVersion: UNIFIED_STRATEGY_VERSION,
@@ -176,17 +193,24 @@ function buildUnifiedPendingRows(snapshots, rows, results, now) {
   return snapshots.filter((item) => !resolvedSamples.has(item.sampleId)).map((item) => {
     const commenceTime = item.commenceTime ?? commenceByFixture.get(item.fixtureId) ?? null;
     const kickoff = Date.parse(commenceTime ?? "");
+    const bestQuote = qualifyingQuotes(item).toSorted(compareQuotes)[0];
     return {
       id: unifiedOpportunityIdentity(item),
       sampleId: item.sampleId,
       fixtureId: item.fixtureId,
-      matchId: item.matchId,
+      matchId: item.matchId ?? item.fixtureId,
       market: item.market,
       selection: item.selection,
       prediction: item.selection,
       line: Number.isFinite(item.line) ? item.line : null,
+      odds: Number.isFinite(bestQuote?.odds) ? bestQuote.odds : null,
+      chance: Number.isFinite(bestQuote?.chance) ? bestQuote.chance : null,
+      edge: Number.isFinite(bestQuote?.edge) ? bestQuote.edge : null,
       commenceTime,
-      savedAt: item.firstQualifiedAt,
+      savedAt: item.firstQualifiedAt ?? "",
+      firstQualifiedAt: item.firstQualifiedAt ?? null,
+      lastQualifiedAt: item.lastQualifiedAt ?? null,
+      observationSummary: observationSummary(item.observations),
       modelVersion: item.modelVersion,
       strategyVersion: UNIFIED_STRATEGY_VERSION,
       source: "unified-sampler",
@@ -213,6 +237,9 @@ function buildPendingRows(snapshots, finished, results, now) {
       edge: Number.isFinite(item.edge) ? item.edge : null,
       commenceTime,
       savedAt: item.savedAt,
+      firstQualifiedAt: item.firstQualifiedAt ?? null,
+      lastQualifiedAt: item.lastQualifiedAt ?? null,
+      observationSummary: observationSummary(item.observations),
       modelVersion: item.modelVersion ?? "legacy-v0",
       source: item.source ?? null,
       status,
@@ -402,6 +429,29 @@ function settlementProfit(settlement, odds) {
   if (settlement === "half-loss") return -0.5;
   if (settlement === "loss") return -1;
   return 0;
+}
+
+function observationSummary(value = []) {
+  const observations = Array.isArray(value) ? value : [];
+  let firstEvaluatedAt = null;
+  let firstTime = Number.POSITIVE_INFINITY;
+  let lastEvaluatedAt = null;
+  let lastTime = Number.NEGATIVE_INFINITY;
+  let buyableQuoteCount = 0;
+  for (const observation of observations) {
+    const first = Date.parse(observation?.firstEvaluatedAt ?? "");
+    if (Number.isFinite(first) && first < firstTime) {
+      firstTime = first;
+      firstEvaluatedAt = observation.firstEvaluatedAt;
+    }
+    const last = Date.parse(observation?.lastEvaluatedAt ?? "");
+    if (Number.isFinite(last) && last > lastTime) {
+      lastTime = last;
+      lastEvaluatedAt = observation.lastEvaluatedAt;
+    }
+    buyableQuoteCount += Array.isArray(observation?.buyableQuotes) ? observation.buyableQuotes.length : 0;
+  }
+  return { count: observations.length, firstEvaluatedAt, lastEvaluatedAt, buyableQuoteCount };
 }
 
 function qualifyingQuotes(snapshot) {

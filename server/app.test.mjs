@@ -108,7 +108,7 @@ test("serves the secure same-origin api/v1 contract", async (t) => {
       bestQuote: quote("Pinnacle", 2.2, "2026-07-17T23:30:00.000Z"),
       quotes: [
         quote("Pinnacle", 2.2, "2026-07-17T23:30:00.000Z"),
-        quote("HKJC", 2.02, "2026-07-17T23:40:00.000Z", "hkjc"),
+        quote("HKJC", 2.02, "2026-07-17T23:15:00.000Z", "hkjc"),
       ],
       lastEvaluatedAt: "2026-07-17T23:59:00.000Z",
     }],
@@ -333,6 +333,15 @@ function createFakeRepositories() {
           { ...currentOpportunity(), sampleId: 103, fixtureId: "fixture-stale", lastEvaluatedAt: "2026-07-17T23:14:59.999Z" },
           { ...currentOpportunity(), sampleId: 104, fixtureId: "fixture-past", commenceTime: "2026-07-17T20:00:00.000Z" },
           { ...currentOpportunity(), sampleId: 105, fixtureId: "fixture-stale-quote", quotes: [quote("Pinnacle", 2.2, "2026-07-17T23:13:59.999Z")] },
+          {
+            ...currentOpportunity(),
+            sampleId: 106,
+            fixtureId: "fixture-combined-age-stale",
+            lastEvaluatedAt: "2026-07-17T23:16:00.000Z",
+            quotes: [quote("Pinnacle", 2.2, "2026-07-17T22:32:00.000Z")],
+          },
+          { ...currentOpportunity(), sampleId: 107, fixtureId: "fixture-future-evaluation", lastEvaluatedAt: "2026-07-18T00:00:00.001Z" },
+          { ...currentOpportunity(), sampleId: 108, fixtureId: "fixture-future-quote", quotes: [quote("Pinnacle", 2.2, "2026-07-18T00:00:00.001Z")] },
         ];
       },
       async listObservations(sampleId) {
@@ -382,7 +391,7 @@ function currentOpportunity() {
     firstEvaluatedAt: "2026-07-17T23:40:00.000Z",
     lastEvaluatedAt: "2026-07-17T23:59:00.000Z",
     quotes: [
-      quote("HKJC", 2.02, "2026-07-17T23:40:00.000Z", "hkjc"),
+      quote("HKJC", 2.02, "2026-07-17T23:15:00.000Z", "hkjc"),
       quote("Pinnacle", 2.2, "2026-07-17T23:30:00.000Z"),
     ],
   };

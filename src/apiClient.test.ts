@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, expectTypeOf, it } from "vitest";
 import { createApiClient, ApiError } from "./apiClient";
+import type { BacktestResponse, BacktestRow, BacktestSummary } from "./apiClient";
 import type { PredictionSnapshot } from "./predictionSnapshots";
 
 describe("apiClient", () => {
@@ -18,7 +19,10 @@ describe("apiClient", () => {
     await client.results();
     await client.currentRecommendations();
     await client.predictionObservations(42);
-    await client.backtest();
+    const backtest = await client.backtest();
+    expectTypeOf(backtest).toEqualTypeOf<BacktestResponse>();
+    expectTypeOf(backtest.rows).toEqualTypeOf<BacktestRow[]>();
+    expectTypeOf(backtest.summary).toEqualTypeOf<BacktestSummary | undefined>();
     await client.logout("csrf");
     await client.savePredictions("csrf", [snapshot()]);
 

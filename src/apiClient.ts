@@ -74,12 +74,147 @@ export type PredictionObservationsResponse = {
   observations: RecommendationObservation[];
 };
 
+export type BacktestSettlement = "win" | "half-win" | "push" | "half-loss" | "loss" | "void" | "unsettleable";
+
+export type BacktestRange = {
+  lower: number;
+  upper: number;
+};
+
+export type BacktestQuoteRange = {
+  min: number;
+  max: number;
+  count: number;
+};
+
+export type BacktestObservationSummary = {
+  count: number;
+  firstEvaluatedAt: string | null;
+  lastEvaluatedAt: string | null;
+  buyableQuoteCount: number;
+};
+
+export type BacktestClosingBenchmark = "N/A" | {
+  evaluatedAt: string;
+  quoteRange: BacktestQuoteRange;
+};
+
+export type BacktestRow = {
+  id?: string;
+  sampleId?: number | string;
+  fixtureId?: string;
+  matchId?: string;
+  homeTeam?: string;
+  awayTeam?: string;
+  commenceTime?: string | null;
+  score?: string;
+  market?: string;
+  selection?: string;
+  prediction: string;
+  actual?: string;
+  line?: number | null;
+  odds?: number;
+  chance?: number;
+  edge?: number;
+  savedAt?: string;
+  firstQualifiedAt: string | null;
+  lastQualifiedAt: string | null;
+  observationSummary: BacktestObservationSummary;
+  snapshotStatus?: string;
+  modelVersion?: string;
+  strategyVersion?: string;
+  source?: string;
+  quoteRange?: BacktestQuoteRange | null;
+  unitProfitRange?: BacktestRange | null;
+  closingBenchmark?: BacktestClosingBenchmark;
+  settlement: BacktestSettlement | null;
+  hit: boolean | null;
+};
+
+export type BacktestSummary = {
+  finished: number;
+  hit: number;
+  miss: number;
+  push: number;
+  hitRate: number;
+  priced: number;
+  profit: number;
+  roi: number | null;
+  yield: number | null;
+  profitRange?: BacktestRange;
+  roiRange?: BacktestRange;
+  yieldRange?: BacktestRange;
+};
+
+export type BacktestReadiness = {
+  market: string;
+  modelVersion: string;
+  strategyVersion: "unified-buyable-v1";
+  snapshots: number;
+  settled: number;
+  pending: number;
+  matches: number;
+  settledMatches: number;
+  pendingMatches: number;
+  upcoming: number;
+  settling: number;
+  overdue: number;
+  unknownPending: number;
+  upcomingMatches: number;
+  settlingMatches: number;
+  overdueMatches: number;
+  unknownPendingMatches: number;
+  priced: number;
+  chanceCount: number;
+  chanceAverage: number | null;
+  chanceMin: number | null;
+  chanceMax: number | null;
+  bookmakerCount: number;
+  sources: string[];
+  directions: Record<string, number>;
+  dominantDirection: string;
+  dominantShare: number;
+};
+
+export type BacktestPendingRow = {
+  id: string;
+  sampleId?: number | string;
+  fixtureId?: string;
+  matchId: string;
+  market: string;
+  selection?: string;
+  prediction: string;
+  line: number | null;
+  odds: number | null;
+  chance: number | null;
+  edge: number | null;
+  commenceTime: string | null;
+  savedAt: string;
+  firstQualifiedAt: string | null;
+  lastQualifiedAt: string | null;
+  observationSummary: BacktestObservationSummary;
+  modelVersion: string;
+  strategyVersion?: string;
+  source: string | null;
+  status: "unknown" | "upcoming" | "settling" | "overdue";
+};
+
+export type BacktestSnapshotQuality = {
+  raw: number;
+  validCurrent: number;
+  legacy: number;
+  invalid: number;
+  invalidReasons: Record<string, number>;
+};
+
 export type BacktestResponse = {
-  rows: unknown[];
-  summary?: unknown;
-  readiness?: unknown[];
-  pending?: unknown[];
-  snapshotQuality?: unknown;
+  rows: BacktestRow[];
+  summary?: BacktestSummary;
+  byMarket?: Record<string, BacktestSummary>;
+  buckets?: Record<string, BacktestSummary>;
+  readiness?: BacktestReadiness[];
+  pending?: BacktestPendingRow[];
+  snapshotQuality?: BacktestSnapshotQuality;
 };
 
 export type PredictionSaveResponse = {

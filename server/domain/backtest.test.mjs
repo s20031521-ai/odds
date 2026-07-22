@@ -255,7 +255,31 @@ test("settles unified opportunities independently with return ranges and distinc
 
   const unifiedRows = response.rows.filter((row) => row.strategyVersion === "unified-buyable-v1");
   assert.deepEqual(unifiedRows.slice(0, 2).map((row) => [row.sampleId, row.settlement]), [[1, "win"], [2, "push"]]);
-  assert.equal(response.rows.find((row) => row.matchId === "legacy")?.settlement, "win", "legacy audit rows survive alongside unified performance");
+  assert.deepEqual({
+    firstQualifiedAt: unifiedRows[0].firstQualifiedAt,
+    lastQualifiedAt: unifiedRows[0].lastQualifiedAt,
+    observationSummary: unifiedRows[0].observationSummary,
+  }, {
+    firstQualifiedAt: "2026-07-11T08:00:00Z",
+    lastQualifiedAt: "2026-07-11T09:50:00Z",
+    observationSummary: {
+      count: 2,
+      firstEvaluatedAt: "2026-07-11T08:00:00Z",
+      lastEvaluatedAt: "2026-07-11T09:55:00Z",
+      buyableQuoteCount: 2,
+    },
+  });
+  const legacyRow = response.rows.find((row) => row.matchId === "legacy");
+  assert.equal(legacyRow?.settlement, "win", "legacy audit rows survive alongside unified performance");
+  assert.deepEqual({
+    firstQualifiedAt: legacyRow.firstQualifiedAt,
+    lastQualifiedAt: legacyRow.lastQualifiedAt,
+    observationSummary: legacyRow.observationSummary,
+  }, {
+    firstQualifiedAt: null,
+    lastQualifiedAt: null,
+    observationSummary: { count: 0, firstEvaluatedAt: null, lastEvaluatedAt: null, buyableQuoteCount: 0 },
+  });
   assert.deepEqual(unifiedRows[0].unitProfitRange, { lower: 1, upper: 1.4 });
   assert.deepEqual(unifiedRows[1].unitProfitRange, { lower: 0, upper: 0 });
   assert.equal(unifiedRows[0].closingBenchmark, "N/A");

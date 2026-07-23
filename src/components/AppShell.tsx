@@ -34,7 +34,7 @@ export function AppShell(props: {
 
   return (
     <div className="application-shell">
-      <div className="app-wallpaper" aria-hidden="true" />
+      <img className="app-wallpaper" src="/chiikawa-wallpaper.png" alt="" aria-hidden="true" />
       <a className="skip-link" href="#main-content">
         跳至主要內容
       </a>

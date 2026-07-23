@@ -5,7 +5,7 @@ import { DASHBOARD_MODE_STORAGE_KEY } from "../../src/dashboardMode";
 const FUTURE_KICKOFF = "2030-07-17T12:00:00.000Z";
 const PAST_KICKOFF = "2020-07-17T12:00:00.000Z";
 
-export type Scenario = "authenticated" | "guest" | "empty" | "live-failed" | "current-failed" | "backtest-failed" | "many-picks";
+export type Scenario = "authenticated" | "guest" | "empty" | "live-failed" | "current-failed" | "backtest-failed" | "many-picks" | "flat-live";
 
 export function entry(id: string, matchId: string, homeTeam: string, awayTeam: string, bookmaker: string, odds: { home: number; draw: number; away: number }, commenceTime = FUTURE_KICKOFF, league?: string) {
   return { id, matchId, homeTeam, awayTeam, commenceTime, bookmaker, odds, ...(league ? { league } : {}) };
@@ -202,6 +202,25 @@ export async function mockApi(
     }
 
     if (pathname === "/api/v1/odds/live") {
+      if (scenario === "flat-live") {
+        // Production contract: collectors store one flat row per market+selection
+        // (scalar `odds`), like the hkjc-import/hdc-collector flatteners write.
+        const flatRows = [
+          ...h2hEntries.flatMap((e) => (["home", "draw", "away"] as const).map((selection) => ({
+            ...e, id: `${e.id}:${selection}`, market: "h2h", selection, odds: e.odds[selection],
+          }))),
+          ...totalEntries.flatMap((e) => ([
+            { ...e, id: `${e.id}:over`, market: "totals", selection: "over", line: e.line, odds: e.overOdds },
+            { ...e, id: `${e.id}:under`, market: "totals", selection: "under", line: e.line, odds: e.underOdds },
+          ])),
+        ].map(({ overOdds: _o, underOdds: _u, ...row }) => row);
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ entries: flatRows }),
+        });
+        return;
+      }
       if (scenario === "live-failed") {
         await route.fulfill({ status: options.status ?? 503, contentType: "application/json", body: JSON.stringify({ error: "unavailable" }) });
         return;

@@ -26,6 +26,7 @@ import { FixturesPage } from "./pages/FixturesPage";
 import { PerformancePage } from "./pages/PerformancePage";
 import { Mascot } from "./components/Kawaii";
 import { startCurrentRecommendationsRefresh } from "./currentRecommendations";
+import { normalizeLiveOddsPayload } from "./liveOddsMapping";
 
 type ModelReadiness = {
   market: string;
@@ -139,7 +140,6 @@ function App() {
     edgeThreshold: 0.03,
   });
 
-  const hkjcAutoLoadStarted = useRef(false);
   const hdcRefreshRunning = useRef(false);
   const backtestAutoLoadStarted = useRef(false);
 
@@ -206,7 +206,6 @@ function App() {
     setRecommendationsLoaded(false);
     setBacktestLoaded(false);
     setDataFresh(false);
-    hkjcAutoLoadStarted.current = false;
     backtestAutoLoadStarted.current = false;
   }
 
@@ -300,10 +299,6 @@ function App() {
 
   useEffect(() => {
     if (!auth.authenticated) return;
-    if (!hkjcAutoLoadStarted.current) {
-      hkjcAutoLoadStarted.current = true;
-      void loadHkjcOdds();
-    }
     if (!backtestAutoLoadStarted.current) {
       backtestAutoLoadStarted.current = true;
       void loadBacktest();
@@ -341,28 +336,21 @@ function App() {
     hdcRefreshRunning.current = true;
     try {
       const payload = await apiClient.liveOdds();
-      setEntries((current) => mergeById(current, Array.isArray((payload as Record<string, unknown>).entries) ? (payload as Record<string, unknown>).entries as ManualEntry[] : []));
-      setHandicapEntries((current) => mergeById(current, Array.isArray((payload as Record<string, unknown>).handicapEntries) ? (payload as Record<string, unknown>).handicapEntries as HandicapEntry[] : []));
-      setTotalEntries((current) => mergeById(current, Array.isArray((payload as Record<string, unknown>).totalEntries) ? (payload as Record<string, unknown>).totalEntries as TotalsMarketEntry[] : []));
-      setCornerEntries((current) => mergeById(current, Array.isArray((payload as Record<string, unknown>).cornerEntries) ? (payload as Record<string, unknown>).cornerEntries as TotalsMarketEntry[] : []));
-      setDataLoads((current) => dataLoadStateAfter(current, "hdc", true));
+      // The API serves flat per-selection rows; re-pair them into the UI
+      // market shapes before they touch component state.
+      const normalized = normalizeLiveOddsPayload(payload);
+      setEntries((current) => mergeById(current, normalized.entries));
+      setHandicapEntries((current) => mergeById(current, normalized.handicapEntries));
+      setTotalEntries((current) => mergeById(current, normalized.totalEntries));
+      setCornerEntries((current) => mergeById(current, normalized.cornerEntries));
+      // The unified live feed carries both HKJC and external provider rows,
+      // so one successful fetch freshens both tracked sources.
+      setDataLoads((current) => dataLoadStateAfter(dataLoadStateAfter(current, "hkjc", true), "hdc", true));
       setLastSuccessfulSync(new Date().toISOString());
     } catch {
-      setDataLoads((current) => dataLoadStateAfter(current, "hdc", false));
+      setDataLoads((current) => dataLoadStateAfter(dataLoadStateAfter(current, "hkjc", false), "hdc", false));
     } finally {
       hdcRefreshRunning.current = false;
-    }
-  }
-
-  async function loadHkjcOdds() {
-    try {
-      const response = await fetch("/hkjc-odds.json");
-      if (!response.ok) throw new Error("HKJC fetch failed");
-      const body = await response.json();
-      setEntries((current) => mergeById(current, Array.isArray(body?.entries) ? body.entries : []));
-      setDataLoads((current) => dataLoadStateAfter(current, "hkjc", true));
-    } catch {
-      setDataLoads((current) => dataLoadStateAfter(current, "hkjc", false));
     }
   }
 

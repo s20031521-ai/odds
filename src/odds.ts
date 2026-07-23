@@ -183,7 +183,10 @@ export function sortFixturesByBestEdge(fixtures: Fixture[], rows: AnalysisRow[])
 }
 
 export function hasCompleteOdds(odds: OddsSet): boolean {
-  return (Object.keys(odds) as OutcomeKey[]).every((outcome) => isValidOdds(odds[outcome]));
+  // Must check the three required outcomes explicitly: iterating Object.keys
+  // accepts partial objects (and even scalars, which have no keys), and a
+  // missing outcome then crashes overround()/impliedProbability at render time.
+  return (["home", "draw", "away"] as const).every((outcome) => isValidOdds(odds?.[outcome]));
 }
 
 function sortableTime(value: string): number {

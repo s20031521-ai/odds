@@ -18,6 +18,18 @@ test("dashboard starts behind auth, then only shows fresh pre-match picks from s
   await expectNoDocumentOverflow(page);
 });
 
+test("renders dashboard when the API serves flat per-selection rows", async ({ page }) => {
+  // Regression: production /api/v1/odds/live returns one flat row per
+  // market+selection; the un-normalized payload crashed the render and the
+  // page went completely blank (#root emptied).
+  await mockApi(page, "flat-live");
+  await page.goto("/#/today");
+
+  await expect(page.locator(".application-shell")).toBeVisible();
+  await expect(page.locator("#root")).not.toBeEmpty();
+  await expect(page.locator("main")).toContainText("Value United");
+});
+
 test("guest sees login page and login posts credentials to /api/v1/auth/login", async ({ page }) => {
   let loginBody = "";
   await mockApi(page, "guest", {

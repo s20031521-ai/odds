@@ -3,6 +3,7 @@ import {
   analyzeEntries,
   fairProbabilities,
   filterLegacySampleEntries,
+  hasCompleteOdds,
   impliedProbability,
   kellyStake,
   overround,
@@ -51,6 +52,18 @@ describe("odds calculations", () => {
   it("rejects invalid odds", () => {
     expect(() => impliedProbability(1)).toThrow();
     expect(() => overround({ home: 2, draw: 0, away: 4 })).toThrow();
+  });
+
+  it("skips entries with partial or malformed odds instead of crashing", () => {
+    // Regression: flat API rows once reached the analyzer as scalar `odds`,
+    // slipped past the old Object.keys-based guard, and crashed the render.
+    expect(hasCompleteOdds({ home: 2, draw: 3 } as ManualEntry["odds"])).toBe(false);
+    expect(hasCompleteOdds(3.85 as unknown as ManualEntry["odds"])).toBe(false);
+    expect(hasCompleteOdds({ home: 2, draw: 3, away: 4 })).toBe(true);
+
+    const partial = entry("partial", "Market X", { home: 2, draw: 3 } as ManualEntry["odds"]);
+    expect(() => analyzeEntries([partial], settings)).not.toThrow();
+    expect(analyzeEntries([partial], settings)).toEqual([]);
   });
 
   it("dedupes fixtures and sorts by kickoff", () => {

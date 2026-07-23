@@ -14,7 +14,7 @@ STACK_ROOT="/opt/odds-tool"
 echo "=== Step 1: Sync code ==="
 ssh -i "$SSH_KEY" -p "$VM_PORT" "$VM_USER@$VM_HOST" << 'ENDSSH'
 cd /opt/odds-tool/build
-git fetch origin master
+git fetch origin
 git reset --hard origin/master
 echo "Code synced to $(git rev-parse --short HEAD)"
 ENDSSH

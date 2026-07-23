@@ -1,17 +1,16 @@
 import type { ReactNode } from "react";
 import type { Page } from "../route";
-import { KawaiiDecor, Mascot } from "./Kawaii";
+import { Mascot } from "./Kawaii";
 
-const navigationItems = Object.freeze([
+const navigationItems = [
   { route: "today", href: "#/today", label: "今日" },
   { route: "fixtures", href: "#/fixtures", label: "賽程" },
-  { route: "analysis", href: "#/analysis", label: "分析" },
-  { route: "history", href: "#/history", label: "紀錄" },
-] as const);
+  { route: "performance", href: "#/performance", label: "表現" },
+] as const;
 
-function Navigation(props: { className: string; label: string; route: Page }) {
+function Navigation(props: { route: Page }) {
   return (
-    <nav className={props.className} aria-label={props.label}>
+    <nav className="app-navigation" aria-label="主導航">
       <ul>
         {navigationItems.map((item) => (
           <li key={item.route}>
@@ -35,12 +34,11 @@ export function AppShell(props: {
 
   return (
     <div className="application-shell">
+      <div className="app-wallpaper" aria-hidden="true" />
       <a className="skip-link" href="#main-content">
         跳至主要內容
       </a>
       <div className="application-shell__content">
-        <Navigation className="app-navigation app-navigation--top" label="主要導覽" route={props.route} />
-        {props.onLogout ? <button className="secondary-button compact" onClick={props.onLogout} type="button">登出</button> : null}
         {hasWarning ? (
           <div className="app-shell__alert" role="alert">
             <Mascot pose="momonga-alert" />
@@ -50,13 +48,14 @@ export function AppShell(props: {
         <main id="main-content" tabIndex={-1}>
           {props.children}
         </main>
-        <KawaiiDecor />
-        <Mascot pose="chiikawa-corner" />
-        <aside aria-label="安裝提示" className="pwa-install-hint">
-          iPhone / iPad：Safari 分享 → 加入主畫面
-        </aside>
+        <Mascot pose="chiikawa-top-left" />
+        {props.onLogout ? (
+          <button className="logout-button" onClick={props.onLogout} type="button">
+            登出
+          </button>
+        ) : null}
       </div>
-      <Navigation className="app-navigation app-navigation--bottom" label="手機導覽" route={props.route} />
+      <Navigation route={props.route} />
     </div>
   );
 }

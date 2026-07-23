@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { KawaiiDecor, Mascot } from "./Kawaii";
+import { Mascot } from "./Kawaii";
 
 describe("Mascot", () => {
   it("renders local chiikawa corner image as decorative", () => {
@@ -24,11 +24,3 @@ describe("Mascot", () => {
   });
 });
 
-describe("KawaiiDecor", () => {
-  it("renders aria-hidden decorative petals and star", () => {
-    const html = renderToStaticMarkup(<KawaiiDecor />);
-    expect(html).toContain('aria-hidden="true"');
-    expect(html).toContain("kawaii-decor__petal");
-    expect(html).toContain("kawaii-decor__star");
-  });
-});

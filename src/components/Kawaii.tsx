@@ -4,6 +4,7 @@ const mascotPoses = {
   "momonga-loading": { src: "/chiikawa/mascot-momonga-loading.png", modifier: "loading" },
   "momonga-alert": { src: "/chiikawa/mascot-momonga-loading.png", modifier: "alert" },
   "login-duo": { src: "/chiikawa/mascot-login-duo.png", modifier: "login" },
+  "chiikawa-top-left": { src: "/chiikawa/mascot-top-left.png", modifier: "top-left" },
 } as const;
 
 export type MascotPose = keyof typeof mascotPoses;
@@ -22,12 +23,3 @@ export function Mascot(props: { pose: MascotPose }): React.ReactElement {
   );
 }
 
-export function KawaiiDecor(): React.ReactElement {
-  return (
-    <span className="kawaii-decor" aria-hidden="true">
-      <span className="kawaii-decor__petal kawaii-decor__petal--1" />
-      <span className="kawaii-decor__petal kawaii-decor__petal--2" />
-      <span className="kawaii-decor__star" />
-    </span>
-  );
-}

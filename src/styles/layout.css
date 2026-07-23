@@ -1,3 +1,15 @@
+
+.app-wallpaper {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image: url('/chiikawa-wallpaper.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+
 .application-shell {
   min-height: 100vh;
   color: var(--color-text);
@@ -5,9 +17,11 @@
 }
 
 .application-shell__content {
+  position: relative;
+  z-index: 1;
   width: min(100%, 1440px);
   margin-inline: auto;
-  padding: 24px;
+  padding: 24px 24px calc(var(--touch-target) + 32px);
 }
 
 .skip-link {
@@ -28,12 +42,29 @@
   transform: translateY(0);
 }
 
+.app-navigation {
+  position: fixed;
+  z-index: 20;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-accent-pink);
+  background: rgba(255, 252, 250, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 -2px 12px rgba(200, 150, 150, 0.08);
+}
+
 .app-navigation ul {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
+  max-width: 400px;
+  margin-inline: auto;
 }
 
 .app-navigation a {
@@ -42,25 +73,16 @@
   justify-content: center;
   min-height: var(--touch-target);
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--color-muted);
   text-decoration: none;
   font-weight: 800;
+  font-size: 0.95rem;
 }
 
 .app-navigation a[aria-current="page"] {
   background: var(--color-accent-pink);
   color: var(--color-text);
-  border-radius: 999px;
-}
-
-.app-navigation--top {
-  display: block;
-  margin-bottom: 20px;
-}
-
-.app-navigation--bottom {
-  display: none;
 }
 
 .app-shell__alert[role="alert"] {
@@ -73,8 +95,18 @@
   font-weight: 800;
 }
 
-.pwa-install-hint {
-  display: none;
+.logout-button {
+  display: block;
+  margin: 32px auto 0;
+  min-height: var(--touch-target);
+  padding: 8px 24px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
 }
 
 :focus-visible {
@@ -95,48 +127,8 @@
 
 @media (max-width: 720px) {
   .application-shell__content {
-    padding: 16px 16px calc(var(--touch-target) + 24px + env(safe-area-inset-bottom));
-  }
-
-  .app-navigation--top {
-    display: none;
-  }
-
-  .pwa-install-hint {
-    display: block;
-    margin-top: 16px;
-    padding: 12px 14px;
-    border: 1px solid color-mix(in srgb, var(--color-primary) 55%, transparent);
-    border-radius: var(--radius-card);
-    color: var(--color-muted);
-    background: var(--color-surface);
-    font-size: 0.88rem;
-    text-align: center;
-  }
-
-  .app-navigation--bottom {
-    position: fixed;
-    z-index: 20;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    display: block;
-    padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
-    border-top: 1px solid var(--color-primary);
-    background: var(--color-surface);
-  }
-
-  .app-navigation--bottom ul {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 4px;
-  }
-
-  .app-navigation--bottom a {
-    min-height: var(--touch-target);
-    padding-inline: 4px;
-    border-radius: 10px;
-    font-size: 0.78rem;
-    text-align: center;
+  position: relative;
+  z-index: 1;
+    padding: 16px 16px calc(var(--touch-target) + 40px + env(safe-area-inset-bottom));
   }
 }

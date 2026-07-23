@@ -8,7 +8,6 @@ import { Mascot } from "../components/Kawaii";
 import type { Fixture } from "../odds";
 
 const UPCOMING_FIXTURE_COUNT = 3;
-const FOCUS_MARKETS = new Set(["totals", "corners", "handicap"]);
 
 export function LandingPage(props: {
   opportunities: BuyableOpportunity[];
@@ -20,9 +19,7 @@ export function LandingPage(props: {
   loadObservations?: ObservationLoader;
 }): React.ReactElement {
   const now = props.now ?? Date.now();
-  const active = props.dataFresh
-    ? props.opportunities.filter((o) => FOCUS_MARKETS.has(o.market))
-    : [];
+  const active = props.dataFresh ? props.opportunities : [];
   const sorted = [...[], ...active].sort(
     (a, b) => Date.parse(a.commenceTime) - Date.parse(b.commenceTime)
   );

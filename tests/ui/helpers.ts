@@ -146,9 +146,8 @@ export async function mockApi(
   await page.unroute("**/hkjc-odds.json").catch(() => undefined);
   await page.unroute("http://127.0.0.1:8787/**").catch(() => undefined);
 
-  // 產品預設 dashboard 模式係「極簡」(simple),但呢個 spec 斷言嘅係「專業」(pro) 模式
-  // 嘅 .buy-dashboard 結構。喺每次導航前預設寫入 localStorage,等測試環境一律行 pro。
-  // init script 會套用於其後所有導航同 reload。
+  // Chiikawa 改版(2f25bbe)已經移除 simple/pro 雙模式,#/today 而家直接係 LandingPage。
+  // dashboardMode 選項同 localStorage 預設留返做向后兼容,對現行 UI 冇效果。
   await page.addInitScript(
     ([key, value]: [string, string]) => {
       try {
@@ -288,10 +287,10 @@ export async function mockApi(
               source: "market-consensus",
             }],
             readiness: [
-              { market: "主客和", modelVersion: "consensus-v1", settledMatches: 12, pendingMatches: 1 },
-              { market: "大細波", modelVersion: "totals-loo-v1", settledMatches: 30, pendingMatches: 0 },
-              { market: "角球", modelVersion: "corner-loo-v1", settledMatches: 7, pendingMatches: 0 },
-              { market: "亞洲讓球", modelVersion: "hdc-loo-v2", settledMatches: 0, pendingMatches: 0 },
+              { market: "h2h", modelVersion: "consensus-v1", settledMatches: 12, pendingMatches: 1 },
+              { market: "totals", modelVersion: "totals-loo-v1", settledMatches: 30, pendingMatches: 0 },
+              { market: "corners", modelVersion: "corner-loo-v1", settledMatches: 7, pendingMatches: 0 },
+              { market: "handicap", modelVersion: "hdc-loo-v2", settledMatches: 0, pendingMatches: 0 },
             ],
             pending: [{
               id: "match-value|主客和||consensus-v1",

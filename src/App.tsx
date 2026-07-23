@@ -8,7 +8,7 @@ import {
   type AnalyzerSettings,
   type ManualEntry,
 } from "./odds";
-import { dataFreshFromHealth, dataHealthWarning, dataLoadsReady, dataLoadStateAfter, dataLoadWarning, type DataHealth, type DataLoadState } from "./dataHealth";
+import { dataLoadStateAfter, dataLoadWarning, type DataLoadState } from "./dataHealth";
 
 import { buildTotalsCards, type TotalsMarketEntry } from "./oddsApi";
 import { buildHandicapCards, type HandicapEntry } from "./handicap";
@@ -126,7 +126,6 @@ function App() {
   const [handicapEntries, setHandicapEntries] = useState<HandicapEntry[]>([]);
   const [resultEntries, setResultEntries] = useState<ResultEntry[]>([]);
   const [readiness, setReadiness] = useState<ModelReadiness[]>([]);
-  const [dataFresh, setDataFresh] = useState(false);
   const [dataLoads, setDataLoads] = useState<DataLoadState>({ hkjc: null, hdc: null });
   const [recordedOpportunities, setRecordedOpportunities] = useState<BuyableOpportunity[]>([]);
   const [recommendationsGeneratedAt, setRecommendationsGeneratedAt] = useState<string | null>(null);
@@ -205,7 +204,6 @@ function App() {
     setRecommendationsGeneratedAt(null);
     setRecommendationsLoaded(false);
     setBacktestLoaded(false);
-    setDataFresh(false);
     backtestAutoLoadStarted.current = false;
   }
 
@@ -264,10 +262,6 @@ function App() {
   }, []);
 
   useEffect(() => {
-    setDataFresh(dataLoadsReady(dataLoads));
-  }, [dataLoads]);
-
-  useEffect(() => {
     if (!auth.authenticated) {
       setRecordedOpportunities([]);
       setRecommendationsGeneratedAt(null);
@@ -322,8 +316,10 @@ function App() {
       setResultEntries((body.rows as unknown[]).filter(isResultEntry));
       setReadiness(Array.isArray(body.readiness) ? body.readiness.filter(isModelReadiness) : []);
       setBacktestLoaded(true);
-    } catch {
-      // silently ignore backtest failures
+    } catch (error) {
+      // A protected feed answering 401 means the session is gone; fail back to login.
+      if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
+      // otherwise silently ignore backtest failures
     }
   }
 
@@ -347,7 +343,9 @@ function App() {
       // so one successful fetch freshens both tracked sources.
       setDataLoads((current) => dataLoadStateAfter(dataLoadStateAfter(current, "hkjc", true), "hdc", true));
       setLastSuccessfulSync(new Date().toISOString());
-    } catch {
+    } catch (error) {
+      // A protected feed answering 401 means the session is gone; fail back to login.
+      if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
       setDataLoads((current) => dataLoadStateAfter(dataLoadStateAfter(current, "hkjc", false), "hdc", false));
     } finally {
       hdcRefreshRunning.current = false;
@@ -385,7 +383,7 @@ function App() {
           opportunities={activeRecordedOpportunities}
           fixtures={dashboardFixtures}
           generatedAt={recommendationsGeneratedAt}
-          dataFresh={dataFresh && recommendationsTrusted}
+          dataFresh={recommendationsTrusted}
           logos={teamLogos}
           loadObservations={loadRecommendationObservations}
         />

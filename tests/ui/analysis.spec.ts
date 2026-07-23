@@ -1,40 +1,26 @@
 import { expect, test } from "@playwright/test";
 import { mockApi } from "./helpers";
 
+// Chiikawa UX 改版(commit 2f25bbe)將四頁減到三頁(今日/賽程/表現),
+// 獨立嘅 #/analysis 比賽分析頁已經移除,MatchAnalysisPage 唔再接通路由。
+// 舊有嘅分析頁測試(picker、四個市場卡、轉場、未知比賽、pick card 跳分析)
+// 全部斷言已唔存在嘅 UI,所以廢除;呢個 spec 而家鎖定替代行為:
+// 舊 analysis hash 一律安全落返今日頁,唔會白屏或死路由。
+
 test.beforeEach(async ({ page }) => {
-  await mockApi(page, "authenticated", { dashboardMode: "simple" });
+  await mockApi(page, "authenticated");
 });
 
-test("bare analysis route shows picker with quick links", async ({ page }) => {
+test("legacy #/analysis route lands on the today page", async ({ page }) => {
   await page.goto("/#/analysis");
-  await expect(page.getByText("由今日或賽程揀一場波")).toBeVisible();
-  await expect(page.locator('a[href="#/analysis?match=match-value"]')).toBeVisible();
+  await expect(page.locator(".application-shell")).toBeVisible();
+  await expect(page.locator(".landing-page")).toBeVisible();
+  await expect(page.locator("h1")).toContainText("今日");
 });
 
-test("match analysis page shows four market cards with empty states", async ({ page }) => {
+test("legacy #/analysis?match=... route lands on the today page without crashing", async ({ page }) => {
   await page.goto("/#/analysis?match=match-value");
-  await expect(page.locator(".match-analysis")).toBeVisible();
-  await expect(page.getByText("Value United vs Signal City")).toBeVisible();
-  await expect(page.getByText("模型估").first()).toBeVisible();
-  await expect(page.getByText("呢個市場冇盤")).toHaveCount(2); // 角球 + 亞洲讓球 mock 冇數據
-});
-
-test("switch-match link returns to picker", async ({ page }) => {
-  await page.goto("/#/analysis?match=match-value");
-  await page.getByRole("link", { name: "轉場" }).click();
-  await expect(page).toHaveURL(/#\/analysis$/);
-  await expect(page.getByText("由今日或賽程揀一場波")).toBeVisible();
-});
-
-test("unknown match shows not-found state", async ({ page }) => {
-  await page.goto("/#/analysis?match=no-such-match");
-  await expect(page.getByText("搵唔到呢場波")).toBeVisible();
-});
-
-test("today page pick card links to match analysis", async ({ page }) => {
-  await page.goto("/#/today");
-  await page.locator(".pick-card__summary").first().click();
-  await page.locator(".pick-card__analysis-link").first().click();
-  await expect(page).toHaveURL(/#\/analysis\?match=/);
-  await expect(page.locator(".match-analysis")).toBeVisible();
+  await expect(page.locator(".application-shell")).toBeVisible();
+  await expect(page.locator(".landing-page")).toBeVisible();
+  await expect(page.locator("#root")).not.toBeEmpty();
 });

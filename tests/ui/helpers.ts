@@ -1,6 +1,5 @@
 import type { Page } from "@playwright/test";
 import type { BuyableOpportunity, CurrentRecommendationsResponse } from "../../src/apiClient";
-import { DASHBOARD_MODE_STORAGE_KEY } from "../../src/dashboardMode";
 
 const FUTURE_KICKOFF = "2030-07-17T12:00:00.000Z";
 const PAST_KICKOFF = "2020-07-17T12:00:00.000Z";
@@ -136,7 +135,6 @@ export async function mockApi(
   scenario: Scenario,
   options: {
     status?: number;
-    dashboardMode?: "simple" | "pro";
     onLogin?: Parameters<Page["route"]>[1];
     onLogout?: Parameters<Page["route"]>[1];
   } = {},
@@ -145,19 +143,6 @@ export async function mockApi(
   await page.unroute("**/api/v1/**").catch(() => undefined);
   await page.unroute("**/hkjc-odds.json").catch(() => undefined);
   await page.unroute("http://127.0.0.1:8787/**").catch(() => undefined);
-
-  // Chiikawa 改版(2f25bbe)已經移除 simple/pro 雙模式,#/today 而家直接係 LandingPage。
-  // dashboardMode 選項同 localStorage 預設留返做向后兼容,對現行 UI 冇效果。
-  await page.addInitScript(
-    ([key, value]: [string, string]) => {
-      try {
-        window.localStorage.setItem(key, value);
-      } catch {
-        // 寫入失敗(例如私隱模式)就由頁面自己回落到產品預設。
-      }
-    },
-    [DASHBOARD_MODE_STORAGE_KEY, options.dashboardMode ?? "pro"],
-  );
 
   await page.route("**/hkjc-odds.json", (route) => {
     throw new Error(`legacy public odds route used: ${route.request().url()}`);

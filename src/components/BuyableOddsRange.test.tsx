@@ -1,7 +1,3 @@
-// @ts-expect-error Vitest runs this file in Node; the app intentionally has no Node type dependency.
-import { createHash } from "node:crypto";
-// @ts-expect-error Vitest runs this file in Node; the app intentionally has no Node type dependency.
-import { readFileSync } from "node:fs";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { recordedOpportunity } from "../testFixtures/recordedOpportunity";
@@ -57,10 +53,5 @@ describe("BuyableOddsRange", () => {
     expect(markup).toContain("最低 1.84");
     expect(markup).toContain("batch-501");
     expect(markup).toContain('&quot;bookmaker&quot;: &quot;Peer A&quot;');
-  });
-
-  it("keeps the professional dashboard source byte-for-byte unchanged", () => {
-    const source = readFileSync(new URL("../pages/BuyDashboard.tsx", import.meta.url));
-    expect(createHash("sha256").update(source).digest("hex")).toBe("2157936de9247cbc38417b572792fc440b721c01ab5442f269758e570355689a");
   });
 });

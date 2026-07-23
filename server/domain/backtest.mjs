@@ -237,9 +237,11 @@ function buildUnifiedPendingRows(snapshots, rows, results, now) {
       lastQualifiedAt: item.lastQualifiedAt ?? null,
       observationSummary: observationSummary(item.observations),
       modelVersion: item.modelVersion,
-      strategyVersion: UNIFIED_STRATEGY_VERSION,
-      source: "unified-sampler",
-      status: !Number.isFinite(kickoff) ? "unknown" : now < kickoff ? "upcoming" : now < kickoff + SETTLEMENT_GRACE_MS ? "settling" : "overdue",
+     strategyVersion: UNIFIED_STRATEGY_VERSION,
+     source: "unified-sampler",
+     homeTeam: item.homeTeam,
+     awayTeam: item.awayTeam,
+     status: !Number.isFinite(kickoff) ? "unknown" : now < kickoff ? "upcoming" : now < kickoff + SETTLEMENT_GRACE_MS ? "settling" : "overdue",
     };
   }).sort((left, right) => pendingTime(left.commenceTime) - pendingTime(right.commenceTime) || left.id.localeCompare(right.id));
 }
@@ -265,9 +267,11 @@ function buildPendingRows(snapshots, finished, results, now) {
       firstQualifiedAt: item.firstQualifiedAt ?? null,
       lastQualifiedAt: item.lastQualifiedAt ?? null,
       observationSummary: observationSummary(item.observations),
-      modelVersion: item.modelVersion ?? "legacy-v0",
-      source: item.source ?? null,
-      status,
+     modelVersion: item.modelVersion ?? "legacy-v0",
+     source: item.source ?? null,
+     homeTeam: item.homeTeam,
+     awayTeam: item.awayTeam,
+     status,
     };
   }).sort((left, right) => pendingTime(left.commenceTime) - pendingTime(right.commenceTime) || left.id.localeCompare(right.id));
 }

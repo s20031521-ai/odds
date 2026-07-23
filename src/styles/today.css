@@ -1,101 +1,95 @@
-/* Today-first homepage (Phase A). New classes only — do not rename existing ones. */
+.landing-page {
+  display: grid;
+  gap: 20px;
+}
 
-.today-page__picks {
+.landing-page__picks {
   display: grid;
   gap: 12px;
 }
 
 .pick-card {
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: 2px solid var(--color-accent-pink);
   border-radius: var(--radius-card);
-  box-shadow: var(--shadow-soft);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.pick-card:focus-within {
+  border-color: var(--color-primary);
 }
 
 .pick-card__summary {
-  min-height: var(--touch-target);
-  cursor: pointer;
   display: grid;
-  gap: 4px;
+  gap: 6px;
   padding: 16px;
-  list-style: none;
+  width: 100%;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: inherit;
 }
 
-.pick-card__summary::-webkit-details-marker {
-  display: none;
-}
-
-.pick-card__match {
+.pick-card__teams {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 1.05rem;
+  font-family: var(--font-rounded);
 }
 
 .pick-card__kickoff {
-  margin-left: auto;
   color: var(--color-muted);
-  font-weight: 400;
+  font-size: 0.82rem;
 }
 
-.pick-card__selection {
-  color: var(--color-text);
-}
-
-.pick-card__odds {
-  font-size: 1.5rem;
-  font-weight: 700;
+.pick-card__pick {
   color: var(--color-primary-text);
-}
-
-.pick-card__toggle {
-  color: var(--color-muted);
-  font-size: 0.875rem;
+  font-size: 1.1rem;
+  font-weight: 800;
 }
 
 .pick-card__details {
   padding: 0 16px 16px;
-  border-top: 1px dashed var(--color-border);
-  color: var(--color-text);
-}
-
-.pick-card__alternatives {
-  margin: 0;
-  padding-left: 1.25rem;
-  color: var(--color-muted);
-}
-
-.pick-card__analysis-link {
-  color: var(--color-primary-text);
-  font-weight: 600;
+  border-top: 1px dashed var(--color-accent-pink);
 }
 
 .freshness-bar {
   color: var(--color-positive-text);
-  margin: 0 0 12px;
+  margin: 0;
+  font-size: 0.85rem;
 }
 
 .freshness-bar--stale {
   color: var(--color-warning);
 }
 
-.today-empty {
+.landing-page__empty {
   text-align: center;
-  padding: 32px 16px;
+  padding: 48px 16px;
+  color: var(--color-muted);
+}
+
+.landing-page__upcoming {
+  background: var(--color-surface);
+  border: 2px solid var(--color-accent-yellow);
+  border-radius: var(--radius-card);
+  padding: 16px;
+}
+
+.landing-page__upcoming h2 {
+  font-family: var(--font-rounded);
+  font-size: 1rem;
+  margin-bottom: 10px;
   color: var(--color-text);
 }
 
-.today-page__show-all {
-  min-height: var(--touch-target);
-  width: 100%;
-  border: none;
-  background: none;
-  cursor: pointer;
-  color: var(--color-primary-text);
-  font-weight: 600;
-}
-
-.today-page__upcoming ul {
+.landing-page__upcoming ul {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -103,27 +97,59 @@
   gap: 8px;
 }
 
-.today-page__upcoming-item a {
+.landing-page__upcoming-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   min-height: var(--touch-target);
-  color: var(--color-text);
-  text-decoration: none;
 }
 
-.current-buyable-range-panel,
-.match-analysis__buyable {
-  display: grid;
+.landing-page__upcoming-teams {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.landing-page__upcoming-item time {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.landing-page__footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 12px;
-  margin: 16px 0;
+  padding: 24px 0 16px;
 }
 
-.buyable-odds-range {
+.landing-page__footer a {
+  display: inline-block;
+  padding: 12px 28px;
   background: var(--color-surface);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-pill);
+  color: var(--color-primary-text);
+  font-weight: 800;
+  font-size: 1rem;
+  text-decoration: none;
+  box-shadow: var(--shadow-soft);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.landing-page__footer a:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card);
+}
+
+/* BuyableOddsRange cards */
+.buyable-odds-range {
+  background: var(--color-bg);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
+  border-radius: 16px;
   padding: 14px;
+  margin-top: 8px;
 }
 
 .buyable-odds-range__summary {
@@ -135,7 +161,7 @@
 
 .buyable-odds-range__range {
   color: var(--color-primary-text);
-  font-size: 1.35rem;
+  font-size: 1.2rem;
   font-weight: 700;
 }
 
@@ -188,4 +214,266 @@
   max-width: 100%;
   overflow: auto;
   white-space: pre-wrap;
+}
+
+/* Performance page */
+.performance-page {
+  display: grid;
+  gap: 20px;
+}
+
+.performance-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.performance-card {
+  background: var(--color-surface);
+  border: 2px solid var(--color-accent-lavender);
+  border-radius: var(--radius-card);
+  padding: 18px;
+  box-shadow: var(--shadow-soft);
+}
+
+.performance-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.performance-card__head h2 {
+  font-family: var(--font-rounded);
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.performance-card__count {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.performance-card__bar {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--color-border);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.performance-card__bar span {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  background: var(--color-primary);
+  transition: width 0.4s ease;
+}
+
+.performance-card__accuracy {
+  font-size: 0.95rem;
+  margin: 0;
+}
+
+.performance-card__accuracy .positive {
+  color: var(--color-positive-text);
+  font-weight: 700;
+}
+
+.performance-card__accuracy .negative {
+  color: var(--color-negative-text);
+  font-weight: 700;
+}
+
+.performance-card__accuracy small {
+  color: var(--color-muted);
+}
+
+.performance-card__accuracy.muted {
+  color: var(--color-muted);
+}
+
+/* Empty state */
+.today-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--color-text);
+}
+
+.app-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  gap: 16px;
+  color: var(--color-muted);
+}
+
+/* Team logos */
+.team-logo {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--color-surface);
+  object-fit: contain;
+}
+
+.team-logo--badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-bg);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+.fixtures-page {
+  display: grid;
+  gap: 24px;
+}
+
+.fixtures-group__heading {
+  font-family: var(--font-rounded);
+  font-size: 1rem;
+  color: var(--color-muted);
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--color-accent-pink);
+}
+
+.fixtures-group__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.fixtures-group__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: var(--touch-target);
+  padding: 8px 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.fixtures-group__teams {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.fixtures-group__item time {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+
+/* Card hover effect */
+.pick-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card), 0 6px 20px rgba(244, 167, 185, 0.15);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pick-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Cute section divider */
+.landing-page__upcoming h2 {
+  position: relative;
+  padding-left: 28px;
+}
+
+.landing-page__upcoming h2::before {
+  content: '☆';
+  position: absolute;
+  left: 0;
+  color: var(--color-accent-yellow);
+  font-size: 1.2rem;
+}
+
+/* Performance cards hover */
+.performance-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.performance-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card);
+}
+
+/* Fixtures group heading cute */
+.fixtures-group__heading {
+  position: relative;
+  padding-left: 24px;
+}
+
+.fixtures-group__heading::before {
+  content: '♡';
+  position: absolute;
+  left: 0;
+  color: var(--color-primary);
+  font-size: 1rem;
+}
+
+/* Cute nav active indicator */
+.app-navigation a[aria-current="page"] {
+  position: relative;
+  overflow: visible;
+}
+
+.app-navigation a[aria-current="page"]::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  background: var(--color-primary);
+  border-radius: 50%;
+}
+
+/* Freshness bar cute */
+.freshness-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.freshness-bar::before {
+  content: '✨';
+  font-size: 0.9rem;
+}
+
+.freshness-bar--stale::before {
+  content: '⚠️';
+}
+
+/* Cute scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-accent-pink);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
 }

@@ -11,7 +11,7 @@ import {
 } from "../dashboardMode";
 import type { Fixture } from "../odds";
 import { BuyDashboard } from "./BuyDashboard";
-import { TodayPage } from "./TodayPage";
+import { LandingPage } from "./TodayPage";
 
 const MODE_ORDER = ["simple", "pro"] as const;
 const MODE_LABELS: Record<DashboardMode, string> = { simple: "今日", pro: "專業" };
@@ -102,13 +102,12 @@ export function DashboardPage(props: {
           <BuyDashboard opportunities={props.opportunities} generatedAt={props.generatedAt} dataFresh={props.dataFresh} logos={props.logos} />
         </>
       ) : (
-        <TodayPage
+        <LandingPage
           opportunities={props.recordedOpportunities}
           fixtures={props.fixtures}
           generatedAt={props.generatedAt}
           dataFresh={props.dataFresh}
           logos={props.logos}
-          onShowAll={() => selectMode("pro")}
           loadObservations={props.loadObservations}
         />
       )}

@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, Calculator, CalendarDays, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   analyzeEntries,
   filterLegacySampleEntries,
@@ -9,41 +8,31 @@ import {
   type AnalyzerSettings,
   type ManualEntry,
 } from "./odds";
-import { formatFixtureDayHeading, groupFixturesByDate } from "./dashboard";
 import { dataFreshFromHealth, dataHealthWarning, dataLoadsReady, dataLoadStateAfter, dataLoadWarning, type DataHealth, type DataLoadState } from "./dataHealth";
 
 import { buildTotalsCards, type TotalsMarketEntry } from "./oddsApi";
 import { buildHandicapCards, type HandicapEntry } from "./handicap";
-import { clearBacktestResponseState, cornerPickLabel, excludeLegacyRows, filterHistoryRows, findMarketReadiness, groupMarketCards, hasPredictionSnapshot, isSnapshotQuality, marketDisplayLabel, snapshotQualityMessage, summarizeHistoryRows, type CanonicalMarket, type SnapshotQuality } from "./marketDisplay";
+import { cornerPickLabel } from "./marketDisplay";
 
-import { analysisMatchIdFromHash, fixtureIdFromHash, pageFromHash, tabForRouteTransition } from "./route";
-import type { PredictionSnapshot } from "./predictionSnapshots";
-import { bestH2hPick } from "./picks";
+import { pageFromHash } from "./route";
+import type { Page } from "./route";
 import { AppShell } from "./components/AppShell";
-import { DashboardPage, recordedOpportunitiesForDashboard } from "./pages/DashboardPage";
 import { TeamLogo, type TeamLogoMap } from "./components/TeamLogo";
-import { AllFixtures } from "./pages/AllFixtures";
 import { canShowActiveOpportunities, useConnectivityState } from "./pwa";
 import { ApiError, createApiClient, type BuyableOpportunity, type PredictionObservationsResponse, type SessionState } from "./apiClient";
 import { LoginPage } from "./pages/LoginPage";
-import { MatchAnalysisPage } from "./pages/MatchAnalysisPage";
-import { buildMatchMarketDetails } from "./matchDetails";
-import { gatePickLabel } from "./kickoffGate";
+import { LandingPage } from "./pages/TodayPage";
+import { FixturesPage } from "./pages/FixturesPage";
+import { PerformancePage } from "./pages/PerformancePage";
 import { Mascot } from "./components/Kawaii";
-import { RecommendationObservationHistory } from "./components/BuyableOddsRange";
 import { startCurrentRecommendationsRefresh } from "./currentRecommendations";
 
-
-type ApiStatus =
-  | { type: "idle"; message: string }
-  | { type: "loading"; message: string }
-  | { type: "success"; message: string }
-  | { type: "warning"; message: string }
-  | { type: "error"; message: string };
-
-
-type AnalysisTab = "h2h" | "totals" | "corners" | "handicap";
-type HistoryMarket = "主客和" | "角球" | "大細波" | "亞洲讓球";
+type ModelReadiness = {
+  market: string;
+  modelVersion: string;
+  settledMatches: number;
+  pendingMatches: number;
+};
 
 type ResultEntry = {
   id: string;
@@ -68,50 +57,56 @@ type ResultEntry = {
   sampleId?: number | string;
 };
 
-type ModelReadiness = {
-  market: string;
-  modelVersion: string;
-  settledMatches: number;
-  pendingMatches: number;
+type HistoryStats = {
+  win: number;
+  loss: number;
+  push: number;
+  winPercent: number;
+  lossPercent: number;
 };
 
-type PendingEntry = {
-  id: string;
-  matchId: string;
-  market: string;
-  prediction: string;
-  line: number | null;
-  odds: number | null;
-  chance: number | null;
-  edge: number | null;
-  commenceTime: string | null;
-  savedAt: string;
-  modelVersion: string;
-  source: string | null;
-  status: "upcoming" | "settling" | "overdue" | "unknown";
-  sampleId?: number | string;
-};
-
-type LiveOddsPayload = {
-  entries: ManualEntry[];
-  totalEntries: TotalsMarketEntry[];
-  cornerEntries: TotalsMarketEntry[];
-  handicapEntries: HandicapEntry[];
-  resultEntries: ResultEntry[];
-};
+const READINESS_MODELS: Array<{ market: string; modelVersion: string }> = [
+  { market: "totals", modelVersion: "totals-loo-v1" },
+  { market: "corners", modelVersion: "corner-loo-v1" },
+  { market: "handicap", modelVersion: "hdc-loo-v2" },
+  { market: "h2h", modelVersion: "consensus-v1" },
+];
 
 const HDC_REFRESH_MS = 3 * 60 * 1000;
 const initialEntries: ManualEntry[] = [];
-const OFFLINE_WARNING = "目前離線；已隱藏值得買機會，連線後會自動恢復。";
 
-const READINESS_TARGET = 30;
-const READINESS_MODELS: Array<{ market: CanonicalMarket; label: HistoryMarket; modelVersion: string }> = [
-  { market: "h2h", label: "主客和", modelVersion: "consensus-v1" },
-  { market: "totals", label: "大細波", modelVersion: "totals-loo-v1" },
-  { market: "corners", label: "角球", modelVersion: "corner-loo-v1" },
-  { market: "handicap", label: "亞洲讓球", modelVersion: "hdc-loo-v2" },
-];
+function summarizeHistoryRows(rows: ResultEntry[]): HistoryStats {
+  const win = rows.filter((r) => r.settlement === "win" || r.settlement === "half-win").length;
+  const loss = rows.filter((r) => r.settlement === "loss" || r.settlement === "half-loss").length;
+  const push = rows.filter((r) => r.settlement === "push").length;
+  const decided = win + loss;
+  return {
+    win,
+    loss,
+    push,
+    winPercent: decided ? Math.round(win / decided * 1000) / 10 : 0,
+    lossPercent: decided ? Math.round(loss / decided * 1000) / 10 : 0,
+  };
+}
 
+function isModelReadiness(item: unknown): item is ModelReadiness {
+  return (
+    typeof item === "object" && item !== null &&
+    typeof (item as Record<string, unknown>).market === "string" &&
+    typeof (item as Record<string, unknown>).modelVersion === "string" &&
+    typeof (item as Record<string, unknown>).settledMatches === "number" &&
+    typeof (item as Record<string, unknown>).pendingMatches === "number"
+  );
+}
+
+function isResultEntry(item: unknown): item is ResultEntry {
+  return (
+    typeof item === "object" && item !== null &&
+    typeof (item as Record<string, unknown>).id === "string" &&
+    typeof (item as Record<string, unknown>).matchId === "string" &&
+    typeof (item as Record<string, unknown>).market === "string"
+  );
+}
 
 function App() {
   const [lastSuccessfulSync, setLastSuccessfulSync] = useState<string | null>(null);
@@ -123,47 +118,32 @@ function App() {
   const [loginPending, setLoginPending] = useState(false);
   const [loginError, setLoginError] = useState<"invalid" | "rate_limited" | "offline" | null>(null);
   const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | undefined>(undefined);
+
   const [entries, setEntries] = useState<ManualEntry[]>(initialEntries);
   const [totalEntries, setTotalEntries] = useState<TotalsMarketEntry[]>([]);
   const [cornerEntries, setCornerEntries] = useState<TotalsMarketEntry[]>([]);
   const [handicapEntries, setHandicapEntries] = useState<HandicapEntry[]>([]);
   const [resultEntries, setResultEntries] = useState<ResultEntry[]>([]);
-  const [snapshotQuality, setSnapshotQuality] = useState<SnapshotQuality | null>(null);
   const [readiness, setReadiness] = useState<ModelReadiness[]>([]);
-  const [pendingEntries, setPendingEntries] = useState<PendingEntry[]>([]);
-  const [historyError, setHistoryError] = useState("");
-  const [dataWarning, setDataWarning] = useState("");
   const [dataFresh, setDataFresh] = useState(false);
   const [dataLoads, setDataLoads] = useState<DataLoadState>({ hkjc: null, hdc: null });
   const [recordedOpportunities, setRecordedOpportunities] = useState<BuyableOpportunity[]>([]);
   const [recommendationsGeneratedAt, setRecommendationsGeneratedAt] = useState<string | null>(null);
   const [recommendationsLoaded, setRecommendationsLoaded] = useState(false);
-  const [historyLoading, setHistoryLoading] = useState(() => pageFromHash(window.location.hash) === "history");
-  const [historyView, setHistoryView] = useState<"comparable" | "all">("comparable");
-  const [historyMarket, setHistoryMarket] = useState<HistoryMarket>("主客和");
+  const [backtestLoaded, setBacktestLoaded] = useState(false);
 
-  const [settings, setSettings] = useState<AnalyzerSettings>({
+  const [settings] = useState<AnalyzerSettings>({
     bankroll: 1000,
     fractionalKelly: 0.25,
     stakeCapPercent: 0.02,
     edgeThreshold: 0.03,
   });
+
   const hkjcAutoLoadStarted = useRef(false);
-  const resultAutoLoadStarted = useRef(false);
   const hdcRefreshRunning = useRef(false);
+  const backtestAutoLoadStarted = useRef(false);
 
-  const [analysisTab, setAnalysisTab] = useState<AnalysisTab>("h2h");
-  const [fixtureLeagues, setFixtureLeagues] = useState<string[]>([]);
-  const [fixtureSearch, setFixtureSearch] = useState("");
-
-
-  const [page, setPage] = useState(() => pageFromHash(window.location.hash));
-  const [fixtureId, setFixtureId] = useState(() => fixtureIdFromHash(window.location.hash));
-  const [analysisMatchId, setAnalysisMatchId] = useState(() => analysisMatchIdFromHash(window.location.hash));
-  const [apiStatus, setApiStatus] = useState<ApiStatus>({
-    type: "idle",
-    message: "API key 留空都可以用手動輸入。",
-  });
+  const [page, setPage] = useState<Page>(() => pageFromHash(window.location.hash));
   const [teamLogos, setTeamLogos] = useState<TeamLogoMap>({});
 
   useEffect(() => {
@@ -173,7 +153,7 @@ function App() {
       .then((payload) => {
         if (!cancelled && payload?.teams && typeof payload.teams === "object") setTeamLogos(payload.teams);
       })
-      .catch(() => { /* logo map 係 progressive enhancement,失敗就用徽章 */ });
+      .catch(() => {});
     return () => { cancelled = true; };
   }, []);
 
@@ -221,17 +201,19 @@ function App() {
     setCornerEntries([]);
     setHandicapEntries([]);
     setResultEntries([]);
-    setSnapshotQuality(null);
     setRecordedOpportunities([]);
     setRecommendationsGeneratedAt(null);
     setRecommendationsLoaded(false);
+    setBacktestLoaded(false);
     setDataFresh(false);
+    hkjcAutoLoadStarted.current = false;
+    backtestAutoLoadStarted.current = false;
   }
 
   function handleProtectedError(error: unknown, fallback: string): string {
     if (error instanceof ApiError && error.status === 401) {
       clearAuthenticatedState();
-      return "登入已過期，請重新登入。";
+      return "登入已過期，請重新登入";
     }
     return error instanceof Error ? error.message : fallback;
   }
@@ -247,11 +229,6 @@ function App() {
   const rows = useMemo(() => analyzeEntries(entries, settings), [entries, settings]);
   const fixtures = useMemo(() => upcomingFixtures(entries), [entries]);
   const dashboardFixtures = useMemo(() => sortFixturesByBestEdge(fixtures, rows), [fixtures, rows]);
-  const fixtureDateGroups = useMemo(() => groupFixturesByDate(dashboardFixtures), [dashboardFixtures]);
-  const fixtureDayGroupsByTime = useMemo(() => fixtureDateGroups.map((group) => ({
-    ...group,
-    fixtures: [...group.fixtures].sort((left, right) => Date.parse(left.commenceTime) - Date.parse(right.commenceTime)),
-  })), [fixtureDateGroups]);
 
   const totalCards = useMemo(() => buildTotalsCards(totalEntries, settings.edgeThreshold), [totalEntries, settings.edgeThreshold]);
   const cornerCards = useMemo(() => buildTotalsCards(cornerEntries, settings.edgeThreshold).map((card) => ({
@@ -259,51 +236,26 @@ function App() {
     pickLabel: cornerPickLabel(card.pickLabel, card.bookmakerCount),
   })), [cornerEntries, settings.edgeThreshold]);
   const handicapCards = useMemo(() => buildHandicapCards(handicapEntries, settings.edgeThreshold), [handicapEntries, settings.edgeThreshold]);
+
   const recommendationsTrusted = canShowActiveOpportunities(connectivity, recommendationsLoaded);
   const activeRecordedOpportunities = recommendationsTrusted ? recordedOpportunities : [];
-  const loadWarning = dataLoadWarning(dataLoads);
-  const dashboardWarning = [loadWarning, dataWarning].filter(Boolean).join(" ");
-  const buyOpportunities = useMemo(() => recordedOpportunitiesForDashboard(activeRecordedOpportunities), [activeRecordedOpportunities]);
-  const buyMatchIds = useMemo(() => new Set(activeRecordedOpportunities.map((opportunity) => opportunity.matchId ?? opportunity.fixtureId)), [activeRecordedOpportunities]);
-  const fixtureLeagueOptions = useMemo(() => [...new Set(dashboardFixtures.map((fixture) => fixture.leagueZh ?? fixture.league).filter((league): league is string => Boolean(league)))].sort((left, right) => left.localeCompare(right, "zh-Hant-HK")), [dashboardFixtures]);
-  const visibleFixtureDayGroups = useMemo(() => {
-    const query = fixtureSearch.trim().toLowerCase();
-    return fixtureDayGroupsByTime.map((group) => ({
-      ...group,
-      fixtures: group.fixtures.filter((fixture) => {
-        if (fixtureLeagues.length > 0 && !fixtureLeagues.includes(fixture.leagueZh ?? fixture.league ?? "")) return false;
-        if (!query) return true;
-        return [fixture.homeTeam, fixture.awayTeam, fixture.homeTeamZh ?? "", fixture.awayTeamZh ?? ""].some((name) => name.toLowerCase().includes(query));
-      }),
-    })).filter((group) => group.fixtures.length > 0);
-  }, [fixtureDayGroupsByTime, fixtureLeagues, fixtureSearch]);
-  const totalCardGroups = useMemo(() => groupMarketCards(totalCards), [totalCards]);
-  const cornerCardGroups = useMemo(() => groupMarketCards(cornerCards), [cornerCards]);
-  const visibleResultEntries = useMemo(() => excludeLegacyRows(resultEntries), [resultEntries]);
-  const marketResultRows = useMemo(() => filterHistoryRows(visibleResultEntries, historyMarket), [visibleResultEntries, historyMarket]);
-  const comparableResultRows = useMemo(() => marketResultRows.filter(hasPredictionSnapshot), [marketResultRows]);
-  const comparableMatchCount = useMemo(() => new Set(comparableResultRows.map((row) => row.matchId)).size, [comparableResultRows]);
-  const historyStats = useMemo(() => summarizeHistoryRows(marketResultRows), [marketResultRows]);
-  const resultRows = historyView === "comparable" ? comparableResultRows : marketResultRows;
-  const marketPendingEntries = useMemo(() => filterHistoryRows(pendingEntries, historyMarket), [pendingEntries, historyMarket]);
-  const fixturesByMatchId = useMemo(() => new Map(fixtures.map((fixture) => [fixture.matchId, fixture])), [fixtures]);
-  const qualityWarning = snapshotQuality ? snapshotQualityMessage(snapshotQuality) : null;
-  const selectedFixture = fixtures.find((fixture) => fixture.matchId === fixtureId) ?? null;
-  const selectedRows = selectedFixture ? rows.filter((row) => row.matchId === selectedFixture.matchId) : [];
-  const matchAnalysis = useMemo(
-    () => (analysisMatchId ? buildMatchMarketDetails({ matchId: analysisMatchId, fixtures, rows, totalCards, cornerCards, handicapCards }) : null),
-    [analysisMatchId, fixtures, rows, totalCards, cornerCards, handicapCards],
-  );
+  const dataWarning = [dataLoadWarning(dataLoads)].filter(Boolean).join(" ");
+
+  const historyStatsByMarket = useMemo(() => {
+    const map = new Map<string, HistoryStats>();
+    for (const model of READINESS_MODELS) {
+      const rows = resultEntries.filter((r) =>
+        r.market === model.market &&
+        r.modelVersion === model.modelVersion &&
+        r.modelVersion !== "legacy-v0"
+      );
+      map.set(model.market, summarizeHistoryRows(rows));
+    }
+    return map;
+  }, [resultEntries]);
 
   useEffect(() => {
-    const syncPage = () => {
-      const nextPage = pageFromHash(window.location.hash);
-      setPage(nextPage);
-      if (nextPage === "history" && !resultAutoLoadStarted.current) setHistoryLoading(true);
-      setAnalysisTab((current) => tabForRouteTransition(current, window.location.hash));
-      setFixtureId(fixtureIdFromHash(window.location.hash));
-      setAnalysisMatchId(analysisMatchIdFromHash(window.location.hash));
-    };
+    const syncPage = () => setPage(pageFromHash(window.location.hash));
     window.addEventListener("hashchange", syncPage);
     return () => window.removeEventListener("hashchange", syncPage);
   }, []);
@@ -314,7 +266,6 @@ function App() {
 
   useEffect(() => {
     setDataFresh(dataLoadsReady(dataLoads));
-    if (dataLoadsReady(dataLoads)) setDataWarning("");
   }, [dataLoads]);
 
   useEffect(() => {
@@ -347,50 +298,37 @@ function App() {
     });
   }, [apiClient, auth.authenticated]);
 
-
   useEffect(() => {
     if (!auth.authenticated) return;
-    if ((page === "today" || page === "fixtures" || page === "analysis" || page === "history") && !hkjcAutoLoadStarted.current) {
+    if (!hkjcAutoLoadStarted.current) {
       hkjcAutoLoadStarted.current = true;
       void loadHkjcOdds();
     }
-    if (page === "history" && !resultAutoLoadStarted.current) {
-      resultAutoLoadStarted.current = true;
+    if (!backtestAutoLoadStarted.current) {
+      backtestAutoLoadStarted.current = true;
       void loadBacktest();
     }
-  }, [auth.authenticated, page]);
+  }, [auth.authenticated]);
 
   useEffect(() => {
     if (!auth.authenticated) return;
-    if ((page !== "today" && page !== "fixtures" && page !== "analysis") || !["h2h", "handicap", "totals", "corners"].includes(analysisTab)) return;
     void refreshHdcOdds();
-    void refreshDataHealth();
     const timer = window.setInterval(() => {
       void refreshHdcOdds();
-      void refreshDataHealth();
     }, HDC_REFRESH_MS);
     return () => window.clearInterval(timer);
-  }, [auth.authenticated, page, analysisTab]);
+  }, [auth.authenticated]);
 
   async function loadBacktest() {
-    setHistoryLoading(true);
-    setHistoryError("");
+    if (backtestLoaded) return;
     try {
       const body = await apiClient.backtest();
-      if (!Array.isArray(body?.rows)) throw new Error("Backend backtest 暫時不可用。");
-      setResultEntries(body.rows as ResultEntry[]);
+      if (!Array.isArray(body?.rows)) return;
+      setResultEntries((body.rows as unknown[]).filter(isResultEntry));
       setReadiness(Array.isArray(body.readiness) ? body.readiness.filter(isModelReadiness) : []);
-      setPendingEntries(Array.isArray(body.pending) ? body.pending.filter(isPendingEntry) : []);
-      setSnapshotQuality(isSnapshotQuality(body.snapshotQuality) ? body.snapshotQuality : null);
-    } catch (error) {
-      const cleared = clearBacktestResponseState({ resultEntries, readiness, snapshotQuality });
-      setResultEntries(cleared.resultEntries);
-      setReadiness(cleared.readiness);
-      setPendingEntries([]);
-      setSnapshotQuality(cleared.snapshotQuality);
-      setHistoryError(handleProtectedError(error, "Backend backtest 暫時不可用。"));
-    } finally {
-      setHistoryLoading(false);
+      setBacktestLoaded(true);
+    } catch {
+      // silently ignore backtest failures
     }
   }
 
@@ -398,777 +336,74 @@ function App() {
     return apiClient.predictionObservations(sampleId);
   }
 
-
   async function refreshHdcOdds() {
     if (hdcRefreshRunning.current) return;
     hdcRefreshRunning.current = true;
     try {
-      const payload = normalizeLiveOddsPayload(await apiClient.liveOdds());
-      setEntries((current) => mergeById(current, Array.isArray(payload.entries) ? payload.entries : []));
-      setHandicapEntries((current) => mergeById(current, Array.isArray(payload.handicapEntries) ? payload.handicapEntries : []));
-      setTotalEntries((current) => mergeById(current, Array.isArray(payload.totalEntries) ? payload.totalEntries : []));
-      setCornerEntries((current) => mergeById(current, Array.isArray(payload.cornerEntries) ? payload.cornerEntries : []));
+      const payload = await apiClient.liveOdds();
+      setEntries((current) => mergeById(current, Array.isArray((payload as Record<string, unknown>).entries) ? (payload as Record<string, unknown>).entries as ManualEntry[] : []));
+      setHandicapEntries((current) => mergeById(current, Array.isArray((payload as Record<string, unknown>).handicapEntries) ? (payload as Record<string, unknown>).handicapEntries as HandicapEntry[] : []));
+      setTotalEntries((current) => mergeById(current, Array.isArray((payload as Record<string, unknown>).totalEntries) ? (payload as Record<string, unknown>).totalEntries as TotalsMarketEntry[] : []));
+      setCornerEntries((current) => mergeById(current, Array.isArray((payload as Record<string, unknown>).cornerEntries) ? (payload as Record<string, unknown>).cornerEntries as TotalsMarketEntry[] : []));
       setDataLoads((current) => dataLoadStateAfter(current, "hdc", true));
       setLastSuccessfulSync(new Date().toISOString());
-    } catch (error) {
+    } catch {
       setDataLoads((current) => dataLoadStateAfter(current, "hdc", false));
-      setApiStatus({ type: "error", message: handleProtectedError(error, "HDC 即時更新失敗。") });
     } finally {
       hdcRefreshRunning.current = false;
     }
   }
 
-  async function refreshDataHealth() {
-    try {
-      const response = { ok: true, json: async () => ({ dataFresh: dataLoadsReady(dataLoads), staleSources: [] }) };
-      const body = await response.json().catch(() => null) as DataHealth | null;
-      if (!response.ok || !body || typeof body.dataFresh !== "boolean" || !Array.isArray(body.staleSources)) {
-        throw new Error("invalid health response");
-      }
-      setDataFresh(dataFreshFromHealth(body));
-      setDataWarning(dataHealthWarning(body) ?? "");
-    } catch {
-      setDataFresh(false);
-      setDataWarning("無法檢查資料新鮮度；畫面資料可能唔係最新。");
-    }
-  }
-
   async function loadHkjcOdds() {
-    setApiStatus({ type: "loading", message: "正在載入馬會賽事。" });
     try {
-      const body = normalizeLiveOddsPayload(await apiClient.liveOdds());
-      if (!Array.isArray(body?.entries)) {
-        setDataLoads((current) => dataLoadStateAfter(current, "hkjc", false));
-        setApiStatus({ type: "warning", message: "未有馬會資料。請先跑 npm run import:hkjc。" });
-        return;
-      }
-      const totalEntries = Array.isArray(body.totalEntries) ? body.totalEntries : [];
-      const cornerEntries = Array.isArray(body.cornerEntries) ? body.cornerEntries : [];
-      const hkjcHandicapEntries = Array.isArray(body.handicapEntries) ? body.handicapEntries : [];
-      const resultEntries = Array.isArray(body.resultEntries) ? body.resultEntries : [];
-      setEntries((current) => mergeById(current, body.entries ?? []));
-      setTotalEntries((current) => mergeById(current, totalEntries));
-      setCornerEntries((current) => mergeById(current, cornerEntries));
-      setHandicapEntries((current) => mergeById(current.filter((entry) => entry.bookmaker !== "HKJC"), hkjcHandicapEntries));
-      setResultEntries((current) => mergeById(current, resultEntries));
+      const response = await fetch("/hkjc-odds.json");
+      if (!response.ok) throw new Error("HKJC fetch failed");
+      const body = await response.json();
+      setEntries((current) => mergeById(current, Array.isArray(body?.entries) ? body.entries : []));
       setDataLoads((current) => dataLoadStateAfter(current, "hkjc", true));
-      setLastSuccessfulSync(new Date().toISOString());
-      setApiStatus({ type: "success", message: `已載入 ${body.entries.length} 組馬會主客和、${totalEntries.length} 組大細波、${cornerEntries.length} 組角球、${hkjcHandicapEntries.length} 組亞洲讓球、${resultEntries.length} 條完場對比。` });
-    } catch (error) {
+    } catch {
       setDataLoads((current) => dataLoadStateAfter(current, "hkjc", false));
-      setApiStatus({ type: "error", message: handleProtectedError(error, "載入馬會資料時出錯。") });
     }
   }
 
   if (authLoading) {
     return (
-      <main className="login-page">
-        <div className="login-panel" role="status">
-          <Mascot pose="momonga-loading" />
-          <p>載入中...</p>
-        </div>
-      </main>
+      <div className="app-loading" role="status">
+        <Mascot pose="momonga-loading" />
+        <p>載入中…</p>
+      </div>
     );
   }
 
   if (!auth.authenticated) {
-    return <LoginPage pending={loginPending} error={loginError} retryAfterSeconds={retryAfterSeconds} onLogin={handleLogin} />;
+    return (
+      <LoginPage
+        pending={loginPending}
+        error={loginError}
+        retryAfterSeconds={retryAfterSeconds}
+        onLogin={handleLogin}
+      />
+    );
   }
 
   return (
-    <AppShell route={page} onLogout={handleLogout} dataWarning={page === "today" || page === "fixtures" ? (connectivity.online ? dashboardWarning : OFFLINE_WARNING) : undefined}>
-      <AllFixtures
-        active={page === "fixtures"}
-        marketNavigation={(
-        <nav className="market-tabs" aria-label="全部賽事市場">
-          <button aria-pressed={analysisTab === "h2h"} className={analysisTab === "h2h" ? "active" : ""} onClick={() => setAnalysisTab("h2h")} type="button">主客和</button>
-          <button aria-pressed={analysisTab === "totals"} className={analysisTab === "totals" ? "active" : ""} onClick={() => setAnalysisTab("totals")} type="button">大細波</button>
-          <button aria-pressed={analysisTab === "corners"} className={analysisTab === "corners" ? "active" : ""} onClick={() => setAnalysisTab("corners")} type="button">角球</button>
-          <button aria-pressed={analysisTab === "handicap"} className={analysisTab === "handicap" ? "active" : ""} onClick={() => setAnalysisTab("handicap")} type="button">亞洲讓球</button>
-        </nav>
-        )}
-        content={(
-        <>
-      {page === "today" ? (
-        <DashboardPage
-          opportunities={buyOpportunities}
-          recordedOpportunities={activeRecordedOpportunities}
+    <AppShell route={page} dataWarning={dataWarning} onLogout={handleLogout}>
+      {page === "performance" ? (
+        <PerformancePage readiness={readiness} historyStats={historyStatsByMarket} />
+      ) : page === "fixtures" ? (
+        <FixturesPage fixtures={dashboardFixtures} logos={teamLogos} />
+      ) : (
+        <LandingPage
+          opportunities={activeRecordedOpportunities}
           fixtures={dashboardFixtures}
           generatedAt={recommendationsGeneratedAt}
-          dataFresh={recommendationsTrusted}
+          dataFresh={dataFresh && recommendationsTrusted}
           logos={teamLogos}
           loadObservations={loadRecommendationObservations}
         />
-      ) : null}
-      {page === "history" ? <h1 className="page-heading">完場對比</h1> : null}
-
-      {page === "fixtures" && analysisTab === "h2h" ? (
-      <section className="dashboard-section">
-        <Panel title="即將賽事" icon={<CalendarDays size={18} />}>
-          {dashboardFixtures.length === 0 ? (
-            <div className="empty-state compact"><Mascot pose="chiikawa-empty" />未有賽事。輸入或拉取賠率後會出現喺呢度。<p className="empty-state__note">飲杯茶先～</p></div>
-          ) : (
-            <>
-              <div className="fixture-toolbar">
-                {fixtureLeagueOptions.length > 0 ? (
-                  <div className="fixture-toolbar__chips" role="group" aria-label="聯賽篩選">
-                    {fixtureLeagueOptions.map((league) => {
-                      const active = fixtureLeagues.includes(league);
-                      return (
-                        <button aria-pressed={active} className={active ? "fixture-chip active" : "fixture-chip"} key={league} onClick={() => setFixtureLeagues((current) => active ? current.filter((item) => item !== league) : [...current, league])} type="button">{league}</button>
-                      );
-                    })}
-                  </div>
-                ) : null}
-                <input aria-label="搜尋球隊" className="fixture-search" onChange={(event) => setFixtureSearch(event.target.value)} placeholder="搜尋球隊…" type="search" value={fixtureSearch} />
-              </div>
-              {visibleFixtureDayGroups.length === 0 ? (
-                <div className="empty-state compact"><Mascot pose="chiikawa-empty" />冇賽事符合篩選。<p className="empty-state__note">試下清除篩選～</p></div>
-              ) : (
-                <div className="fixture-list">
-                  {visibleFixtureDayGroups.map((group) => (
-                    <div className="fixture-day" key={group.date}>
-                      <h3>{formatFixtureDayHeading(group.date)}</h3>
-                      <div className="fixture-list">
-                        {group.fixtures.map((fixture) => {
-                          const fixtureRows = rows.filter((row) => row.matchId === fixture.matchId);
-                          const bestPick = bestH2hPick(fixtureRows, settings.edgeThreshold);
-                          const fixturePickLabel = gatePickLabel(bestPick.label, fixture.commenceTime);
-                          const isSelected = selectedFixture?.matchId === fixture.matchId;
-                          return (
-                            <div className={isSelected ? "fixture-card-wrap expanded" : "fixture-card-wrap"} key={fixture.matchId}>
-                              <a className={fixture.matchId.startsWith("hkjc-") ? "fixture-row hkjc-card" : "fixture-row"} href={`#/analysis?match=${encodeURIComponent(fixture.matchId)}`}>
-                                <span className="fixture-row__time">{formatTimeOnly(fixture.commenceTime)}</span>
-                                <strong className="fixture-row__teams"><TeamLogo teamName={fixture.homeTeam} logos={teamLogos} /> {fixture.homeTeamZh ?? fixture.homeTeam} vs {fixture.awayTeamZh ?? fixture.awayTeam} <TeamLogo teamName={fixture.awayTeam} logos={teamLogos} /></strong>
-                                {(fixture.leagueZh ?? fixture.league) ? <span className="fixture-row__league">{fixture.leagueZh ?? fixture.league}</span> : null}
-                                {buyMatchIds.has(fixture.matchId) ? <span className="fixture-row__buy-dot" role="img" aria-label="有貨" title="有貨" /> : null}
-                                <span className={fixturePickLabel.startsWith("買") ? "fixture-row__pick" : "fixture-row__pick neutral"}>{fixturePickLabel}</span>
-                              </a>
-                              {isSelected ? <FixtureDetail fixture={fixture} rows={selectedRows} /> : null}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-
-        </Panel>
-      </section>
-      ) : null}
-
-      {page === "analysis" ? (
-        <MatchAnalysisPage
-          matchId={analysisMatchId}
-          header={matchAnalysis?.header ?? null}
-          details={matchAnalysis?.details ?? null}
-          recordedOpportunities={activeRecordedOpportunities}
-          logos={teamLogos}
-          generatedAt={lastSuccessfulSync}
-          loadObservations={loadRecommendationObservations}
-        />
-      ) : null}
-
-      {page === "fixtures" && analysisTab === "totals" ? (
-      <section className="totals-section">
-        <Panel title="大細波賠率" icon={<Calculator size={18} />}>
-          {totalCardGroups.length === 0 ? (
-            <div className="empty-state compact"><Mascot pose="chiikawa-empty" /><span>暫時未有已收集嘅大細波盤。</span><button className="secondary-button compact" onClick={refreshHdcOdds}>重新載入</button></div>
-          ) : (
-            <div className="fixture-grid">
-              {totalCardGroups.map((group) => <MarketCardGroup group={group} key={group.matchId} market="totals" logos={teamLogos} />)}
-            </div>
-          )}
-        </Panel>
-      </section>
-      ) : null}
-
-      {page === "fixtures" && analysisTab === "corners" ? (
-      <section className="corners-section">
-        <Panel title="角球賠率" icon={<Calculator size={18} />}>
-          {cornerCardGroups.length === 0 ? (
-            <div className="empty-state compact"><Mascot pose="chiikawa-empty" /><span>暫時未有開賽前 30 分鐘內嘅角球盤。</span><button className="secondary-button compact" onClick={loadHkjcOdds}>重新載入</button></div>
-          ) : (
-            <div className="fixture-grid">
-              {cornerCardGroups.map((group) => <MarketCardGroup group={group} key={group.matchId} market="corners" logos={teamLogos} />)}
-            </div>
-          )}
-        </Panel>
-      </section>
-      ) : null}
-
-      {page === "fixtures" && analysisTab === "handicap" ? (
-      <section className="totals-section">
-        <Panel title="HDC 亞洲讓球" icon={<Calculator size={18} />}>
-          {handicapCards.length === 0 ? (
-            <div className="empty-state compact"><Mascot pose="chiikawa-empty" /><span>暫時未有已收集嘅亞洲讓球盤。</span><button className="secondary-button compact" onClick={refreshHdcOdds}>重新載入</button></div>
-          ) : (
-            <div className="fixture-grid">
-              {handicapCards.map((card) => {
-                const pickLabel = gatePickLabel(card.pickLabel, card.commenceTime);
-                return (
-                <div className={`fixture-card market-card${card.hasHkjc ? " hkjc-card" : ""}`} key={`${card.matchId}-${card.line}`}>
-                  <span className="fixture-time">{formatDate(card.commenceTime)}</span>
-                  <strong><TeamLogo teamName={card.homeTeam} logos={teamLogos} /> {card.homeTeamZh ?? card.homeTeam} vs {card.awayTeamZh ?? card.awayTeam} <TeamLogo teamName={card.awayTeam} logos={teamLogos} /></strong>
-                  {(card.leagueZh ?? card.league) ? <span className="fixture-league">{card.leagueZh ?? card.league}</span> : null}
-                  <div className="fixture-meta">
-                    <span>{card.bookmakerCount} bookmakers</span>
-                    <span>主隊 {formatHandicapLine(card.line)}</span>
-                    <span className={card.bookmakerCount > 1 ? "positive" : ""}>{card.bookmakerCount > 1 ? `市場 ${formatPercent(card.bestChance)}` : "未有跨莊同盤"}</span>
-                    {card.hasHkjc ? <span className="positive">HKJC 同盤</span> : null}
-                  </div>
-                  <div className={pickLabel.startsWith("買") ? "simple-pick" : "simple-pick neutral"}>{pickLabel}{pickLabel.startsWith("買") ? ` @ ${card.bestBookmaker} ${card.bestOdds.toFixed(2)}` : ""}</div>
-                </div>
-                );
-              })}
-            </div>
-          )}
-        </Panel>
-      </section>
-      ) : null}
-
-      {page === "history" ? (
-      <section className="dashboard-section">
-        <Panel title="完場紀錄 vs 預測" icon={<CalendarDays size={18} />}>
-          {qualityWarning ? <div className="sample-warning" role="status"><Mascot pose="momonga-alert" /><AlertTriangle size={17} />{qualityWarning}</div> : null}
-          <div className="model-readiness" aria-label="模型樣本進度">
-            {READINESS_MODELS.map(({ market, label, modelVersion }) => {
-              const readinessEntry = findMarketReadiness(readiness, market, modelVersion);
-              const settled = readinessEntry?.settledMatches ?? 0;
-              const percent = Math.min(100, Math.round((settled / READINESS_TARGET) * 100));
-              return (
-                <div className="model-readiness__item" key={modelVersion}>
-                  <div className="model-readiness__head">
-                    <span>{label}</span>
-                    <span>{settled}/{READINESS_TARGET} 場</span>
-                  </div>
-                  <div className="model-readiness__bar" aria-hidden="true"><span style={{ width: `${percent}%` }} /></div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="history-toolbar">
-            <div className="history-market-tabs" aria-label="完場市場">
-              {(["主客和", "角球", "大細波", "亞洲讓球"] as HistoryMarket[]).map((market) => (
-                <button aria-pressed={historyMarket === market} className={historyMarket === market ? "active" : ""} key={market} onClick={() => setHistoryMarket(market)} type="button">{market}</button>
-              ))}
-            </div>
-            <div className="history-score" aria-label={`${historyMarket} 對錯百分比`}>
-              <span className="positive">中 {historyStats.winPercent.toFixed(1)}%</span>
-              <span className="negative">錯 {historyStats.lossPercent.toFixed(1)}%</span>
-              {historyStats.push > 0 ? <small>走盤 {historyStats.push}</small> : null}
-            </div>
-          </div>
-          <div className="history-filters" aria-label="完場記錄篩選">
-            <button aria-pressed={historyView === "comparable"} className={historyView === "comparable" ? "active" : ""} onClick={() => setHistoryView("comparable")} type="button">現行模型 {comparableMatchCount} 場 · {comparableResultRows.length} 盤口</button>
-            <button aria-pressed={historyView === "all"} className={historyView === "all" ? "active" : ""} onClick={() => setHistoryView("all")} type="button">全部完場資料 {marketResultRows.length}</button>
-          </div>
-          {historyLoading ? (
-            <div aria-live="polite" className="empty-state compact" role="status"><Mascot pose="momonga-loading" /><Loader2 aria-hidden="true" className="spin" size={20} /><span>正在載入完場對比。</span></div>
-          ) : historyError ? (
-            <div className="empty-state compact" role="alert"><Mascot pose="momonga-alert" /><span>{historyError}</span><button className="secondary-button compact" onClick={loadBacktest}>重新載入</button></div>
-          ) : (
-            <>
-              <section className="history-group" aria-label="等緊開賽">
-                <h3 className="history-group__title">等緊開賽</h3>
-                {marketPendingEntries.length === 0 ? (
-                  <p className="history-group__empty">未有等緊開賽嘅{historyMarket}盤。</p>
-                ) : (
-                  <div className="fixture-list">
-                    {marketPendingEntries.map((entry) => (
-                      <PendingCard
-                        entry={entry}
-                        fixture={fixturesByMatchId.get(entry.matchId) ?? null}
-                        key={entry.id}
-                        loadObservations={loadRecommendationObservations}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
-              <section className="history-group" aria-label="已完場">
-                <h3 className="history-group__title">已完場</h3>
-                {resultRows.length === 0 ? (
-                  <div className="empty-state compact">
-                    <Mascot pose="chiikawa-empty" />
-                    <span>{marketResultRows.length > 0 ? `未有附帶賽前 snapshot 嘅${historyMarket}記錄。` : `暫時未有${historyMarket}完場記錄。`}</span>
-                    {marketResultRows.length > 0 ? <button className="secondary-button compact" onClick={() => setHistoryView("all")}>顯示全部記錄</button> : null}
-                  </div>
-                ) : (
-                  <div className="fixture-grid">
-                    {resultRows.map((row) => (
-                      <div className="fixture-card market-card" key={row.id}>
-                        <span className="fixture-time">{formatDate(row.commenceTime)}</span>
-                        <strong>{row.homeTeam} vs {row.awayTeam}</strong>
-                        <div className="fixture-meta">
-                          <span>{marketDisplayLabel(row.market)}{row.line ? ` ${row.line}` : ""}</span>
-                          <span>完場 {row.score}</span>
-                          <span className={row.hit === null ? "" : row.hit ? "positive" : "negative"}>{settlementLabel(row.settlement, row.hit)}</span>
-                        </div>
-                        <div className="simple-pick">估 {row.prediction} → 實際 {row.actual}</div>
-                        {row.modelVersion ? <span className="subtext">{row.modelVersion}{row.source ? ` · ${row.source}` : ""}</span> : null}
-                        {hasPredictionSnapshot(row) ? (
-                          <details className="other-lines">
-                            <summary>賽前快照</summary>
-                            <div className="line-list">
-                              <div className="line-item"><span>盤口</span><span>{row.line ?? "—"}</span></div>
-                              <div className="line-item"><span>賠率</span><span>{typeof row.odds === "number" ? row.odds.toFixed(2) : "—"}</span></div>
-                              <div className="line-item"><span>模型機率</span><span>{typeof row.chance === "number" ? formatPercent(row.chance) : "—"}</span></div>
-                              <div className="line-item"><span>Edge</span><span>{typeof row.edge === "number" ? formatPercent(row.edge) : "—"}</span></div>
-                              <div className="line-item"><span>模型</span><span>{row.modelVersion}{row.source ? ` · ${row.source}` : ""}</span></div>
-                              <div className="line-item"><span>快照時間</span><span>{row.savedAt ? formatDate(row.savedAt) : "—"}</span></div>
-                            </div>
-                          </details>
-                        ) : null}
-                        {positiveSampleId(row.sampleId) ? (
-                          <RecommendationObservationHistory sampleId={positiveSampleId(row.sampleId)!} loadObservations={loadRecommendationObservations} />
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-            </>
-          )}
-        </Panel>
-      </section>
-      ) : null}
-        </>
-        )}
-      />
+      )}
     </AppShell>
   );
-}
-
-type TotalsCard = ReturnType<typeof buildTotalsCards>[number];
-
-function MarketCardGroup({ group, market, logos }: { group: { matchId: string; primary: TotalsCard; lines: TotalsCard[] }; market: "totals" | "corners"; logos: TeamLogoMap }) {
-  const card = group.primary;
-  const pickLabel = gatePickLabel(card.pickLabel, card.commenceTime);
-  const otherLines = group.lines.filter((line) => line.id !== card.id);
-  const lineLabel = market === "corners" ? "角球 Line" : "Line";
-  return (
-    <article className={card.hasHkjc ? "fixture-card market-card hkjc-card" : "fixture-card market-card"}>
-      <span className="fixture-time">{formatDate(card.commenceTime)}</span>
-      <strong><TeamLogo teamName={card.homeTeam} logos={logos} /> {card.homeTeamZh ?? card.homeTeam} vs {card.awayTeamZh ?? card.awayTeam} <TeamLogo teamName={card.awayTeam} logos={logos} /></strong>
-      {(card.leagueZh ?? card.league) ? <span className="fixture-league">{card.leagueZh ?? card.league}</span> : null}
-      <div className="fixture-meta">
-        <span>{card.bookmakerCount} bookmakers</span>
-        <span>{lineLabel} {card.line.toFixed(1)}</span>
-        <span className={card.bookmakerCount > 1 ? "positive" : ""}>{card.bookmakerCount > 1 ? `市場 ${formatPercent(card.bestChance)}` : "未有跨莊同盤"}</span>
-        {pickLabel.startsWith("買") ? <span className="positive">Edge {formatPercent(card.bestEdge)}</span> : null}
-        {card.hasHkjc ? <span className="source-badge">HKJC</span> : null}
-      </div>
-      <div className={pickLabel.startsWith("買") ? "simple-pick" : "simple-pick neutral"}>
-        {pickLabel}{pickLabel.startsWith("買") ? ` @ ${card.bestBookmaker} ${card.bestOdds.toFixed(2)}` : ""}
-      </div>
-      {otherLines.length > 0 ? (
-        <details className="other-lines">
-          <summary>其他 {otherLines.length} 個盤口</summary>
-          <div className="line-list">
-            {otherLines.map((line) => {
-              const linePickLabel = gatePickLabel(line.pickLabel, line.commenceTime);
-              return (
-              <div className="line-item" key={line.id}>
-                <span>{lineLabel} {line.line.toFixed(1)}</span>
-                <span>{line.bookmakerCount} 莊</span>
-                <strong className={linePickLabel.startsWith("買") ? "positive" : ""}>{linePickLabel}</strong>
-              </div>
-              );
-            })}
-          </div>
-        </details>
-      ) : null}
-    </article>
-  );
-}
-
-function PendingCard({
-  entry,
-  fixture,
-  loadObservations,
-}: {
-  entry: PendingEntry;
-  fixture: { homeTeam: string; awayTeam: string; homeTeamZh?: string; awayTeamZh?: string } | null;
-  loadObservations: (sampleId: number) => Promise<PredictionObservationsResponse>;
-}) {
-  const teams = fixture ? `${fixture.homeTeamZh ?? fixture.homeTeam} vs ${fixture.awayTeamZh ?? fixture.awayTeam}` : entry.matchId;
-  return (
-    <details className="fixture-card market-card pending-card">
-      <summary className="pending-card__summary">
-        <span className="fixture-time">{entry.commenceTime ? formatDate(entry.commenceTime) : "未設定時間"}</span>
-        <strong>{teams}</strong>
-        <span className="fixture-meta">
-          <span>{marketDisplayLabel(entry.market)}{entry.line !== null ? ` ${entry.line}` : ""}</span>
-          <span>估 {entry.prediction}</span>
-          {entry.edge !== null ? <span className="positive">Edge {formatPercent(entry.edge)}</span> : null}
-        </span>
-      </summary>
-      <div className="line-list">
-        <div className="line-item"><span>盤口</span><span>{entry.line ?? "—"}</span></div>
-        <div className="line-item"><span>賠率</span><span>{entry.odds !== null ? entry.odds.toFixed(2) : "—"}</span></div>
-        <div className="line-item"><span>模型機率</span><span>{entry.chance !== null ? formatPercent(entry.chance) : "—"}</span></div>
-        <div className="line-item"><span>Edge</span><span>{entry.edge !== null ? formatPercent(entry.edge) : "—"}</span></div>
-        <div className="line-item"><span>模型</span><span>{entry.modelVersion}{entry.source ? ` · ${entry.source}` : ""}</span></div>
-        <div className="line-item"><span>快照時間</span><span>{formatDate(entry.savedAt)}</span></div>
-      </div>
-      {positiveSampleId(entry.sampleId) ? (
-        <RecommendationObservationHistory
-          sampleId={positiveSampleId(entry.sampleId)!}
-          loadObservations={loadObservations}
-        />
-      ) : null}
-    </details>
-  );
-}
-
-function FixtureDetail({ fixture, rows }: { fixture: { commenceTime: string; bookmakerCount: number }; rows: ReturnType<typeof analyzeEntries> }) {
-  return (
-    <div className="fixture-detail">
-      <div className="fixture-detail-head">
-        <span>{formatDate(fixture.commenceTime)}</span>
-        <span>{fixture.bookmakerCount} bookmakers</span>
-      </div>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Bookmaker</th>
-              <th>Outcome</th>
-              <th>Odds</th>
-              <th>Edge</th>
-              <th>Stake</th>
-              <th>Risk</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.id}>
-                <td>{row.bookmaker}</td>
-                <td>{row.outcomeLabel}</td>
-                <td>{row.odds.toFixed(2)}</td>
-                <td className={row.edge > 0 ? "positive" : "negative"}>{formatPercent(row.edge)}</td>
-                <td>{formatMoney(row.suggestedStake)}</td>
-                <td><span className={`badge ${badgeClass(row.riskLabel)}`}>{row.riskLabel}</span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function Panel({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
-  return (
-    <div className="panel">
-      <div className="panel-title">
-        {icon}
-        <h2>{title}</h2>
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function TotalsPick({ label, fairOdds, edge, stake }: { label: string; fairOdds: number; edge: number; stake: number }) {
-  return (
-    <div className="totals-pick">
-      <div>
-        <strong>{label}</strong>
-        <span>Fair odds {formatFiniteOdds(fairOdds)} · Edge {formatPercent(edge)}</span>
-      </div>
-      <span className={`badge ${stake > 0 ? "value" : edge > 0 ? "watch" : "avoid"}`}>
-        {stake > 0 ? `建議 ${formatMoney(stake)}` : edge > 0 ? "觀察" : "不建議"}
-      </span>
-    </div>
-  );
-}
-
-function CornerPick({ label, fairOdds, edge, stake }: { label: string; fairOdds: number; edge: number; stake: number }) {
-  return (
-    <div className="corner-pick">
-      <div>
-        <strong>{label}</strong>
-        <span>Fair odds {formatFiniteOdds(fairOdds)} · Edge {formatPercent(edge)}</span>
-      </div>
-      <span className={`badge ${stake > 0 ? "value" : edge > 0 ? "watch" : "avoid"}`}>
-        {stake > 0 ? `建議 ${formatMoney(stake)}` : edge > 0 ? "觀察" : "不建議"}
-      </span>
-    </div>
-  );
-}
-
-function NumberField({
-  label,
-  value,
-  min,
-  max,
-  suffix,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max?: number;
-  suffix?: string;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className="field">
-      <span>{label}</span>
-      <div className="input-suffix">
-        <input
-          type="number"
-          min={min}
-          max={max}
-          step="0.01"
-          value={Number.isFinite(value) ? value : 0}
-          onChange={(event) => onChange(Number(event.target.value))}
-        />
-        {suffix ? <span>{suffix}</span> : null}
-      </div>
-    </label>
-  );
-}
-
-function TextField({
-  label,
-  value,
-  inputMode,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  inputMode?: "decimal";
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="field">
-      <span>{label}</span>
-      <input value={value} inputMode={inputMode} onChange={(event) => onChange(event.target.value)} />
-    </label>
-  );
-}
-
-function collectPredictionSnapshots(
-  fixtures: Array<{ matchId: string; homeTeam: string; awayTeam: string; commenceTime: string }>,
-  rows: AnalysisRow[],
-  totalCards: Array<{ matchId: string; line: number; pickLabel: string; commenceTime: string; bestChance: number; bestEdge: number; bestOdds: number; bestBookmaker: string }>,
-  cornerCards: Array<{ matchId: string; line: number; pickLabel: string; commenceTime: string; bestChance: number; bestEdge: number; bestOdds: number; bestBookmaker: string }>,
-  handicapCards: Array<{ matchId: string; line: number; pickLabel: string; commenceTime: string; bestChance: number; bestEdge: number; bestOdds: number; bestBookmaker: string }>,
-  edgeThreshold: number,
-): PredictionSnapshot[] {
-  const savedAt = new Date().toISOString();
-  return [
-    ...fixtures.flatMap((fixture) => {
-      const pick = bestH2hPick(rows.filter((row) => row.matchId === fixture.matchId), edgeThreshold);
-      return toSnapshot(fixture.matchId, "主客和", pick.label.replace(/^買\s*/, ""), fixture.commenceTime, savedAt, "consensus-v1", "market-consensus", undefined, pick.chance, undefined, pick.odds);
-    }),
-    ...totalCards.flatMap((card) => toSnapshot(card.matchId, "大細波", pickSide(card.pickLabel), card.commenceTime, savedAt, "totals-loo-v1", "leave-one-out-same-line", card.line, card.bestChance, card.bestEdge, card.bestOdds, card.bestBookmaker)),
-    ...cornerCards.flatMap((card) => toSnapshot(card.matchId, "角球", pickSide(card.pickLabel), card.commenceTime, savedAt, "corner-loo-v1", "leave-one-out-same-line", card.line, card.bestChance, card.bestEdge, card.bestOdds, card.bestBookmaker)),
-    ...handicapCards.flatMap((card) => toSnapshot(card.matchId, "亞洲讓球", card.pickLabel.replace(/^買\s*/, ""), card.commenceTime, savedAt, "hdc-loo-v2", "leave-one-out-same-line", card.line, card.bestChance, card.bestEdge, card.bestOdds, card.bestBookmaker)),
-  ];
-}
-
-function toSnapshot(matchId: string, market: string, prediction: string, commenceTime: string, savedAt: string, modelVersion: string, source: string, line?: number, chance?: number, edge?: number, odds?: number, bookmaker?: string): PredictionSnapshot[] {
-  if ((market !== "亞洲讓球" && market !== "大細波" && !matchId.startsWith("hkjc-")) || prediction.includes("唔買") || new Date(commenceTime).getTime() <= Date.now()) return [];
-  return [{ matchId, market, prediction, side: market === "亞洲讓球" && (prediction === "主" || prediction === "客") ? prediction : undefined, commenceTime, savedAt, modelVersion, source, line, chance, edge, odds, bookmaker }];
-}
-
-function pickSide(label: string): string {
-  if (label.startsWith("買大角")) return "大角";
-  if (label.startsWith("買細角")) return "細角";
-  if (label.startsWith("買大")) return "大";
-  if (label.startsWith("買細")) return "細";
-  return "唔買";
-}
-
-export function normalizeLiveOddsPayload(payload: unknown): LiveOddsPayload {
-  const record = isRecord(payload) ? payload : {};
-  const flatEntries = Array.isArray(record.entries) ? record.entries.filter(isRecord) : [];
-  return {
-    entries: arrayOf(record.entries, isManualEntry).concat(flatToManualEntries(flatEntries)),
-    totalEntries: arrayOf(record.totalEntries, isTotalsMarketEntry).concat(flatToTotalsEntries(flatEntries, "大細波")),
-    cornerEntries: arrayOf(record.cornerEntries, isTotalsMarketEntry).concat(flatToTotalsEntries(flatEntries, "角球")),
-    handicapEntries: arrayOf(record.handicapEntries, isHandicapEntry).concat(flatToHandicapEntries(flatEntries)),
-    resultEntries: arrayOf(record.resultEntries, isResultEntry),
-  };
-}
-
-function flatToManualEntries(entries: Record<string, unknown>[]): ManualEntry[] {
-  const groups = groupFlatEntries(entries.filter((entry) => isMarketName(entry, "主客和", "h2h")));
-  return groups.flatMap((group) => {
-    const home = group.find((entry) => selectionName(entry) === String(entry.homeTeam).toLowerCase() || selectionName(entry) === "home");
-    const draw = group.find((entry) => String(selectionName(entry)).includes("和") || selectionName(entry) === "draw");
-    const away = group.find((entry) => selectionName(entry) === String(entry.awayTeam).toLowerCase() || selectionName(entry) === "away");
-    const homeOdds = flatOdds(home);
-    const drawOdds = flatOdds(draw);
-    const awayOdds = flatOdds(away);
-    if (!home || !draw || !away || !hasBaseFlat(home) || !isPositiveNumber(homeOdds) || !isPositiveNumber(drawOdds) || !isPositiveNumber(awayOdds)) return [];
-    return [{
-      id: `${home.matchId}-${home.bookmaker ?? "provider"}-h2h`,
-      matchId: String(home.matchId),
-      homeTeam: String(home.homeTeam),
-      awayTeam: String(home.awayTeam),
-      commenceTime: String(home.commenceTime),
-      bookmaker: String(home.bookmaker ?? "provider"),
-      ...(isString(home.league) ? { league: home.league } : {}),
-      ...(isString(home.leagueZh) ? { leagueZh: home.leagueZh } : {}),
-      ...(isString(home.homeTeamZh) ? { homeTeamZh: home.homeTeamZh } : {}),
-      ...(isString(home.awayTeamZh) ? { awayTeamZh: home.awayTeamZh } : {}),
-      odds: { home: homeOdds, draw: drawOdds, away: awayOdds },
-    }];
-  });
-}
-
-function flatToTotalsEntries(entries: Record<string, unknown>[], market: string): TotalsMarketEntry[] {
-  const groups = groupFlatEntries(entries.filter((entry) => isTotalMarketName(entry, market) && isFiniteNumber(flatLine(entry))));
-  return groups.flatMap((group) => {
-    const over = group.find((entry) => String(selectionName(entry)).includes("大") || selectionName(entry) === "over");
-    const under = group.find((entry) => String(selectionName(entry)).includes("細") || selectionName(entry) === "under");
-    const line = flatLine(over);
-    const overOdds = flatOdds(over);
-    const underOdds = flatOdds(under);
-    if (!over || !under || !hasBaseFlat(over) || !isFiniteNumber(line) || !isPositiveNumber(overOdds) || !isPositiveNumber(underOdds)) return [];
-    return [{
-      id: `${over.matchId}-${over.bookmaker ?? "provider"}-${market}-${line}`,
-      matchId: String(over.matchId),
-      homeTeam: String(over.homeTeam),
-      awayTeam: String(over.awayTeam),
-      commenceTime: String(over.commenceTime),
-      bookmaker: String(over.bookmaker ?? "provider"),
-      ...(isString(over.league) ? { league: over.league } : {}),
-      ...(isString(over.leagueZh) ? { leagueZh: over.leagueZh } : {}),
-      ...(isString(over.homeTeamZh) ? { homeTeamZh: over.homeTeamZh } : {}),
-      ...(isString(over.awayTeamZh) ? { awayTeamZh: over.awayTeamZh } : {}),
-      line,
-      overOdds,
-      underOdds,
-    }];
-  });
-}
-
-function flatToHandicapEntries(entries: Record<string, unknown>[]): HandicapEntry[] {
-  const groups = groupFlatEntries(entries.filter((entry) => isMarketName(entry, "亞洲讓球", "spreads") && isFiniteNumber(flatLine(entry))));
-  return groups.flatMap((group) => {
-    const home = group.find((entry) => selectionName(entry) === String(entry.homeTeam).toLowerCase() || selectionName(entry) === "主" || selectionName(entry) === "home");
-    const away = group.find((entry) => selectionName(entry) === String(entry.awayTeam).toLowerCase() || selectionName(entry) === "客" || selectionName(entry) === "away");
-    const line = flatLine(home);
-    const homeOdds = flatOdds(home);
-    const awayOdds = flatOdds(away);
-    if (!home || !away || !hasBaseFlat(home) || !isFiniteNumber(line) || !isPositiveNumber(homeOdds) || !isPositiveNumber(awayOdds)) return [];
-    return [{
-      id: `${home.matchId}-${home.bookmaker ?? "provider"}-hdc-${line}`,
-      matchId: String(home.matchId),
-      homeTeam: String(home.homeTeam),
-      awayTeam: String(home.awayTeam),
-      commenceTime: String(home.commenceTime),
-      bookmaker: String(home.bookmaker ?? "provider"),
-      ...(isString(home.league) ? { league: home.league } : {}),
-      ...(isString(home.leagueZh) ? { leagueZh: home.leagueZh } : {}),
-      ...(isString(home.homeTeamZh) ? { homeTeamZh: home.homeTeamZh } : {}),
-      ...(isString(home.awayTeamZh) ? { awayTeamZh: home.awayTeamZh } : {}),
-      line,
-      homeOdds,
-      awayOdds,
-    }];
-  });
-}
-
-function groupFlatEntries(entries: Record<string, unknown>[]): Record<string, unknown>[][] {
-  const groups = new Map<string, Record<string, unknown>[]>();
-  for (const entry of entries) {
-    const key = [entry.matchId, entry.market, flatLine(entry) ?? "", entry.bookmaker ?? "provider"].join("|");
-    groups.set(key, [...(groups.get(key) ?? []), entry]);
-  }
-  return [...groups.values()];
-}
-
-function isTotalMarketName(entry: Record<string, unknown>, target: string): boolean {
-  return target === "角球"
-    ? isMarketName(entry, "角球", "alternate_totals_corners", "corners")
-    : isMarketName(entry, "大細波", "totals");
-}
-
-function isMarketName(entry: Record<string, unknown>, ...names: string[]): boolean {
-  const market = String(entry.market ?? "").toLowerCase();
-  return names.some((name) => market === name.toLowerCase());
-}
-
-function selectionName(entry: Record<string, unknown> | undefined): string {
-  if (!entry) return "";
-  return String(entry.selection ?? entry.side ?? "").toLowerCase();
-}
-
-function flatLine(entry: Record<string, unknown> | undefined): unknown {
-  return entry?.line ?? entry?.point;
-}
-
-function flatOdds(entry: Record<string, unknown> | undefined): unknown {
-  return entry?.odds ?? entry?.price;
-}
-
-function arrayOf<T>(value: unknown, guard: (item: unknown) => item is T): T[] {
-  return Array.isArray(value) ? value.filter(guard) : [];
-}
-
-function isManualEntry(item: unknown): item is ManualEntry {
-  return isRecord(item)
-    && isString(item.id) && isString(item.matchId) && isString(item.homeTeam) && isString(item.awayTeam)
-    && isString(item.commenceTime) && isString(item.bookmaker)
-    && isRecord(item.odds) && isPositiveNumber(item.odds.home) && isPositiveNumber(item.odds.draw) && isPositiveNumber(item.odds.away);
-}
-
-function isTotalsMarketEntry(item: unknown): item is TotalsMarketEntry {
-  return isRecord(item)
-    && isString(item.id) && isString(item.matchId) && isString(item.homeTeam) && isString(item.awayTeam)
-    && isString(item.commenceTime) && isString(item.bookmaker)
-    && isFiniteNumber(item.line) && isPositiveNumber(item.overOdds) && isPositiveNumber(item.underOdds);
-}
-
-function isHandicapEntry(item: unknown): item is HandicapEntry {
-  return isRecord(item)
-    && isString(item.id) && isString(item.matchId) && isString(item.homeTeam) && isString(item.awayTeam)
-    && isString(item.commenceTime) && isString(item.bookmaker)
-    && isFiniteNumber(item.line) && isPositiveNumber(item.homeOdds) && isPositiveNumber(item.awayOdds);
-}
-
-function isResultEntry(item: unknown): item is ResultEntry {
-  return isRecord(item) && isString(item.id) && isString(item.matchId) && isString(item.market);
-}
-
-function isModelReadiness(item: unknown): item is ModelReadiness {
-  return isRecord(item) && isString(item.market) && isString(item.modelVersion)
-    && isFiniteNumber(item.settledMatches) && isFiniteNumber(item.pendingMatches);
-}
-
-function isPendingEntry(item: unknown): item is PendingEntry {
-  return isRecord(item) && isString(item.id) && isString(item.matchId) && isString(item.market)
-    && isString(item.prediction) && isString(item.savedAt) && isString(item.status);
-}
-
-function hasBaseFlat(item: Record<string, unknown>): boolean {
-  return isString(item.matchId) && isString(item.homeTeam) && isString(item.awayTeam) && isString(item.commenceTime);
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object";
-}
-
-function isString(value: unknown): value is string {
-  return typeof value === "string" && value.length > 0;
-}
-
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
-function isPositiveNumber(value: unknown): value is number {
-  return isFiniteNumber(value) && value > 0;
 }
 
 function mergeById<T extends { id: string }>(current: T[], incoming: T[]): T[] {
@@ -1177,65 +412,6 @@ function mergeById<T extends { id: string }>(current: T[], incoming: T[]): T[] {
     byId.set(item.id, item);
   }
   return [...byId.values()];
-}
-
-
-function settlementLabel(settlement: ResultEntry["settlement"], hit: boolean | null): string {
-  if (settlement === "half-win") return "半中";
-  if (settlement === "half-loss") return "半錯";
-  if (settlement === "push") return "走水";
-  if (settlement === "win" || hit === true) return "中";
-  if (settlement === "loss" || hit === false) return "錯";
-  return "待對比";
-}
-
-function positiveSampleId(value: number | string | undefined): number | null {
-  const parsed = typeof value === "number" ? value : Number(value);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
-function formatHandicapLine(line: number): string {
-  return `${line > 0 ? "+" : ""}${Number.isInteger(line) ? line.toFixed(1) : line}`;
-}
-
-function formatPercent(value: number): string {
-  if (!Number.isFinite(value)) {
-    return "N/A";
-  }
-  return `${(value * 100).toFixed(2)}%`;
-}
-
-function formatMoney(value: number): string {
-  return value <= 0 ? "0.00" : value.toFixed(2);
-}
-
-function formatFiniteOdds(value: number): string {
-  return Number.isFinite(value) ? value.toFixed(2) : "N/A";
-}
-
-function formatDate(value: string): string {
-  if (!value) {
-    return "未設定時間";
-  }
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-}
-
-function formatTimeOnly(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-function badgeClass(label: string): string {
-  if (label === "可能有 value") {
-    return "value";
-  }
-  if (label === "觀察") {
-    return "watch";
-  }
-  return "avoid";
 }
 
 export default App;

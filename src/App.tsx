@@ -1,10 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  analyzeEntries,
   filterLegacySampleEntries,
-  sortFixturesByBestEdge,
   upcomingFixtures,
-  type AnalyzerSettings,
   type ManualEntry,
 } from "./odds";
 import { dataLoadStateAfter, dataLoadWarning, type DataLoadState } from "./dataHealth";
@@ -121,13 +118,6 @@ function App() {
   const [recommendationsLoaded, setRecommendationsLoaded] = useState(false);
   const [backtestLoaded, setBacktestLoaded] = useState(false);
 
-  const [settings] = useState<AnalyzerSettings>({
-    bankroll: 1000,
-    fractionalKelly: 0.25,
-    stakeCapPercent: 0.02,
-    edgeThreshold: 0.03,
-  });
-
   const hdcRefreshRunning = useRef(false);
   const backtestAutoLoadStarted = useRef(false);
 
@@ -209,10 +199,8 @@ function App() {
     }
   }
 
-  const rows = useMemo(() => analyzeEntries(entries, settings), [entries, settings]);
-  const fixtures = useMemo(() => upcomingFixtures(entries), [entries]);
-  const dashboardFixtures = useMemo(() => sortFixturesByBestEdge(fixtures, rows), [fixtures, rows]);
-
+  // Kickoff order only — FixturesPage re-sorts by commenceTime; 即將開賽 is a strip, not edge ranking.
+  const dashboardFixtures = useMemo(() => upcomingFixtures(entries), [entries]);
 
   const recommendationsTrusted = canShowActiveOpportunities(connectivity, recommendationsLoaded);
   const activeRecordedOpportunities = recommendationsTrusted ? recordedOpportunities : [];
@@ -312,8 +300,7 @@ function App() {
     hdcRefreshRunning.current = true;
     try {
       const payload = await apiClient.liveOdds();
-      // The API serves flat per-selection rows; re-pair them into the UI
-      // market shapes before they touch component state.
+      // Flat feed → complete h2h ManualEntry rows only (for fixture lists).
       const normalized = normalizeLiveOddsPayload(payload);
       setEntries((current) => mergeById(current, normalized.entries));
       // The unified live feed carries both HKJC and external provider rows,

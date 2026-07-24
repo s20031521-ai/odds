@@ -1,19 +1,11 @@
 import type { ManualEntry, OddsSet, OutcomeKey } from "./odds";
-import type { TotalsMarketEntry } from "./oddsApi";
-import type { HandicapEntry } from "./handicap";
 
-// The collectors (hkjc-import / hdc-collector) store live odds as flat rows —
-// one row per market+selection with a scalar `odds` value. The UI components
-// were built against the nested market shapes, so this normalizer re-pairs the
-// flat rows into those shapes at the API boundary. Incomplete groups are
-// dropped: a partial odds object used to slip past hasCompleteOdds and crash
-// the whole render with "Decimal odds must be greater than 1.".
+// Collectors store live odds as flat rows (one per market+selection).
+// Production UI only needs complete h2h triplets for fixture lists / 即將開賽.
+// Point-market re-pair was removed after C2 (App no longer builds card pipelines).
 
 export type NormalizedLiveOdds = {
   entries: ManualEntry[];
-  totalEntries: TotalsMarketEntry[];
-  cornerEntries: TotalsMarketEntry[];
-  handicapEntries: HandicapEntry[];
 };
 
 type FlatRow = {
@@ -29,21 +21,18 @@ type FlatRow = {
   leagueZh?: unknown;
   market?: unknown;
   selection?: unknown;
-  line?: unknown;
   odds?: unknown;
 };
 
 const H2H_OUTCOMES: OutcomeKey[] = ["home", "draw", "away"];
-const CORNER_MARKETS = new Set(["corners", "alternate_totals_corners"]);
 
 export function normalizeLiveOddsPayload(payload: unknown): NormalizedLiveOdds {
-  const result: NormalizedLiveOdds = { entries: [], totalEntries: [], cornerEntries: [], handicapEntries: [] };
+  const result: NormalizedLiveOdds = { entries: [] };
   const rows = Array.isArray((payload as { entries?: unknown } | null)?.entries)
     ? ((payload as { entries: unknown[] }).entries as FlatRow[])
     : [];
 
   const h2hGroups = new Map<string, { meta: FlatRow; odds: Partial<OddsSet> }>();
-  const pairGroups = new Map<string, { meta: FlatRow; bucket: "totals" | "corners" | "spreads"; line: number; sides: Map<string, number> }>();
 
   for (const row of rows) {
     if (!isUsableRow(row)) continue;
@@ -63,41 +52,13 @@ export function normalizeLiveOddsPayload(payload: unknown): NormalizedLiveOdds {
       const group = h2hGroups.get(key) ?? { meta: row, odds: {} };
       group.odds[selection as OutcomeKey] = price;
       h2hGroups.set(key, group);
-      continue;
     }
-
-    const bucket = row.market === "totals" ? "totals" : CORNER_MARKETS.has(row.market as string) ? "corners" : row.market === "spreads" ? "spreads" : null;
-    if (!bucket) continue;
-    const needed = bucket === "spreads" ? ["home", "away"] : ["over", "under"];
-    if (!needed.includes(selection)) continue;
-    if (typeof row.line !== "number" || !Number.isFinite(row.line)) continue;
-
-    const key = `${baseId(row, selection)}|${row.line}`;
-    const group = pairGroups.get(key) ?? { meta: row, bucket, line: row.line, sides: new Map<string, number>() };
-    group.sides.set(selection, price);
-    pairGroups.set(key, group);
+    // totals / corners / spreads deliberately ignored for the client UI path
   }
 
   for (const [key, group] of h2hGroups) {
     if (H2H_OUTCOMES.every((outcome) => typeof group.odds[outcome] === "number" && Number.isFinite(group.odds[outcome]))) {
       result.entries.push(buildH2hEntry({ ...group.meta, id: key }, group.odds as OddsSet));
-    }
-  }
-
-  for (const [key, group] of pairGroups) {
-    const meta = { ...group.meta, id: key };
-    if (group.bucket === "spreads") {
-      const homeOdds = group.sides.get("home");
-      const awayOdds = group.sides.get("away");
-      if (homeOdds === undefined || awayOdds === undefined) continue;
-      result.handicapEntries.push({ ...sharedMeta(meta), line: group.line, homeOdds, awayOdds });
-    } else {
-      const overOdds = group.sides.get("over");
-      const underOdds = group.sides.get("under");
-      if (overOdds === undefined || underOdds === undefined) continue;
-      const entry: TotalsMarketEntry = { ...sharedMeta(meta), line: group.line, overOdds, underOdds };
-      if (group.bucket === "totals") result.totalEntries.push(entry);
-      else result.cornerEntries.push(entry);
     }
   }
 
@@ -123,10 +84,6 @@ function isFiniteOddsSet(odds: unknown): odds is OddsSet {
   });
 }
 
-// Flat row ids look like `${originalEntryId}:${selection}`; strip the suffix to
-// recover the original entry id so mergeById keeps a stable identity. Rows whose
-// id does not carry the `:${selection}` suffix fall back to match|bookmaker so
-// differently-shaped ids from the same quote set still group together.
 function baseId(row: FlatRow, selection: string): string {
   if (typeof row.id === "string" && row.id) {
     const suffix = `:${selection}`;
@@ -136,10 +93,6 @@ function baseId(row: FlatRow, selection: string): string {
 }
 
 function buildH2hEntry(row: FlatRow, odds: OddsSet): ManualEntry {
-  return { ...sharedMeta(row), odds };
-}
-
-function sharedMeta(row: FlatRow) {
   return {
     id: typeof row.id === "string" && row.id ? row.id : `${row.matchId as string}|${row.bookmaker as string}`,
     matchId: row.matchId as string,
@@ -147,6 +100,7 @@ function sharedMeta(row: FlatRow) {
     awayTeam: row.awayTeam as string,
     commenceTime: row.commenceTime as string,
     bookmaker: row.bookmaker as string,
+    odds,
     ...(typeof row.homeTeamZh === "string" ? { homeTeamZh: row.homeTeamZh } : {}),
     ...(typeof row.awayTeamZh === "string" ? { awayTeamZh: row.awayTeamZh } : {}),
     ...(typeof row.league === "string" ? { league: row.league } : {}),

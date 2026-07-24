@@ -1,4 +1,19 @@
-import type { PredictionSnapshot } from "./predictionSnapshots";
+/** Body for POST /api/v1/predictions (client no longer builds local snapshots). */
+export type PredictionSnapshot = {
+  matchId: string;
+  market: string;
+  prediction: string;
+  side?: "主" | "客";
+  savedAt: string;
+  commenceTime: string;
+  chance?: number;
+  edge?: number;
+  odds?: number;
+  line?: number;
+  modelVersion?: string;
+  source?: string;
+  bookmaker?: string;
+};
 
 export type SessionState = {
   authenticated: boolean;

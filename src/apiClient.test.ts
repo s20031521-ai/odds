@@ -1,7 +1,7 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import { createApiClient, ApiError } from "./apiClient";
 import type { BacktestResponse, BacktestRow, BacktestSummary } from "./apiClient";
-import type { PredictionSnapshot } from "./predictionSnapshots";
+import type { PredictionSnapshot } from "./apiClient";
 
 describe("apiClient", () => {
   it("uses relative api/v1 urls with same-origin credentials", async () => {

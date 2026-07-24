@@ -317,6 +317,16 @@
 .performance-detail__header {
   display: grid;
   gap: 8px;
+  padding: 12px 14px 14px;
+  background: rgba(255, 252, 250, 0.96);
+  border: 1px solid #e8d8cc;
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
+}
+
+.performance-detail__header .page-heading {
+  color: #141010;
+  margin: 0;
 }
 
 .performance-detail__back {
@@ -343,58 +353,79 @@
   flex-wrap: wrap;
   gap: 8px 14px;
   padding: 10px 14px;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: #fff;
+  border: 1px solid #e0d0c4;
   border-radius: 12px;
 }
 
 .performance-detail__count {
-  color: var(--color-muted);
+  color: #3d3530;
   font-size: 0.85rem;
+  font-weight: 700;
 }
 
 .performance-detail__accuracy {
   font-size: 0.95rem;
+  font-weight: 700;
 }
 
 .performance-detail__accuracy small {
-  color: var(--color-muted);
+  color: #3d3530;
+  font-weight: 600;
 }
 
+/* Opaque panel so wallpaper cannot wash out table text */
 .performance-detail__table-wrap {
   overflow-x: auto;
+  margin-top: 4px;
+  padding: 4px 8px 8px;
+  background: #fff;
+  border: 1px solid #e8d8cc;
+  border-radius: 16px;
+  box-shadow: var(--shadow-soft);
 }
 
 .performance-detail__table {
   width: 100%;
   min-width: 0;
   border-collapse: collapse;
+  background: #fff;
 }
 
 .performance-detail__table th,
 .performance-detail__table td {
-  padding: 10px 10px;
-  border-bottom: 1px solid var(--color-border);
+  padding: 12px 10px;
+  border-bottom: 1px solid #eadfd6;
   text-align: left;
   vertical-align: middle;
   white-space: nowrap;
 }
 
 .performance-detail__table th {
-  color: var(--color-muted);
-  font-size: 0.76rem;
-  text-transform: uppercase;
+  color: #2d2323;
+  font-size: 0.78rem;
+  text-transform: none;
   font-weight: 800;
+  letter-spacing: 0.02em;
+  background: #fff8f4;
 }
 
 .performance-detail__table td {
-  color: var(--color-text);
-  font-size: 0.9rem;
+  color: #1a1414;
+  font-size: 0.92rem;
+  font-weight: 600;
+  background: #fff;
+}
+
+.performance-detail__table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .performance-detail__table td:first-child {
   white-space: normal;
   min-width: 160px;
+  font-weight: 700;
+  color: #141010;
 }
 
 /* Settlement badges — solid surface + dark text for contrast on cream UI */
@@ -435,9 +466,10 @@
 }
 
 .settlement--loss {
-  color: #5c1f1f;
-  background: #f5b8b8;
-  border-color: #e07878;
+  color: #4a1010;
+  background: #ef9a9a;
+  border-color: #c44;
+  box-shadow: 0 0 0 1px rgba(120, 40, 40, 0.12);
 }
 
 .settlement--pending {

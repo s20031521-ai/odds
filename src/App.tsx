@@ -23,6 +23,9 @@ import { PerformancePage } from "./pages/PerformancePage";
 import { Mascot } from "./components/Kawaii";
 import { startCurrentRecommendationsRefresh } from "./currentRecommendations";
 import { normalizeLiveOddsPayload } from "./liveOddsMapping";
+import { READINESS_MODELS } from "./readinessModels";
+
+export { READINESS_MODELS };
 
 type ModelReadiness = {
   market: string;
@@ -61,13 +64,6 @@ type HistoryStats = {
   winPercent: number;
   lossPercent: number;
 };
-
-const READINESS_MODELS: Array<{ market: string; modelVersion: string }> = [
-  { market: "totals", modelVersion: "totals-loo-v1" },
-  { market: "corners", modelVersion: "corner-loo-v1" },
-  { market: "handicap", modelVersion: "hdc-loo-v2" },
-  { market: "h2h", modelVersion: "consensus-v1" },
-];
 
 const HDC_REFRESH_MS = 3 * 60 * 1000;
 const initialEntries: ManualEntry[] = [];
@@ -356,7 +352,7 @@ function App() {
   return (
     <AppShell route={page} dataWarning={dataWarning} onLogout={handleLogout}>
       {page === "performance" ? (
-        <PerformancePage readiness={readiness} historyStats={historyStatsByMarket} />
+        <PerformancePage readiness={readiness} historyStats={historyStatsByMarket} results={resultEntries} />
       ) : page === "fixtures" ? (
         <FixturesPage fixtures={dashboardFixtures} logos={teamLogos} />
       ) : (

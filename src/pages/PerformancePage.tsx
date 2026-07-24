@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { Mascot } from "../components/Kawaii";
+import { formatKickoff } from "../components/PickCard";
+import { READINESS_MODELS } from "../readinessModels";
 
 const READINESS_TARGET = 30;
 
@@ -17,32 +20,202 @@ type HistoryStats = {
   lossPercent: number;
 };
 
+type ResultEntry = {
+  id: string;
+  matchId: string;
+  homeTeam: string;
+  awayTeam: string;
+  commenceTime: string;
+  score: string;
+  market: string;
+  line?: number;
+  prediction: string;
+  settlement?: "win" | "half-win" | "push" | "half-loss" | "loss";
+  modelVersion?: string;
+};
+
+export function formatSettlementLabel(
+  settlement: string | undefined | null
+): { label: string } {
+  switch (settlement) {
+    case "win":
+      return { label: "中" };
+    case "half-win":
+      return { label: "半中" };
+    case "push":
+      return { label: "走" };
+    case "half-loss":
+      return { label: "半錯" };
+    case "loss":
+      return { label: "錯" };
+    default:
+      return { label: "—" };
+  }
+}
+
+export function formatPrediction(prediction: string, line?: number): string {
+  if (line !== undefined && line !== null) {
+    return `${prediction} ${line}`;
+  }
+  return prediction;
+}
+
 export function PerformancePage(props: {
   readiness: ModelReadiness[];
   historyStats: Map<string, HistoryStats>;
+  results: ResultEntry[];
 }): React.ReactElement {
-  const markets = [
-    { key: "totals", label: "大細波", modelVersion: "totals-loo-v1" },
-    { key: "corners", label: "角球", modelVersion: "corner-loo-v1" },
-    { key: "handicap", label: "讓球", modelVersion: "hdc-loo-v2" },
-    { key: "h2h", label: "主客和", modelVersion: "consensus-v1" },
-  ];
+  const [selectedMarket, setSelectedMarket] = useState<string | null>(null);
+
+  const model =
+    selectedMarket === null
+      ? null
+      : READINESS_MODELS.find((m) => m.market === selectedMarket) ?? null;
+
+  if (selectedMarket !== null && model) {
+    const readiness = props.readiness.find(
+      (r) => r.market === selectedMarket && r.modelVersion === model.modelVersion
+    );
+    const stats = props.historyStats.get(selectedMarket);
+    const settled = readiness?.settledMatches ?? 0;
+    const hasStats = stats !== undefined && stats.win + stats.loss > 0;
+
+    const rows = props.results
+      .filter(
+        (r) =>
+          r.market === selectedMarket &&
+          r.modelVersion === model.modelVersion
+      )
+      .sort((a, b) => {
+        const ta = Date.parse(a.commenceTime);
+        const tb = Date.parse(b.commenceTime);
+        if (Number.isNaN(ta) && Number.isNaN(tb)) return 0;
+        if (Number.isNaN(ta)) return 1;
+        if (Number.isNaN(tb)) return -1;
+        return tb - ta;
+      });
+
+    return (
+      <section
+        className="performance-page"
+        aria-labelledby="performance-detail-title"
+      >
+        <header className="performance-detail__header">
+          <button
+            className="performance-detail__back"
+            onClick={() => setSelectedMarket(null)}
+            aria-label="返回總覽"
+          >
+            ← 返回
+          </button>
+          <h1 id="performance-detail-title" className="page-heading">
+            {model.label}
+          </h1>
+          <div className="performance-detail__summary">
+            <span className="performance-detail__count">
+              {settled}/{READINESS_TARGET} 場
+            </span>
+            {hasStats ? (
+              <span className="performance-detail__accuracy">
+                <span className="positive">
+                  中 {stats.winPercent.toFixed(1)}%
+                </span>
+                {" · "}
+                <span className="negative">
+                  錯 {stats.lossPercent.toFixed(1)}%
+                </span>
+                {stats.push > 0 ? (
+                  <small> · 走盤 {stats.push}</small>
+                ) : null}
+              </span>
+            ) : (
+              <span className="muted">
+                {settled === 0 ? "尚未有數據" : "樣本不足"}
+              </span>
+            )}
+          </div>
+        </header>
+
+        {rows.length === 0 ? (
+          <div className="performance-detail__empty">
+            <p>呢個盤口暫時未有已結算結果</p>
+            <button
+              className="secondary-button"
+              onClick={() => setSelectedMarket(null)}
+            >
+              返回總覽
+            </button>
+          </div>
+        ) : (
+          <div className="performance-detail__table-wrap">
+            <table className="performance-detail__table">
+              <thead>
+                <tr>
+                  <th>對賽</th>
+                  <th>開賽</th>
+                  <th>揀邊</th>
+                  <th>結果</th>
+                  <th>比分</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const settlement = formatSettlementLabel(row.settlement);
+                  const teams =
+                    row.homeTeam && row.awayTeam
+                      ? `${row.homeTeam} vs ${row.awayTeam}`
+                      : row.matchId;
+                  return (
+                    <tr key={row.id}>
+                      <td>{teams}</td>
+                      <td>
+                        <time dateTime={row.commenceTime}>
+                          {formatKickoff(row.commenceTime)}
+                        </time>
+                      </td>
+                      <td>{formatPrediction(row.prediction, row.line)}</td>
+                      <td
+                        className={`settlement settlement--${row.settlement ?? "pending"}`}
+                      >
+                        {settlement.label}
+                      </td>
+                      <td>{row.score || "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    );
+  }
 
   return (
     <section className="performance-page" aria-labelledby="performance-title">
-      <h1 id="performance-title" className="page-heading">模型表現</h1>
+      <h1 id="performance-title" className="page-heading">
+        模型表現
+      </h1>
       <div className="performance-grid">
-        {markets.map(({ key, label, modelVersion }) => {
+        {READINESS_MODELS.map(({ market, label, modelVersion }) => {
           const readiness = props.readiness.find(
-            (r) => r.market === key && r.modelVersion === modelVersion
+            (r) => r.market === market && r.modelVersion === modelVersion
           );
-          const stats = props.historyStats.get(key);
+          const stats = props.historyStats.get(market);
           const settled = readiness?.settledMatches ?? 0;
-          const percent = Math.min(100, Math.round((settled / READINESS_TARGET) * 100));
-          const hasStats = stats !== undefined && (stats.win + stats.loss) > 0;
+          const percent = Math.min(
+            100,
+            Math.round((settled / READINESS_TARGET) * 100)
+          );
+          const hasStats = stats !== undefined && stats.win + stats.loss > 0;
 
           return (
-            <article className="performance-card" key={key}>
+            <button
+              className="performance-card"
+              key={market}
+              onClick={() => setSelectedMarket(market)}
+              type="button"
+            >
               <div className="performance-card__head">
                 <h2>{label}</h2>
                 <span className="performance-card__count">
@@ -54,9 +227,13 @@ export function PerformancePage(props: {
               </div>
               {hasStats ? (
                 <p className="performance-card__accuracy">
-                  <span className="positive">中 {stats.winPercent.toFixed(1)}%</span>
+                  <span className="positive">
+                    中 {stats.winPercent.toFixed(1)}%
+                  </span>
                   {" · "}
-                  <span className="negative">錯 {stats.lossPercent.toFixed(1)}%</span>
+                  <span className="negative">
+                    錯 {stats.lossPercent.toFixed(1)}%
+                  </span>
                   {stats.push > 0 ? (
                     <small> · 走盤 {stats.push}</small>
                   ) : null}
@@ -66,7 +243,10 @@ export function PerformancePage(props: {
                   {settled === 0 ? "尚未有數據" : "樣本不足"}
                 </p>
               )}
-            </article>
+              <span className="performance-card__chevron" aria-hidden="true">
+                ›
+              </span>
+            </button>
           );
         })}
       </div>

@@ -292,6 +292,154 @@
   color: var(--color-muted);
 }
 
+/* Performance card clickable affordance */
+.performance-card {
+  cursor: pointer;
+  position: relative;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.performance-card__chevron {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  color: var(--color-muted);
+  font-size: 1.4rem;
+  font-weight: 300;
+  line-height: 1;
+}
+
+/* Performance detail */
+.performance-detail__header {
+  display: grid;
+  gap: 8px;
+}
+
+.performance-detail__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  padding: 4px 0;
+  border: none;
+  background: none;
+  color: var(--color-primary-text);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.performance-detail__back:hover {
+  color: var(--color-text);
+}
+
+.performance-detail__summary {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 10px 14px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.performance-detail__count {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+}
+
+.performance-detail__accuracy {
+  font-size: 0.95rem;
+}
+
+.performance-detail__accuracy small {
+  color: var(--color-muted);
+}
+
+.performance-detail__table-wrap {
+  overflow-x: auto;
+}
+
+.performance-detail__table {
+  width: 100%;
+  min-width: 0;
+  border-collapse: collapse;
+}
+
+.performance-detail__table th,
+.performance-detail__table td {
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.performance-detail__table th {
+  color: var(--color-muted);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.performance-detail__table td {
+  color: var(--color-text);
+  font-size: 0.9rem;
+}
+
+.performance-detail__table td:first-child {
+  white-space: normal;
+  min-width: 160px;
+}
+
+/* Settlement badges */
+.settlement {
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.settlement--win {
+  color: var(--color-positive-text);
+}
+
+.settlement--half-win {
+  color: var(--color-positive-text);
+}
+
+.settlement--push {
+  color: var(--color-muted);
+}
+
+.settlement--half-loss {
+  color: var(--color-negative-text);
+}
+
+.settlement--loss {
+  color: var(--color-negative-text);
+}
+
+.settlement--pending {
+  color: var(--color-muted);
+  opacity: 0.5;
+}
+
+/* Performance detail empty state */
+.performance-detail__empty {
+  display: grid;
+  place-items: center;
+  gap: 14px;
+  min-height: 140px;
+  padding: 32px 16px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-card);
+  color: var(--color-muted);
+  text-align: center;
+}
+
 /* Empty state */
 .today-empty {
   text-align: center;

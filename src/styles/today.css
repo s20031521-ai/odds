@@ -289,7 +289,8 @@
 }
 
 .performance-card__accuracy.muted {
-  color: var(--color-muted);
+  color: #4a403a;
+  font-weight: 600;
 }
 
 /* Performance card clickable affordance */
@@ -396,35 +397,54 @@
   min-width: 160px;
 }
 
-/* Settlement badges */
+/* Settlement badges — solid surface + dark text for contrast on cream UI */
 .settlement {
-  font-weight: 700;
-  font-size: 0.85rem;
+  display: inline-block;
+  min-width: 2.25rem;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-weight: 800;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  text-align: center;
+  border: 1px solid transparent;
 }
 
 .settlement--win {
-  color: var(--color-positive-text);
+  color: #0f3d28;
+  background: #b8ebcf;
+  border-color: #7fcfa9;
 }
 
 .settlement--half-win {
-  color: var(--color-positive-text);
+  color: #0f3d28;
+  background: #e0f5e9;
+  border-color: #9ed9b8;
 }
 
 .settlement--push {
-  color: var(--color-muted);
+  color: #4a3f18;
+  background: #ffe9a8;
+  border-color: #e0c060;
 }
 
 .settlement--half-loss {
-  color: var(--color-negative-text);
+  color: #7a2e2e;
+  background: #fde0e0;
+  border-color: #f2a0a0;
 }
 
 .settlement--loss {
-  color: var(--color-negative-text);
+  color: #5c1f1f;
+  background: #f5b8b8;
+  border-color: #e07878;
 }
 
 .settlement--pending {
-  color: var(--color-muted);
-  opacity: 0.5;
+  color: #3d3530;
+  background: #ebe4dc;
+  border-color: #d4c8bc;
+  opacity: 1;
 }
 
 /* Performance detail empty state */
@@ -434,9 +454,11 @@
   gap: 14px;
   min-height: 140px;
   padding: 32px 16px;
-  border: 1px dashed var(--color-border);
+  border: 1px dashed #c9b8a8;
   border-radius: var(--radius-card);
-  color: var(--color-muted);
+  background: var(--color-surface);
+  color: #3d3530;
+  font-weight: 600;
   text-align: center;
 }
 

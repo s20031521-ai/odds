@@ -4,15 +4,11 @@ import {
   filterLegacySampleEntries,
   sortFixturesByBestEdge,
   upcomingFixtures,
-  type AnalysisRow,
   type AnalyzerSettings,
   type ManualEntry,
 } from "./odds";
 import { dataLoadStateAfter, dataLoadWarning, type DataLoadState } from "./dataHealth";
 
-import { buildTotalsCards, type TotalsMarketEntry } from "./oddsApi";
-import { buildHandicapCards, type HandicapEntry } from "./handicap";
-import { cornerPickLabel } from "./marketDisplay";
 
 import { pageFromHash } from "./route";
 import type { Page } from "./route";
@@ -121,9 +117,6 @@ function App() {
   const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | undefined>(undefined);
 
   const [entries, setEntries] = useState<ManualEntry[]>(initialEntries);
-  const [totalEntries, setTotalEntries] = useState<TotalsMarketEntry[]>([]);
-  const [cornerEntries, setCornerEntries] = useState<TotalsMarketEntry[]>([]);
-  const [handicapEntries, setHandicapEntries] = useState<HandicapEntry[]>([]);
   const [resultEntries, setResultEntries] = useState<ResultEntry[]>([]);
   const [readiness, setReadiness] = useState<ModelReadiness[]>([]);
   const [dataLoads, setDataLoads] = useState<DataLoadState>({ hkjc: null, hdc: null });
@@ -196,9 +189,6 @@ function App() {
     setAuth({ authenticated: false });
     setCsrfToken("");
     setEntries(initialEntries);
-    setTotalEntries([]);
-    setCornerEntries([]);
-    setHandicapEntries([]);
     setResultEntries([]);
     setRecordedOpportunities([]);
     setRecommendationsGeneratedAt(null);
@@ -227,12 +217,6 @@ function App() {
   const fixtures = useMemo(() => upcomingFixtures(entries), [entries]);
   const dashboardFixtures = useMemo(() => sortFixturesByBestEdge(fixtures, rows), [fixtures, rows]);
 
-  const totalCards = useMemo(() => buildTotalsCards(totalEntries, settings.edgeThreshold), [totalEntries, settings.edgeThreshold]);
-  const cornerCards = useMemo(() => buildTotalsCards(cornerEntries, settings.edgeThreshold).map((card) => ({
-    ...card,
-    pickLabel: cornerPickLabel(card.pickLabel, card.bookmakerCount),
-  })), [cornerEntries, settings.edgeThreshold]);
-  const handicapCards = useMemo(() => buildHandicapCards(handicapEntries, settings.edgeThreshold), [handicapEntries, settings.edgeThreshold]);
 
   const recommendationsTrusted = canShowActiveOpportunities(connectivity, recommendationsLoaded);
   const activeRecordedOpportunities = recommendationsTrusted ? recordedOpportunities : [];
@@ -336,9 +320,6 @@ function App() {
       // market shapes before they touch component state.
       const normalized = normalizeLiveOddsPayload(payload);
       setEntries((current) => mergeById(current, normalized.entries));
-      setHandicapEntries((current) => mergeById(current, normalized.handicapEntries));
-      setTotalEntries((current) => mergeById(current, normalized.totalEntries));
-      setCornerEntries((current) => mergeById(current, normalized.cornerEntries));
       // The unified live feed carries both HKJC and external provider rows,
       // so one successful fetch freshens both tracked sources.
       setDataLoads((current) => dataLoadStateAfter(dataLoadStateAfter(current, "hkjc", true), "hdc", true));

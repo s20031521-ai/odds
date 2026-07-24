@@ -7,8 +7,8 @@
   height: 100%;
   object-fit: cover;
   pointer-events: none;
-  /* 50% transparent so wallpaper is visible but does not overpower UI */
-  opacity: 0.5;
+  /* 20% transparent (80% opaque) — table panels already protect text contrast */
+  opacity: 0.8;
 }
 
 .application-shell {

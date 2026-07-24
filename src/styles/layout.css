@@ -7,11 +7,14 @@
   height: 100%;
   object-fit: cover;
   pointer-events: none;
+  /* 50% transparent so wallpaper is visible but does not overpower UI */
+  opacity: 0.5;
 }
 
 .application-shell {
   min-height: 100vh;
   color: var(--color-text);
+  /* Keep base cream behind the faded wallpaper (all pages via AppShell) */
   background: var(--color-bg);
 }
 

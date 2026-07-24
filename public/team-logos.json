@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-22T01:17:49.814Z",
+  "generatedAt": "2026-07-24T01:18:07.712Z",
   "teams": {
     "AC Oulu": {
       "id": 2077,
@@ -101,6 +101,14 @@
     "Bayswater City": {
       "id": 3814,
       "logo": "/team-logos/3814.png"
+    },
+    "Belgium": {
+      "id": 1,
+      "logo": "/team-logos/1.png"
+    },
+    "Benfica": {
+      "id": 211,
+      "logo": "/team-logos/211.png"
     },
     "Cumberland Utd": {
       "id": 10009,

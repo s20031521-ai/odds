@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatSettlementLabel, formatPrediction } from "./PerformancePage";
+import { formatSettlementLabel, formatPrediction, formatMatchLabel } from "./PerformancePage";
 
 describe("formatSettlementLabel", () => {
   it('maps "win" to 中', () => {
@@ -32,6 +32,31 @@ describe("formatSettlementLabel", () => {
 
   it("returns — for unknown values", () => {
     expect(formatSettlementLabel("unknown")).toEqual({ label: "—" });
+  });
+});
+
+describe("formatMatchLabel", () => {
+  it("prefers Chinese team names when present", () => {
+    expect(formatMatchLabel({
+      matchId: "id-1",
+      homeTeam: "Home EN",
+      awayTeam: "Away EN",
+      homeTeamZh: "主隊",
+      awayTeamZh: "客隊",
+    })).toBe("主隊 vs 客隊");
+  });
+
+  it("falls back to English team names", () => {
+    expect(formatMatchLabel({
+      matchId: "id-1",
+      homeTeam: "Independiente Santa Fe",
+      awayTeam: "Caracas FC",
+    })).toBe("Independiente Santa Fe vs Caracas FC");
+  });
+
+  it("falls back to matchId when teams are missing", () => {
+    expect(formatMatchLabel({ matchId: "50da7304e542212cdbbf589d62987844" }))
+      .toBe("50da7304e542212cdbbf589d62987844");
   });
 });
 

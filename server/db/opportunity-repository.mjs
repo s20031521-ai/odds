@@ -163,6 +163,8 @@ export function createOpportunityRepository(db) {
         SELECT snapshot.id, snapshot.raw, snapshot.fixture_id,
                snapshot.strategy_version, snapshot.first_qualified_at,
                snapshot.last_qualified_at, fixture.commence_time AS registry_commence_time,
+               fixture.home_team AS registry_home_team,
+               fixture.away_team AS registry_away_team,
                COALESCE(
                  jsonb_agg(
                    jsonb_build_object(
@@ -183,16 +185,23 @@ export function createOpportunityRepository(db) {
         GROUP BY snapshot.id, fixture.id
         ORDER BY snapshot.id
       `);
-      return result.rows.map((row) => ({
-        ...row.raw,
-        sampleId: row.id,
-        fixtureId: row.fixture_id ?? row.raw.fixtureId,
-        ...(row.registry_commence_time ? { commenceTime: isoOrNull(row.registry_commence_time) } : {}),
-        strategyVersion: row.strategy_version ?? "legacy-v0",
-        firstQualifiedAt: isoOrNull(row.first_qualified_at),
-        lastQualifiedAt: isoOrNull(row.last_qualified_at),
-        observations: row.observations,
-      }));
+      return result.rows.map((row) => {
+        const raw = row.raw ?? {};
+        const homeTeam = nonEmptyText(row.registry_home_team) ?? nonEmptyText(raw.homeTeam);
+        const awayTeam = nonEmptyText(row.registry_away_team) ?? nonEmptyText(raw.awayTeam);
+        return {
+          ...raw,
+          sampleId: row.id,
+          fixtureId: row.fixture_id ?? raw.fixtureId,
+          ...(row.registry_commence_time ? { commenceTime: isoOrNull(row.registry_commence_time) } : {}),
+          ...(homeTeam ? { homeTeam } : {}),
+          ...(awayTeam ? { awayTeam } : {}),
+          strategyVersion: row.strategy_version ?? "legacy-v0",
+          firstQualifiedAt: isoOrNull(row.first_qualified_at),
+          lastQualifiedAt: isoOrNull(row.last_qualified_at),
+          observations: row.observations,
+        };
+      });
     },
   };
 }
@@ -301,6 +310,10 @@ function timestampOrNull(value) {
 
 function isoOrNull(value) {
   return value instanceof Date ? value.toISOString() : value ?? null;
+}
+
+function nonEmptyText(value) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function finiteOrNull(value) {

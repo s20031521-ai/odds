@@ -52,6 +52,8 @@ export function buildBacktest(snapshots, results, now = Date.now()) {
     return matches.map((snapshot) => {
       const settlement = settleResult(snapshot, row);
       if (isUnifiedOpportunity(snapshot)) return unifiedPerformanceRow(snapshot, row, settlement);
+      const homeTeam = nonEmptyTeam(snapshot.homeTeam) ?? nonEmptyTeam(row.homeTeam);
+      const awayTeam = nonEmptyTeam(snapshot.awayTeam) ?? nonEmptyTeam(row.awayTeam);
       return {
         ...row,
         id: `${row.id ?? `${row.matchId}-${row.market}`}|${snapshotIdentity(snapshot)}`,
@@ -67,6 +69,8 @@ export function buildBacktest(snapshots, results, now = Date.now()) {
         snapshotStatus: "valid-current",
         modelVersion: snapshot.modelVersion,
         source: snapshot.source,
+        ...(homeTeam ? { homeTeam } : {}),
+        ...(awayTeam ? { awayTeam } : {}),
         settlement,
         hit: settlementHit(settlement),
       };
@@ -119,6 +123,10 @@ function unifiedPerformanceRow(snapshot, result, settlement) {
   const quotes = qualifyingQuotes(snapshot);
   const quoteRange = oddsRange(quotes);
   const bestQuote = quotes.toSorted(compareQuotes)[0];
+  const homeTeam = nonEmptyTeam(snapshot.homeTeam) ?? nonEmptyTeam(result.homeTeam);
+  const awayTeam = nonEmptyTeam(snapshot.awayTeam) ?? nonEmptyTeam(result.awayTeam);
+  const homeTeamZh = nonEmptyTeam(snapshot.homeTeamZh) ?? nonEmptyTeam(result.homeTeamZh);
+  const awayTeamZh = nonEmptyTeam(snapshot.awayTeamZh) ?? nonEmptyTeam(result.awayTeamZh);
   return {
     ...result,
     id: `${result.id ?? `${result.fixtureId ?? result.matchId}-${result.market}`}|${unifiedOpportunityIdentity(snapshot)}`,
@@ -140,6 +148,10 @@ function unifiedPerformanceRow(snapshot, result, settlement) {
     modelVersion: snapshot.modelVersion,
     strategyVersion: UNIFIED_STRATEGY_VERSION,
     source: "unified-sampler",
+    ...(homeTeam ? { homeTeam } : {}),
+    ...(awayTeam ? { awayTeam } : {}),
+    ...(homeTeamZh ? { homeTeamZh } : {}),
+    ...(awayTeamZh ? { awayTeamZh } : {}),
     quoteRange,
     unitProfitRange: quoteRange && PERFORMANCE_SETTLEMENTS.has(settlement)
       ? profitRange(settlement, quotes)
@@ -148,6 +160,10 @@ function unifiedPerformanceRow(snapshot, result, settlement) {
     settlement,
     hit: settlementHit(settlement),
   };
+}
+
+function nonEmptyTeam(value) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 function summarizeUnifiedReadiness(snapshots, rows, finished, results, now) {

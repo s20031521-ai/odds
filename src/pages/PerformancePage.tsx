@@ -23,8 +23,10 @@ type HistoryStats = {
 type ResultEntry = {
   id: string;
   matchId: string;
-  homeTeam: string;
-  awayTeam: string;
+  homeTeam?: string;
+  awayTeam?: string;
+  homeTeamZh?: string;
+  awayTeamZh?: string;
   commenceTime: string;
   score: string;
   market: string;
@@ -33,6 +35,15 @@ type ResultEntry = {
   settlement?: "win" | "half-win" | "push" | "half-loss" | "loss";
   modelVersion?: string;
 };
+
+/** Prefer zh labels; fall back to English; only then raw matchId. */
+export function formatMatchLabel(row: Pick<ResultEntry, "homeTeam" | "awayTeam" | "homeTeamZh" | "awayTeamZh" | "matchId">): string {
+  const home = (row.homeTeamZh || row.homeTeam || "").trim();
+  const away = (row.awayTeamZh || row.awayTeam || "").trim();
+  if (home && away) return `${home} vs ${away}`;
+  if (home || away) return home || away;
+  return row.matchId || "—";
+}
 
 export function formatSettlementLabel(
   settlement: string | undefined | null
@@ -161,13 +172,9 @@ export function PerformancePage(props: {
               <tbody>
                 {rows.map((row) => {
                   const settlement = formatSettlementLabel(row.settlement);
-                  const teams =
-                    row.homeTeam && row.awayTeam
-                      ? `${row.homeTeam} vs ${row.awayTeam}`
-                      : row.matchId;
                   return (
                     <tr key={row.id}>
-                      <td>{teams}</td>
+                      <td>{formatMatchLabel(row)}</td>
                       <td>
                         <time dateTime={row.commenceTime}>
                           {formatKickoff(row.commenceTime)}

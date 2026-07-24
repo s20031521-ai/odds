@@ -300,6 +300,25 @@ test("settles unified opportunities independently with return ranges and distinc
   assert.equal(response.readiness.some((row) => row.strategyVersion !== "unified-buyable-v1"), false);
 });
 
+test("unified performance rows prefer snapshot team names when the result lacks them", () => {
+  const snapshot = unifiedOpportunity({
+    sampleId: 91,
+    market: "h2h",
+    selection: "away",
+    line: undefined,
+    modelVersion: "consensus-v1",
+    homeTeam: "Independiente Santa Fe",
+    awayTeam: "Caracas FC",
+  });
+  const response = buildBacktest([snapshot], [
+    { fixtureId: "fixture-1", matchId: "50da7304e542212cdbbf589d62987844", market: "h2h", actual: "0-2" },
+  ], NOW);
+  const row = response.rows.find((item) => item.sampleId === 91);
+  assert.equal(row.homeTeam, "Independiente Santa Fe");
+  assert.equal(row.awayTeam, "Caracas FC");
+  assert.equal(row.settlement, "win");
+});
+
 test("one fixture score settles every unified selection and line using regulation-time markets", () => {
   const snapshots = [
     unifiedOpportunity({ sampleId: 11, market: "h2h", selection: "home", line: undefined, modelVersion: "consensus-v1" }),

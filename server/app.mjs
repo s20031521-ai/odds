@@ -11,6 +11,7 @@ const PREDICTION_BODY_LIMIT = 1024 * 1024;
 
 export function createApp({ repositories, auth, publicOrigin, trustedProxyCidrs = [], readinessCheck = async () => ({ ok: true }), clock = () => new Date(), logger = console } = {}) {
   if (!repositories?.snapshots || !repositories?.results || !repositories?.odds || !repositories?.opportunities) throw new TypeError("repositories are required");
+  if (!repositories?.bets) throw new TypeError("repositories.bets is required");
   if (!auth) throw new TypeError("auth is required");
   if (typeof publicOrigin !== "string" || !publicOrigin) throw new TypeError("publicOrigin is required");
 
@@ -38,6 +39,8 @@ export function createApp({ repositories, auth, publicOrigin, trustedProxyCidrs 
       if (route === "GET /api/v1/recommendations/current") return await handleCurrentRecommendations(res, repositories, clock);
       if (route === "GET /api/v1/predictions/observations") return await handlePredictionObservations(res, repositories, url);
       if (route === "POST /api/v1/predictions") return await handlePredictions(req, res, { repositories, auth, session, publicOrigin });
+      if (route === "GET /api/v1/bets") return await handleBetsList(res, repositories, session);
+      if (route === "POST /api/v1/bets") return await handleBetsCreate(req, res, { repositories, auth, session, publicOrigin });
 
       return safeError(res, 404, "not_found");
     } catch (error) {
@@ -236,5 +239,56 @@ const ROUTES = new Map([
   ["/api/v1/recommendations/current", new Set(["GET"])],
   ["/api/v1/predictions/observations", new Set(["GET"])],
   ["/api/v1/predictions", new Set(["POST"])],
+  ["/api/v1/bets", new Set(["GET", "POST"])],
   ["/internal/health/ready", new Set(["GET"])],
 ]);
+
+async function handleBetsList(res, repositories, session) {
+  const bets = await repositories.bets.listByOwner(session.ownerId);
+  const summary = summarizeBets(bets);
+  return json(res, 200, { bets, summary });
+}
+
+async function handleBetsCreate(req, res, { repositories, auth, session, publicOrigin }) {
+  if (!await verifyMutationSecurity({ req, auth, session, publicOrigin })) return safeError(res, 403, "forbidden");
+  const body = await readJsonBody(req, { limitBytes: 16 * 1024 });
+  if (!body || typeof body.market !== "string" || typeof body.selection !== "string"
+    || typeof body.odds !== "number" || typeof body.stake !== "number"
+    || body.stake <= 0 || !Number.isFinite(body.odds) || body.odds <= 1) {
+    return safeError(res, 400, "bad_request");
+  }
+  const bet = await repositories.bets.create(session.ownerId, {
+    fixtureId: body.fixtureId,
+    matchId: body.matchId,
+    sampleId: body.sampleId,
+    homeTeam: body.homeTeam,
+    homeTeamZh: body.homeTeamZh,
+    awayTeam: body.awayTeam,
+    awayTeamZh: body.awayTeamZh,
+    commenceTime: body.commenceTime,
+    market: body.market,
+    selection: body.selection,
+    line: body.line,
+    odds: body.odds,
+    stake: body.stake,
+    source: body.source ?? "manual",
+  });
+  return json(res, 201, { bet });
+}
+
+function summarizeBets(bets) {
+  const settled = bets.filter((b) => b.settlement !== "pending");
+  const win = settled.filter((b) => b.settlement === "win" || b.settlement === "half-win").length;
+  const loss = settled.filter((b) => b.settlement === "loss" || b.settlement === "half-loss").length;
+  const push = settled.filter((b) => b.settlement === "push").length;
+  const decided = win + loss;
+  return {
+    total: bets.length,
+    settled: settled.length,
+    pending: bets.length - settled.length,
+    win,
+    loss,
+    push,
+    hitRate: decided > 0 ? Math.round((win / decided) * 1000) / 10 : null,
+  };
+}

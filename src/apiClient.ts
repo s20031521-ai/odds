@@ -234,6 +234,53 @@ export type BacktestResponse = {
   snapshotQuality?: BacktestSnapshotQuality;
 };
 
+export type BetResponse = {
+  id: string;
+  fixture_id: string | null;
+  match_id: string | null;
+  home_team: string | null;
+  away_team: string | null;
+  commence_time: string | null;
+  market: string;
+  selection: string;
+  line: string | null;
+  odds: string;
+  stake: string;
+  settlement: string;
+  source: string;
+  created_at: string;
+};
+
+export type BetsListResponse = {
+  bets: BetResponse[];
+  summary: {
+    total: number;
+    settled: number;
+    pending: number;
+    win: number;
+    loss: number;
+    push: number;
+    hitRate: number | null;
+  };
+};
+
+export type BetCreateRequest = {
+  fixtureId?: string;
+  matchId?: string;
+  sampleId?: number;
+  homeTeam?: string;
+  homeTeamZh?: string;
+  awayTeam?: string;
+  awayTeamZh?: string;
+  commenceTime?: string;
+  market: string;
+  selection: string;
+  line?: number;
+  odds: number;
+  stake: number;
+  source?: string;
+};
+
 export type PredictionSaveResponse = {
   inserted: number;
   duplicate: number;
@@ -270,6 +317,12 @@ export function createApiClient(fetchImpl: FetchLike = fetch) {
       method: "POST",
       csrfToken,
       body: snapshots,
+    }),
+    bets: () => request<BetsListResponse>(fetchImpl, "/api/v1/bets"),
+    createBet: (csrfToken: string, bet: BetCreateRequest) => request<{ bet: BetResponse }>(fetchImpl, "/api/v1/bets", {
+      method: "POST",
+      csrfToken,
+      body: bet,
     }),
   });
 }

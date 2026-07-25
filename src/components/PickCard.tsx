@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { BuyableOpportunity } from "../apiClient";
+import type { BetCreateRequest, BuyableOpportunity } from "../apiClient";
 import { BuyableOddsRange, type ObservationLoader } from "./BuyableOddsRange";
 import { TeamLogo, type TeamLogoMap } from "./TeamLogo";
 
@@ -22,6 +22,7 @@ export function PickCard(props: {
   opportunity: BuyableOpportunity;
   logos: TeamLogoMap;
   loadObservations?: ObservationLoader;
+  onBet?: (prefill: Partial<BetCreateRequest>) => void;
 }): React.ReactElement {
   const { opportunity, logos } = props;
   const [expanded, setExpanded] = useState(false);
@@ -55,6 +56,28 @@ export function PickCard(props: {
       {expanded ? (
         <div className="pick-card__details">
           <BuyableOddsRange opportunity={opportunity} loadObservations={props.loadObservations} />
+        </div>
+      ) : null}
+      {props.onBet ? (
+        <div className="pick-card__bet">
+          <button className="secondary-button compact" type="button"
+            onClick={() => props.onBet?.({
+              fixtureId: opportunity.fixtureId,
+              matchId: opportunity.matchId,
+              sampleId: opportunity.sampleId,
+              homeTeam: opportunity.homeTeam,
+              homeTeamZh: opportunity.homeTeamZh,
+              awayTeam: opportunity.awayTeam,
+              awayTeamZh: opportunity.awayTeamZh,
+              commenceTime: opportunity.commenceTime,
+              market: opportunity.market,
+              selection: opportunity.selection,
+              line: opportunity.line,
+              odds: opportunity.bestQuote?.odds,
+              source: "today_card",
+            })}>
+            我有買
+          </button>
         </div>
       ) : null}
     </article>

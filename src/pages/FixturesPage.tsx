@@ -1,6 +1,7 @@
 import { formatFixtureDayHeading } from "../dashboard";
 import { TeamLogo, type TeamLogoMap } from "../components/TeamLogo";
 import { formatKickoff } from "../components/PickCard";
+import type { BetCreateRequest } from "../apiClient";
 import { Mascot } from "../components/Kawaii";
 
 type Fixture = {
@@ -36,6 +37,7 @@ function groupFixturesByDate(fixtures: Fixture[]): Array<{ label: string; fixtur
 export function FixturesPage(props: {
   fixtures: Fixture[];
   logos: TeamLogoMap;
+  onBet?: (prefill: Partial<BetCreateRequest>) => void;
 }): React.ReactElement {
   const groups = groupFixturesByDate(props.fixtures);
 
@@ -60,6 +62,20 @@ export function FixturesPage(props: {
                     <TeamLogo teamName={fixture.awayTeam} logos={props.logos} />
                   </span>
                   <time dateTime={fixture.commenceTime}>{formatKickoff(fixture.commenceTime)}</time>
+                  {props.onBet ? (
+                    <button className="secondary-button compact" type="button"
+                      onClick={() => props.onBet?.({
+                        matchId: fixture.matchId,
+                        homeTeam: fixture.homeTeam,
+                        homeTeamZh: fixture.homeTeamZh,
+                        awayTeam: fixture.awayTeam,
+                        awayTeamZh: fixture.awayTeamZh,
+                        commenceTime: fixture.commenceTime,
+                        source: "fixtures",
+                      })}>
+                      我有買
+                    </button>
+                  ) : null}
                 </li>
               ))}
             </ul>

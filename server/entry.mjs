@@ -13,6 +13,7 @@ import { createOpportunityRepository } from "./db/opportunity-repository.mjs";
 import { createPool } from "./db/pool.mjs";
 import { createResultRepository } from "./db/result-repository.mjs";
 import { createSnapshotRepository } from "./db/snapshot-repository.mjs";
+import { createBetRepository } from "./db/bet-repository.mjs";
 import { buildBacktest } from "./domain/backtest.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -55,6 +56,7 @@ const repositories = {
   snapshots: createSnapshotRepository(pool),
   results: createResultRepository(pool),
   odds: createOddsRepository(pool),
+  bets: createBetRepository(pool),
 };
 const auth = createAuthService({
   pool,

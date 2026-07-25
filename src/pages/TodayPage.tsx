@@ -1,4 +1,5 @@
 import type { BuyableOpportunity } from "../apiClient";
+import type { BetCreateRequest } from "../apiClient";
 import type { ObservationLoader } from "../components/BuyableOddsRange";
 import { EmptyState } from "../components/EmptyState";
 import { FreshnessBar } from "../components/FreshnessBar";
@@ -17,6 +18,7 @@ export function LandingPage(props: {
   logos: TeamLogoMap;
   now?: number;
   loadObservations?: ObservationLoader;
+  onBet?: (prefill: Partial<BetCreateRequest>) => void;
 }): React.ReactElement {
   const now = props.now ?? Date.now();
   const active = props.dataFresh ? props.opportunities : [];
@@ -45,6 +47,7 @@ export function LandingPage(props: {
               opportunity={opportunity}
               logos={props.logos}
               loadObservations={props.loadObservations}
+              onBet={props.onBet}
             />
           ))}
         </div>

@@ -17,6 +17,9 @@ import { LoginPage } from "./pages/LoginPage";
 import { LandingPage } from "./pages/TodayPage";
 import { FixturesPage } from "./pages/FixturesPage";
 import { PerformancePage } from "./pages/PerformancePage";
+import { BetsPage } from "./pages/BetsPage";
+import { BetForm } from "./components/BetForm";
+import type { BetCreateRequest } from "./apiClient";
 import { Mascot } from "./components/Kawaii";
 import { startCurrentRecommendationsRefresh } from "./currentRecommendations";
 import { normalizeLiveOddsPayload } from "./liveOddsMapping";
@@ -117,6 +120,9 @@ function App() {
   const [recommendationsGeneratedAt, setRecommendationsGeneratedAt] = useState<string | null>(null);
   const [recommendationsLoaded, setRecommendationsLoaded] = useState(false);
   const [backtestLoaded, setBacktestLoaded] = useState(false);
+  const [betPrefill, setBetPrefill] = useState<Partial<BetCreateRequest> | null>(null);
+  const [betSaving, setBetSaving] = useState(false);
+  const [betError, setBetError] = useState<string | null>(null);
 
   const hdcRefreshRunning = useRef(false);
   const backtestAutoLoadStarted = useRef(false);
@@ -318,6 +324,23 @@ function App() {
     }
   }
 
+  async function handleCreateBet(bet: BetCreateRequest) {
+    setBetSaving(true);
+    setBetError(null);
+    try {
+      await apiClient.createBet(csrfToken, bet);
+      setBetPrefill(null);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        clearAuthenticatedState();
+        return;
+      }
+      setBetError(error instanceof Error ? error.message : "儲存失敗");
+    } finally {
+      setBetSaving(false);
+    }
+  }
+
   if (authLoading) {
     return (
       <div className="app-loading" role="status">
@@ -342,8 +365,10 @@ function App() {
     <AppShell route={page} dataWarning={dataWarning} onLogout={handleLogout}>
       {page === "performance" ? (
         <PerformancePage readiness={readiness} historyStats={historyStatsByMarket} results={resultEntries} pending={pendingEntries} />
+      ) : page === "bets" ? (
+        <BetsPage loadBets={() => apiClient.bets()} onCreateBet={handleCreateBet} />
       ) : page === "fixtures" ? (
-        <FixturesPage fixtures={dashboardFixtures} logos={teamLogos} />
+        <FixturesPage fixtures={dashboardFixtures} logos={teamLogos} onBet={setBetPrefill} />
       ) : (
         <LandingPage
           opportunities={activeRecordedOpportunities}
@@ -352,8 +377,23 @@ function App() {
           dataFresh={recommendationsTrusted}
           logos={teamLogos}
           loadObservations={loadRecommendationObservations}
+          onBet={setBetPrefill}
         />
       )}
+
+      {betPrefill ? (
+        <div className="bet-modal-overlay" onClick={() => { if (!betSaving) setBetPrefill(null); }}>
+          <div className="bet-modal" onClick={(e) => e.stopPropagation()}>
+            <BetForm
+              prefill={betPrefill}
+              onSave={handleCreateBet}
+              onCancel={() => setBetPrefill(null)}
+              saving={betSaving}
+            />
+            {betError ? <p className="notice error">{betError}</p> : null}
+          </div>
+        </div>
+      ) : null}
     </AppShell>
   );
 }

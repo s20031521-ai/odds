@@ -8,6 +8,7 @@ const APP_VERSION = packageJson.version;
 const navigationItems = [
   { route: "today", href: "#/today", label: "今日" },
   { route: "fixtures", href: "#/fixtures", label: "賽程" },
+  { route: "bets", href: "#/bets", label: "注單" },
   { route: "performance", href: "#/performance", label: "表現" },
 ] as const;
 

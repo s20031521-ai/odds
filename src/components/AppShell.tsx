@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
+import packageJson from "../../package.json";
 import type { Page } from "../route";
 import { Mascot } from "./Kawaii";
+
+const APP_VERSION = packageJson.version;
 
 const navigationItems = [
   { route: "today", href: "#/today", label: "今日" },
@@ -20,6 +23,9 @@ function Navigation(props: { route: Page }) {
           </li>
         ))}
       </ul>
+      <span className="app-navigation__version" title={`v${APP_VERSION}`}>
+        v{APP_VERSION}
+      </span>
     </nav>
   );
 }

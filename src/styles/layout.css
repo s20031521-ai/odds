@@ -7,7 +7,7 @@
   height: 100%;
   object-fit: cover;
   pointer-events: none;
-  /* 20% transparent (80% opaque) — table panels already protect text contrast */
+  /* 20% transparent (80% opaque) ??table panels already protect text contrast */
   opacity: 0.8;
 }
 
@@ -67,6 +67,20 @@
   list-style: none;
   max-width: 400px;
   margin-inline: auto;
+}
+
+.app-navigation__version {
+  position: absolute;
+  right: 10px;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  color: var(--color-muted);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  opacity: 0.55;
+  pointer-events: none;
+  user-select: none;
 }
 
 .app-navigation a {

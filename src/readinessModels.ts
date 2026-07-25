@@ -1,10 +1,13 @@
+import type { MarketKey } from "./market";
+import { MARKET_LABELS } from "./market";
+
 export const READINESS_MODELS: Array<{
-  market: string;
+  market: MarketKey;
   label: string;
   modelVersion: string;
 }> = [
-  { market: "totals", label: "大細波", modelVersion: "totals-loo-v1" },
-  { market: "corners", label: "角球", modelVersion: "corner-loo-v1" },
-  { market: "handicap", label: "讓球", modelVersion: "hdc-loo-v2" },
-  { market: "h2h", label: "主客和", modelVersion: "consensus-v1" },
+  { market: "totals", label: MARKET_LABELS.totals, modelVersion: "totals-loo-v1" },
+  { market: "corners", label: MARKET_LABELS.corners, modelVersion: "corner-loo-v1" },
+  { market: "handicap", label: MARKET_LABELS.handicap, modelVersion: "hdc-loo-v2" },
+  { market: "h2h", label: MARKET_LABELS.h2h, modelVersion: "consensus-v1" },
 ];

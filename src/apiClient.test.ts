@@ -105,7 +105,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 function snapshot(): PredictionSnapshot {
   return {
     matchId: "m1",
-    market: "大細波",
+    market: "totals",
     prediction: "大",
     savedAt: "2026-07-18T00:00:00.000Z",
     commenceTime: "2026-07-18T10:00:00.000Z",

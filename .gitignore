@@ -1,3 +1,13 @@
 node_modules
 dist
 .env.local
+.ssh-key
+*.tar.gz
+test-results/
+data/priority-*
+scripts/tmp-*
+webbridge-req-*
+debug-migrate.sh
+run-migration-debug.mjs
+skills-lock.json
+Users/

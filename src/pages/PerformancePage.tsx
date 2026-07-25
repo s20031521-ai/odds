@@ -2,6 +2,28 @@ import { useState } from "react";
 import { Mascot } from "../components/Kawaii";
 import { formatKickoff } from "../components/PickCard";
 import { READINESS_MODELS } from "../readinessModels";
+import type { MarketKey } from "../market";
+
+type PendingEntry = {
+  id: string;
+  matchId: string;
+  market: string;
+  prediction: string;
+  line: number | null;
+  odds: number | null;
+  commenceTime: string | null;
+  status: "unknown" | "upcoming" | "settling" | "overdue";
+  modelVersion?: string;
+};
+
+function formatPendingStatus(status: string): { label: string } {
+  switch (status) {
+    case "upcoming": return { label: "未開賽" };
+    case "settling": return { label: "結算中" };
+    case "overdue": return { label: "逾期" };
+    default: return { label: "未知" };
+  }
+}
 
 const READINESS_TARGET = 30;
 
@@ -75,8 +97,10 @@ export function PerformancePage(props: {
   readiness: ModelReadiness[];
   historyStats: Map<string, HistoryStats>;
   results: ResultEntry[];
+  pending: PendingEntry[];
 }): React.ReactElement {
-  const [selectedMarket, setSelectedMarket] = useState<string | null>(null);
+  const [selectedMarket, setSelectedMarket] = useState<MarketKey | null>(null);
+  const [detailTab, setDetailTab] = useState<"settled" | "pending">("settled");
 
   const model =
     selectedMarket === null
@@ -105,6 +129,23 @@ export function PerformancePage(props: {
         if (Number.isNaN(tb)) return -1;
         return tb - ta;
       });
+
+    const pendingRows = props.pending
+      .filter(
+        (r) =>
+          r.market === selectedMarket &&
+          r.modelVersion === model.modelVersion
+      )
+      .sort((a, b) => {
+        const ta = Date.parse(a.commenceTime ?? "");
+        const tb = Date.parse(b.commenceTime ?? "");
+        if (Number.isNaN(ta) && Number.isNaN(tb)) return 0;
+        if (Number.isNaN(ta)) return 1;
+        if (Number.isNaN(tb)) return -1;
+        return tb - ta;
+      });
+
+    const pendingCount = pendingRows.length;
 
     return (
       <section
@@ -147,6 +188,23 @@ export function PerformancePage(props: {
           </div>
         </header>
 
+        <nav className="performance-detail__tabs">
+          <button
+            className={detailTab === "settled" ? "active" : ""}
+            onClick={() => setDetailTab("settled")}
+          >
+            已結算
+          </button>
+          <button
+            className={detailTab === "pending" ? "active" : ""}
+            onClick={() => setDetailTab("pending")}
+          >
+            未結算{pendingCount > 0 ? ` (${pendingCount})` : ""}
+          </button>
+        </nav>
+
+        {detailTab === "settled" ? (
+          <>
         {rows.length === 0 ? (
           <div className="performance-detail__empty">
             <p>呢個盤口暫時未有已結算結果</p>
@@ -194,6 +252,54 @@ export function PerformancePage(props: {
             </table>
           </div>
         )}
+          </>
+        ) : (
+          <>
+        {pendingRows.length === 0 ? (
+          <div className="performance-detail__empty">
+            <p>呢個盤口暫時未有未結算記錄</p>
+          </div>
+        ) : (
+          <div className="performance-detail__table-wrap">
+            <table className="performance-detail__table">
+              <thead>
+                <tr>
+                  <th>賽事 ID</th>
+                  <th>開賽</th>
+                  <th>揀邊</th>
+                  <th>賠率</th>
+                  <th>狀態</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pendingRows.map((row) => {
+                  const status = formatPendingStatus(row.status);
+                  return (
+                    <tr key={row.id}>
+                      <td>{row.matchId}</td>
+                      <td>
+                        {row.commenceTime ? (
+                          <time dateTime={row.commenceTime}>
+                            {formatKickoff(row.commenceTime)}
+                          </time>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td>{formatPrediction(row.prediction, row.line ?? undefined)}</td>
+                      <td>{row.odds !== null ? row.odds.toFixed(2) : "—"}</td>
+                      <td className={`settlement settlement--${row.status}`}>
+                        {status.label}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+          </>
+        )}
       </section>
     );
   }
@@ -220,7 +326,7 @@ export function PerformancePage(props: {
             <button
               className="performance-card"
               key={market}
-              onClick={() => setSelectedMarket(market)}
+              onClick={() => { setSelectedMarket(market); setDetailTab("settled"); }}
               type="button"
             >
               <div className="performance-card__head">

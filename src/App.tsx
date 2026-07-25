@@ -12,7 +12,7 @@ import type { Page } from "./route";
 import { AppShell } from "./components/AppShell";
 import { TeamLogo, type TeamLogoMap } from "./components/TeamLogo";
 import { canShowActiveOpportunities, useConnectivityState } from "./pwa";
-import { ApiError, createApiClient, type BuyableOpportunity, type PredictionObservationsResponse, type SessionState } from "./apiClient";
+import { ApiError, createApiClient, type BacktestPendingRow, type BuyableOpportunity, type PredictionObservationsResponse, type SessionState } from "./apiClient";
 import { LoginPage } from "./pages/LoginPage";
 import { LandingPage } from "./pages/TodayPage";
 import { FixturesPage } from "./pages/FixturesPage";
@@ -21,7 +21,6 @@ import { Mascot } from "./components/Kawaii";
 import { startCurrentRecommendationsRefresh } from "./currentRecommendations";
 import { normalizeLiveOddsPayload } from "./liveOddsMapping";
 import { READINESS_MODELS } from "./readinessModels";
-
 export { READINESS_MODELS };
 
 type ModelReadiness = {
@@ -111,6 +110,7 @@ function App() {
 
   const [entries, setEntries] = useState<ManualEntry[]>(initialEntries);
   const [resultEntries, setResultEntries] = useState<ResultEntry[]>([]);
+  const [pendingEntries, setPendingEntries] = useState<BacktestPendingRow[]>([]);
   const [readiness, setReadiness] = useState<ModelReadiness[]>([]);
   const [dataLoads, setDataLoads] = useState<DataLoadState>({ hkjc: null, hdc: null });
   const [recordedOpportunities, setRecordedOpportunities] = useState<BuyableOpportunity[]>([]);
@@ -176,6 +176,7 @@ function App() {
     setCsrfToken("");
     setEntries(initialEntries);
     setResultEntries([]);
+    setPendingEntries([]);
     setRecordedOpportunities([]);
     setRecommendationsGeneratedAt(null);
     setRecommendationsLoaded(false);
@@ -282,6 +283,7 @@ function App() {
       const body = await apiClient.backtest();
       if (!Array.isArray(body?.rows)) return;
       setResultEntries((body.rows as unknown[]).filter(isResultEntry));
+      setPendingEntries(Array.isArray(body.pending) ? body.pending : []);
       setReadiness(Array.isArray(body.readiness) ? body.readiness.filter(isModelReadiness) : []);
       setBacktestLoaded(true);
     } catch (error) {
@@ -339,7 +341,7 @@ function App() {
   return (
     <AppShell route={page} dataWarning={dataWarning} onLogout={handleLogout}>
       {page === "performance" ? (
-        <PerformancePage readiness={readiness} historyStats={historyStatsByMarket} results={resultEntries} />
+        <PerformancePage readiness={readiness} historyStats={historyStatsByMarket} results={resultEntries} pending={pendingEntries} />
       ) : page === "fixtures" ? (
         <FixturesPage fixtures={dashboardFixtures} logos={teamLogos} />
       ) : (

@@ -1,7 +1,9 @@
 /** Body for POST /api/v1/predictions (client no longer builds local snapshots). */
+import type { MarketKey } from "./market";
+
 export type PredictionSnapshot = {
   matchId: string;
-  market: string;
+  market: MarketKey;
   prediction: string;
   side?: "主" | "客";
   savedAt: string;
@@ -58,7 +60,7 @@ export type BuyableOpportunity = {
   league?: string;
   leagueZh?: string;
   commenceTime: string;
-  market: "h2h" | "totals" | "corners" | "handicap";
+  market: MarketKey;
   selection: "home" | "draw" | "away" | "over" | "under";
   line?: number;
   modelVersion: string;

@@ -19,7 +19,11 @@ import { FixturesPage } from "./pages/FixturesPage";
 import { PerformancePage } from "./pages/PerformancePage";
 import { BetsPage } from "./pages/BetsPage";
 import { BetForm } from "./components/BetForm";
-import { finishedPicksFromResultRows, type FixturePick } from "./fixtureSearch";
+import {
+  buildFinishedFixturePicks,
+  normalizeCatalogResultRow,
+  type FixturePick,
+} from "./fixtureSearch";
 import type { BetCreateRequest } from "./apiClient";
 import { Mascot } from "./components/Kawaii";
 import { startCurrentRecommendationsRefresh } from "./currentRecommendations";
@@ -114,6 +118,17 @@ function App() {
 
   const [entries, setEntries] = useState<ManualEntry[]>(initialEntries);
   const [resultEntries, setResultEntries] = useState<ResultEntry[]>([]);
+  /** Raw completed matches from GET /api/v1/results (picker catalog). */
+  const [catalogResultRows, setCatalogResultRows] = useState<Array<{
+    matchId: string;
+    homeTeam?: string;
+    awayTeam?: string;
+    homeTeamZh?: string;
+    awayTeamZh?: string;
+    commenceTime?: string | null;
+    score?: string;
+    fixtureId?: string;
+  }>>([]);
   const [pendingEntries, setPendingEntries] = useState<BacktestPendingRow[]>([]);
   const [readiness, setReadiness] = useState<ModelReadiness[]>([]);
   const [dataLoads, setDataLoads] = useState<DataLoadState>({ hkjc: null, hdc: null });
@@ -183,6 +198,7 @@ function App() {
     setCsrfToken("");
     setEntries(initialEntries);
     setResultEntries([]);
+    setCatalogResultRows([]);
     setPendingEntries([]);
     setRecordedOpportunities([]);
     setRecommendationsGeneratedAt(null);
@@ -211,9 +227,10 @@ function App() {
   const dashboardFixtures = useMemo(() => upcomingFixtures(entries), [entries]);
 
   /**
-   * Bet form search pools (grill 2026-07-26):
+   * Bet form search pools (grill UX 2026-07-26):
    * - 未完 = live upcoming only
-   * - 已完場 = backtest settled rows (deduped by matchId; matchId-only OK)
+   * - 已完場 = results catalog; hasModel from backtest matchIds
+   *   empty search = last 3d + hasModel; typed search = full catalog + aliases
    */
   const betFixtures = useMemo((): FixturePick[] => {
     const upcoming: FixturePick[] = dashboardFixtures.map((f) => ({
@@ -226,9 +243,10 @@ function App() {
       league: f.league,
       status: "upcoming" as const,
     }));
-    const finished = finishedPicksFromResultRows(resultEntries);
+    const modelMatchIds = resultEntries.map((r) => r.matchId).filter(Boolean);
+    const finished = buildFinishedFixturePicks(catalogResultRows, modelMatchIds);
     return [...upcoming, ...finished];
-  }, [dashboardFixtures, resultEntries]);
+  }, [dashboardFixtures, catalogResultRows, resultEntries]);
 
   const recommendationsTrusted = canShowActiveOpportunities(connectivity, recommendationsLoaded);
   const activeRecordedOpportunities = recommendationsTrusted ? recordedOpportunities : [];
@@ -292,6 +310,7 @@ function App() {
     if (!backtestAutoLoadStarted.current) {
       backtestAutoLoadStarted.current = true;
       void loadBacktest();
+      void loadCatalogResults();
     }
   }, [auth.authenticated]);
 
@@ -303,6 +322,17 @@ function App() {
     }, HDC_REFRESH_MS);
     return () => window.clearInterval(timer);
   }, [auth.authenticated]);
+
+  async function loadCatalogResults() {
+    try {
+      const body = await apiClient.results();
+      const raw = Array.isArray(body?.resultEntries) ? body.resultEntries : [];
+      const rows = raw.map(normalizeCatalogResultRow).filter((row): row is NonNullable<typeof row> => row !== null);
+      setCatalogResultRows(rows);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
+    }
+  }
 
   async function loadBacktest() {
     if (backtestLoaded) return;

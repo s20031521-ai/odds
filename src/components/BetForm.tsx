@@ -19,6 +19,7 @@ function fixtureMetaLine(f: FixturePick): string {
   if (f.commenceTime) parts.push(formatKickoff(f.commenceTime));
   if (f.status === "finished" && f.score) parts.push(f.score);
   if (f.status === "finished") parts.push("已完場");
+  if (f.hasModel) parts.push("模型");
   if (parts.length === 0 && f.matchId) parts.push(f.matchId);
   return parts.join(" · ");
 }
@@ -52,7 +53,7 @@ export function BetForm(props: {
     [fixtures],
   );
   const hits = useMemo(
-    () => filterFixturePicks(fixtures, query, LIST_LIMIT, listTab),
+    () => filterFixturePicks(fixtures, query, { limit: LIST_LIMIT }, listTab),
     [fixtures, query, listTab],
   );
   const hasAnyFixtures = fixtures.length > 0;
@@ -152,14 +153,16 @@ export function BetForm(props: {
                   className="bet-form__fixture-search"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={listTab === "finished" ? "搜已完場隊名／賽事 ID…" : "搜隊名／賽事 ID…"}
+                  placeholder={listTab === "finished" ? "搜隊名（中／英）／賽事 ID…" : "搜隊名／賽事 ID…"}
                   autoComplete="off"
                   aria-label="搜尋賽事"
                 />
                 {hits.length === 0 ? (
                   <p className="muted bet-form__fixture-empty">
                     {listTab === "finished"
-                      ? (query.trim() ? "搵唔到相符已完場" : "暫時未有已完場可揀（要等模型表現有結算）")
+                      ? (query.trim()
+                        ? "搵唔到相符已完場（可試英文隊名，例如 KuPS）"
+                        : "最近 3 日暫未有模型結算；打隊名可搜全部完場（例如 古比斯）")
                       : (query.trim() ? "搵唔到相符賽事" : "暫時未有未完賽事")}
                   </p>
                 ) : (

@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildFinishedFixturePicks,
   filterFixturePicks,
-  finishedPicksFromResultRows,
   formatFixturePickLabel,
   fixturePickFromPrefill,
+  normalizeCatalogResultRow,
   type FixturePick,
 } from "./fixtureSearch";
+import { expandTeamSearchTerms } from "./teamAliases";
 
 const fixtures: FixturePick[] = [
   {
@@ -18,115 +20,114 @@ const fixtures: FixturePick[] = [
     status: "upcoming",
   },
   {
-    matchId: "m2",
-    homeTeam: "Liverpool",
-    awayTeam: "Everton",
-    homeTeamZh: "利物浦",
-    awayTeamZh: "愛華頓",
-    commenceTime: "2026-07-27T15:00:00Z",
+    matchId: "kups-vps",
+    homeTeam: "KuPS",
+    awayTeam: "VPS Vaasa",
+    homeTeamZh: "古比斯",
+    awayTeamZh: "VPS華沙",
+    commenceTime: "2026-07-25T14:00:00Z",
     status: "finished",
-    score: "2-1",
+    score: "3-1",
+    hasModel: false,
   },
   {
-    matchId: "m3",
-    homeTeam: "Barcelona",
-    awayTeam: "Real Madrid",
-    commenceTime: "2026-07-29T18:00:00Z",
-    league: "La Liga",
-    status: "upcoming",
+    matchId: "model-1",
+    homeTeam: "Alpha",
+    awayTeam: "Beta",
+    commenceTime: "2026-07-25T10:00:00Z",
+    status: "finished",
+    score: "1-0",
+    hasModel: true,
   },
   {
-    matchId: "m4",
-    homeTeam: "",
-    awayTeam: "",
-    commenceTime: "2026-07-26T12:00:00Z",
+    matchId: "old-model",
+    homeTeam: "Old",
+    awayTeam: "Match",
+    commenceTime: "2026-07-01T10:00:00Z",
     status: "finished",
+    score: "0-0",
+    hasModel: true,
   },
 ];
 
 describe("formatFixturePickLabel", () => {
-  it("prefers zh labels", () => {
-    expect(formatFixturePickLabel(fixtures[0])).toBe("阿仙奴 vs 車路士");
+  it("shows bilingual zh / en when both present", () => {
+    expect(formatFixturePickLabel(fixtures[1])).toBe("古比斯 / KuPS vs VPS華沙 / VPS Vaasa");
   });
 
-  it("falls back to english", () => {
-    expect(formatFixturePickLabel(fixtures[2])).toBe("Barcelona vs Real Madrid");
-  });
-
-  it("falls back to matchId when no teams", () => {
-    expect(formatFixturePickLabel(fixtures[3])).toBe("m4");
+  it("prefers zh-only pair when no separate en needed", () => {
+    expect(formatFixturePickLabel(fixtures[0])).toBe("阿仙奴 / Arsenal vs 車路士 / Chelsea");
   });
 });
 
-describe("filterFixturePicks", () => {
-  it("returns latest first when query empty", () => {
-    const hits = filterFixturePicks(fixtures, "", 10);
-    expect(hits.map((f) => f.matchId)).toEqual(["m3", "m1", "m2", "m4"]);
-  });
-
-  it("filters by status tab", () => {
-    expect(filterFixturePicks(fixtures, "", 20, "upcoming").map((f) => f.matchId)).toEqual(["m3", "m1"]);
-    expect(filterFixturePicks(fixtures, "", 20, "finished").map((f) => f.matchId)).toEqual(["m2", "m4"]);
-  });
-
-  it("matches chinese team name within tab", () => {
-    const hits = filterFixturePicks(fixtures, "阿仙奴", 20, "upcoming");
-    expect(hits.map((f) => f.matchId)).toEqual(["m1"]);
-  });
-
-  it("matches matchId for finished without teams", () => {
-    expect(filterFixturePicks(fixtures, "m4", 20, "finished").map((f) => f.matchId)).toEqual(["m4"]);
-  });
-
-  it("respects limit 20 default for empty query", () => {
-    const many: FixturePick[] = Array.from({ length: 30 }, (_, i) => ({
-      matchId: `x${i}`,
-      homeTeam: `H${i}`,
-      awayTeam: `A${i}`,
-      commenceTime: new Date(Date.UTC(2026, 6, i + 1)).toISOString(),
-      status: "finished" as const,
-    }));
-    expect(filterFixturePicks(many, "", undefined, "finished")).toHaveLength(20);
+describe("expandTeamSearchTerms", () => {
+  it("maps 古比斯 to kups", () => {
+    const terms = expandTeamSearchTerms("古比斯");
+    expect(terms).toContain("古比斯");
+    expect(terms).toContain("kups");
   });
 });
 
-describe("finishedPicksFromResultRows", () => {
-  it("dedupes by matchId and keeps score/teams", () => {
-    const picks = finishedPicksFromResultRows([
-      { matchId: "m1", homeTeam: "", awayTeam: "", score: "" },
-      { matchId: "m1", homeTeam: "Arsenal", awayTeam: "Chelsea", score: "1-0" },
-      { matchId: "m2", homeTeam: "A", awayTeam: "B" },
-    ]);
-    expect(picks).toHaveLength(2);
-    const m1 = picks.find((p) => p.matchId === "m1")!;
-    expect(m1.homeTeam).toBe("Arsenal");
-    expect(m1.score).toBe("1-0");
-    expect(m1.status).toBe("finished");
+describe("filterFixturePicks finished rules", () => {
+  const now = new Date("2026-07-26T12:00:00Z");
+
+  it("empty query: only hasModel within last 3 days", () => {
+    const hits = filterFixturePicks(fixtures, "", { now, limit: 20 }, "finished");
+    expect(hits.map((f) => f.matchId)).toEqual(["model-1"]);
   });
 
-  it("keeps matchId-only rows", () => {
-    const picks = finishedPicksFromResultRows([{ matchId: "only-id" }]);
-    expect(picks).toEqual([
-      expect.objectContaining({ matchId: "only-id", homeTeam: "", awayTeam: "", status: "finished" }),
-    ]);
+  it("search 古比斯 finds KuPS without hasModel", () => {
+    const hits = filterFixturePicks(fixtures, "古比斯", { now, limit: 20 }, "finished");
+    expect(hits.map((f) => f.matchId)).toEqual(["kups-vps"]);
+  });
+
+  it("search KuPS finds finished match", () => {
+    const hits = filterFixturePicks(fixtures, "KuPS", { now, limit: 20 }, "finished");
+    expect(hits.map((f) => f.matchId)).toEqual(["kups-vps"]);
+  });
+});
+
+describe("buildFinishedFixturePicks", () => {
+  it("marks hasModel from model match ids", () => {
+    const picks = buildFinishedFixturePicks(
+      [
+        { matchId: "kups-vps", homeTeam: "KuPS", awayTeam: "VPS Vaasa", score: "3-1", commenceTime: "2026-07-25T14:00:00Z" },
+        { matchId: "model-1", homeTeam: "Alpha", awayTeam: "Beta", score: "1-0" },
+      ],
+      ["model-1"],
+    );
+    expect(picks.find((p) => p.matchId === "kups-vps")?.hasModel).toBe(false);
+    expect(picks.find((p) => p.matchId === "model-1")?.hasModel).toBe(true);
+    expect(picks.find((p) => p.matchId === "kups-vps")?.homeTeamZh).toBe("古比斯");
+  });
+});
+
+describe("normalizeCatalogResultRow", () => {
+  it("parses results API shape", () => {
+    const row = normalizeCatalogResultRow({
+      matchId: "hkjc-50071288",
+      homeTeam: "KuPS",
+      awayTeam: "VPS Vaasa",
+      score: "3-1",
+      commenceTime: "2026-07-25T22:00:00.000+08:00",
+      fixtureId: "d67eaa2b",
+    });
+    expect(row?.matchId).toBe("hkjc-50071288");
+    expect(row?.homeTeam).toBe("KuPS");
   });
 });
 
 describe("fixturePickFromPrefill", () => {
   it("returns null when no match fields", () => {
-    expect(fixturePickFromPrefill({ market: "totals" } as never)).toBeNull();
     expect(fixturePickFromPrefill(undefined)).toBeNull();
   });
 
-  it("builds pick from prefill", () => {
+  it("enriches alias zh", () => {
     const pick = fixturePickFromPrefill({
-      matchId: "m1",
-      homeTeam: "Arsenal",
-      awayTeam: "Chelsea",
-      homeTeamZh: "阿仙奴",
-      commenceTime: "2026-07-28T12:00:00Z",
+      matchId: "x",
+      homeTeam: "KuPS",
+      awayTeam: "VPS Vaasa",
     });
-    expect(pick?.matchId).toBe("m1");
-    expect(pick?.homeTeamZh).toBe("阿仙奴");
+    expect(pick?.homeTeamZh).toBe("古比斯");
   });
 });

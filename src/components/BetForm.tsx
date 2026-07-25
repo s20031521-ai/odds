@@ -6,10 +6,22 @@ import {
   formatFixturePickLabel,
   fixturePickFromPrefill,
   type FixturePick,
+  type FixturePickStatus,
 } from "../fixtureSearch";
 import { formatKickoff } from "./PickCard";
 
 export type { FixturePick };
+
+const LIST_LIMIT = 20;
+
+function fixtureMetaLine(f: FixturePick): string {
+  const parts: string[] = [];
+  if (f.commenceTime) parts.push(formatKickoff(f.commenceTime));
+  if (f.status === "finished" && f.score) parts.push(f.score);
+  if (f.status === "finished") parts.push("已完場");
+  if (parts.length === 0 && f.matchId) parts.push(f.matchId);
+  return parts.join(" · ");
+}
 
 export function BetForm(props: {
   prefill?: Partial<BetCreateRequest>;
@@ -22,16 +34,28 @@ export function BetForm(props: {
   const [selected, setSelected] = useState<FixturePick | null>(initialPick);
   const [query, setQuery] = useState("");
   const [picking, setPicking] = useState(!initialPick);
+  const [listTab, setListTab] = useState<FixturePickStatus>(
+    initialPick?.status === "finished" ? "finished" : "upcoming",
+  );
   const [market, setMarket] = useState<MarketKey | "">((props.prefill?.market as MarketKey) ?? "");
   const [selection, setSelection] = useState(props.prefill?.selection ?? "");
   const [odds, setOdds] = useState(String(props.prefill?.odds ?? ""));
   const [stake, setStake] = useState(String(props.prefill?.stake ?? ""));
 
   const fixtures = props.fixtures ?? [];
-  const hits = useMemo(
-    () => filterFixturePicks(fixtures, query, 12),
-    [fixtures, query],
+  const upcomingCount = useMemo(
+    () => fixtures.filter((f) => (f.status ?? "upcoming") === "upcoming").length,
+    [fixtures],
   );
+  const finishedCount = useMemo(
+    () => fixtures.filter((f) => f.status === "finished").length,
+    [fixtures],
+  );
+  const hits = useMemo(
+    () => filterFixturePicks(fixtures, query, LIST_LIMIT, listTab),
+    [fixtures, query, listTab],
+  );
+  const hasAnyFixtures = fixtures.length > 0;
 
   const selectionOptions = market === "totals" || market === "corners"
     ? [{ value: "over", label: "大" }, { value: "under", label: "細" }]
@@ -48,6 +72,12 @@ export function BetForm(props: {
   function clearFixture() {
     setSelected(null);
     setPicking(true);
+    setQuery("");
+    setListTab("upcoming");
+  }
+
+  function switchTab(tab: FixturePickStatus) {
+    setListTab(tab);
     setQuery("");
   }
 
@@ -71,7 +101,7 @@ export function BetForm(props: {
       selection,
       odds: Number(odds),
       stake: Number(stake),
-      source: props.prefill?.source ?? (selected ? "manual" : "manual"),
+      source: props.prefill?.source ?? "manual",
     });
   }
 
@@ -83,11 +113,9 @@ export function BetForm(props: {
           <div className="bet-form__fixture-selected">
             <div className="bet-form__fixture-selected-text">
               <strong>{formatFixturePickLabel(selected)}</strong>
-              {selected.commenceTime ? (
-                <span className="subtext">{formatKickoff(selected.commenceTime)}</span>
-              ) : null}
+              <span className="subtext">{fixtureMetaLine(selected)}</span>
             </div>
-            {fixtures.length > 0 ? (
+            {hasAnyFixtures ? (
               <button type="button" className="secondary-button compact" onClick={clearFixture}>
                 更改
               </button>
@@ -95,25 +123,49 @@ export function BetForm(props: {
           </div>
         ) : (
           <div className="bet-form__fixture-picker">
-            {fixtures.length === 0 ? (
+            {!hasAnyFixtures ? (
               <p className="muted bet-form__fixture-empty">暫無已知賽程可揀，可直接填盤口（無 link）</p>
             ) : (
               <>
+                <div className="bet-form__fixture-tabs" role="tablist" aria-label="賽事狀態">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={listTab === "upcoming"}
+                    className={listTab === "upcoming" ? "active" : undefined}
+                    onClick={() => switchTab("upcoming")}
+                  >
+                    未完{upcomingCount > 0 ? ` (${upcomingCount})` : ""}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={listTab === "finished"}
+                    className={listTab === "finished" ? "active" : undefined}
+                    onClick={() => switchTab("finished")}
+                  >
+                    已完場{finishedCount > 0 ? ` (${finishedCount})` : ""}
+                  </button>
+                </div>
                 <input
                   type="search"
                   className="bet-form__fixture-search"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="搜隊名／賽事 ID…"
+                  placeholder={listTab === "finished" ? "搜已完場隊名／賽事 ID…" : "搜隊名／賽事 ID…"}
                   autoComplete="off"
                   aria-label="搜尋賽事"
                 />
                 {hits.length === 0 ? (
-                  <p className="muted bet-form__fixture-empty">搵唔到相符賽事</p>
+                  <p className="muted bet-form__fixture-empty">
+                    {listTab === "finished"
+                      ? (query.trim() ? "搵唔到相符已完場" : "暫時未有已完場可揀（要等模型表現有結算）")
+                      : (query.trim() ? "搵唔到相符賽事" : "暫時未有未完賽事")}
+                  </p>
                 ) : (
                   <ul className="bet-form__fixture-list" role="listbox" aria-label="賽事結果">
                     {hits.map((f) => (
-                      <li key={f.matchId || `${f.homeTeam}-${f.awayTeam}-${f.commenceTime}`}>
+                      <li key={`${f.status ?? "upcoming"}-${f.matchId || `${f.homeTeam}-${f.awayTeam}-${f.commenceTime}`}`}>
                         <button
                           type="button"
                           className="bet-form__fixture-option"
@@ -121,9 +173,7 @@ export function BetForm(props: {
                           role="option"
                         >
                           <span className="bet-form__fixture-option-name">{formatFixturePickLabel(f)}</span>
-                          <span className="subtext">
-                            {f.commenceTime ? formatKickoff(f.commenceTime) : f.matchId}
-                          </span>
+                          <span className="subtext">{fixtureMetaLine(f)}</span>
                         </button>
                       </li>
                     ))}

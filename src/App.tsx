@@ -19,7 +19,7 @@ import { FixturesPage } from "./pages/FixturesPage";
 import { PerformancePage } from "./pages/PerformancePage";
 import { BetsPage } from "./pages/BetsPage";
 import { BetForm } from "./components/BetForm";
-import type { FixturePick } from "./fixtureSearch";
+import { finishedPicksFromResultRows, type FixturePick } from "./fixtureSearch";
 import type { BetCreateRequest } from "./apiClient";
 import { Mascot } from "./components/Kawaii";
 import { startCurrentRecommendationsRefresh } from "./currentRecommendations";
@@ -210,46 +210,25 @@ function App() {
   // Kickoff order only — FixturesPage re-sorts by commenceTime; 即將開賽 is a strip, not edge ranking.
   const dashboardFixtures = useMemo(() => upcomingFixtures(entries), [entries]);
 
-  /** Fixtures available for bet form search/link (upcoming + known results). */
+  /**
+   * Bet form search pools (grill 2026-07-26):
+   * - 未完 = live upcoming only
+   * - 已完場 = backtest settled rows (deduped by matchId; matchId-only OK)
+   */
   const betFixtures = useMemo((): FixturePick[] => {
-    const map = new Map<string, FixturePick>();
-    for (const f of dashboardFixtures) {
-      map.set(f.matchId, {
-        matchId: f.matchId,
-        homeTeam: f.homeTeam,
-        awayTeam: f.awayTeam,
-        homeTeamZh: f.homeTeamZh,
-        awayTeamZh: f.awayTeamZh,
-        commenceTime: f.commenceTime,
-        league: f.league,
-      });
-    }
-    for (const r of resultEntries) {
-      if (map.has(r.matchId)) continue;
-      if (!r.homeTeam && !r.awayTeam) continue;
-      map.set(r.matchId, {
-        matchId: r.matchId,
-        homeTeam: r.homeTeam,
-        awayTeam: r.awayTeam,
-        commenceTime: r.commenceTime,
-      });
-    }
-    for (const o of recordedOpportunities) {
-      const matchId = o.matchId?.trim() || o.fixtureId;
-      if (!matchId || map.has(matchId)) continue;
-      if (!o.homeTeam && !o.awayTeam) continue;
-      map.set(matchId, {
-        matchId,
-        fixtureId: o.fixtureId,
-        homeTeam: o.homeTeam ?? "",
-        awayTeam: o.awayTeam ?? "",
-        homeTeamZh: o.homeTeamZh,
-        awayTeamZh: o.awayTeamZh,
-        commenceTime: o.commenceTime ?? "",
-      });
-    }
-    return [...map.values()];
-  }, [dashboardFixtures, resultEntries, recordedOpportunities]);
+    const upcoming: FixturePick[] = dashboardFixtures.map((f) => ({
+      matchId: f.matchId,
+      homeTeam: f.homeTeam,
+      awayTeam: f.awayTeam,
+      homeTeamZh: f.homeTeamZh,
+      awayTeamZh: f.awayTeamZh,
+      commenceTime: f.commenceTime,
+      league: f.league,
+      status: "upcoming" as const,
+    }));
+    const finished = finishedPicksFromResultRows(resultEntries);
+    return [...upcoming, ...finished];
+  }, [dashboardFixtures, resultEntries]);
 
   const recommendationsTrusted = canShowActiveOpportunities(connectivity, recommendationsLoaded);
   const activeRecordedOpportunities = recommendationsTrusted ? recordedOpportunities : [];

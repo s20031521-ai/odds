@@ -1,3 +1,5 @@
+import { insertPersonalBetSample, settlePersonalBet } from "../domain/personal-bet-sample.mjs";
+
 export function createBetRepository(db) {
   return {
     async create(ownerId, bet) {
@@ -24,6 +26,76 @@ export function createBetRepository(db) {
         [ownerId],
       );
       return result.rows;
+    },
+
+    /** Bets not yet promoted into prediction_snapshots. */
+    async listWithoutSample(ownerId) {
+      const result = await db.query(
+        `SELECT * FROM bet_slips
+         WHERE owner_id = $1 AND sample_id IS NULL
+         ORDER BY created_at ASC`,
+        [ownerId],
+      );
+      return result.rows;
+    },
+
+    async listPending(ownerId) {
+      const result = await db.query(
+        `SELECT * FROM bet_slips
+         WHERE owner_id = $1 AND settlement = 'pending'
+         ORDER BY created_at ASC`,
+        [ownerId],
+      );
+      return result.rows;
+    },
+
+    async setSampleId(betId, sampleId) {
+      const result = await db.query(
+        `UPDATE bet_slips SET sample_id = $2, updated_at = now()
+         WHERE id = $1 RETURNING *`,
+        [betId, sampleId],
+      );
+      return result.rows[0] ?? null;
+    },
+
+    async setSettlement(betId, settlement) {
+      const result = await db.query(
+        `UPDATE bet_slips
+         SET settlement = $2, settled_at = now(), updated_at = now()
+         WHERE id = $1 AND settlement = 'pending'
+         RETURNING *`,
+        [betId, settlement],
+      );
+      return result.rows[0] ?? null;
+    },
+
+    /**
+     * Promote a personal bet into prediction_snapshots (sample) if not yet linked.
+     * Returns updated bet row.
+     */
+    async ensureSample(bet) {
+      if (!bet) return bet;
+      if (bet.sample_id != null) return bet;
+      const sampleId = await insertPersonalBetSample(db, bet);
+      return await this.setSampleId(bet.id, sampleId);
+    },
+
+    /**
+     * Try to settle pending bets that have a match_id against results.
+     * findResultsByMatchId(matchId) => Promise<resultRaw[]>
+     */
+    async settlePendingWithResults(ownerId, findResultsByMatchId) {
+      const pending = await this.listPending(ownerId);
+      const updated = [];
+      for (const bet of pending) {
+        if (!bet.match_id) continue;
+        const results = await findResultsByMatchId(bet.match_id);
+        const settlement = settlePersonalBet(bet, results);
+        if (!settlement) continue;
+        const row = await this.setSettlement(bet.id, settlement);
+        if (row) updated.push(row);
+      }
+      return updated;
     },
   };
 }

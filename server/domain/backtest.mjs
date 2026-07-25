@@ -384,6 +384,11 @@ function settleResult(snapshot, result) {
   return terminal ?? settle(snapshot, result?.actual);
 }
 
+/** Public settle helper for personal bets and other callers. */
+export function settleAgainstActual(snapshot, actual) {
+  return settle(snapshot, actual);
+}
+
 function settle(snapshot, actual) {
   const market = canonicalMarket(snapshot.market);
   const selection = canonicalSelection(snapshot.selection ?? snapshot.prediction);

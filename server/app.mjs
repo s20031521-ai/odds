@@ -244,6 +244,15 @@ const ROUTES = new Map([
 ]);
 
 async function handleBetsList(res, repositories, session) {
+  // Backfill: every real bet is a sample; promote any slips missing sample_id.
+  await ensurePersonalBetSamples(repositories, session.ownerId);
+  // Lazy settle pending slips that already have results.
+  if (typeof repositories.results?.listByMatchId === "function") {
+    await repositories.bets.settlePendingWithResults(
+      session.ownerId,
+      (matchId) => repositories.results.listByMatchId(matchId),
+    );
+  }
   const bets = await repositories.bets.listByOwner(session.ownerId);
   const summary = summarizeBets(bets);
   return json(res, 200, { bets, summary });
@@ -257,7 +266,7 @@ async function handleBetsCreate(req, res, { repositories, auth, session, publicO
     || body.stake <= 0 || !Number.isFinite(body.odds) || body.odds <= 1) {
     return safeError(res, 400, "bad_request");
   }
-  const bet = await repositories.bets.create(session.ownerId, {
+  let bet = await repositories.bets.create(session.ownerId, {
     fixtureId: body.fixtureId,
     matchId: body.matchId,
     sampleId: body.sampleId,
@@ -273,7 +282,34 @@ async function handleBetsCreate(req, res, { repositories, auth, session, publicO
     stake: body.stake,
     source: body.source ?? "manual",
   });
+  // Real money bet → always promote into prediction_snapshots sample pool.
+  if (typeof repositories.bets.ensureSample === "function") {
+    bet = await repositories.bets.ensureSample(bet) ?? bet;
+  }
+  // If result already exists (e.g. finished match), settle immediately.
+  if (bet?.match_id && typeof repositories.results?.listByMatchId === "function"
+    && typeof repositories.bets.settlePendingWithResults === "function") {
+    await repositories.bets.settlePendingWithResults(
+      session.ownerId,
+      (matchId) => repositories.results.listByMatchId(matchId),
+    );
+    const refreshed = await repositories.bets.listByOwner(session.ownerId);
+    bet = refreshed.find((row) => row.id === bet.id) ?? bet;
+  }
   return json(res, 201, { bet });
+}
+
+async function ensurePersonalBetSamples(repositories, ownerId) {
+  if (typeof repositories.bets.listWithoutSample !== "function") return;
+  if (typeof repositories.bets.ensureSample !== "function") return;
+  const missing = await repositories.bets.listWithoutSample(ownerId);
+  for (const bet of missing) {
+    try {
+      await repositories.bets.ensureSample(bet);
+    } catch {
+      // don't block list on sample promote failure
+    }
+  }
 }
 
 function summarizeBets(bets) {

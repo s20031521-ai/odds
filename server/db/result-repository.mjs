@@ -47,6 +47,16 @@ export function createResultRepository(db) {
       const result = await db.query("SELECT raw FROM results");
       return result.rows.map(({ raw }) => raw);
     },
+
+    async listByMatchId(matchId) {
+      if (typeof matchId !== "string" || !matchId.trim()) return [];
+      const result = await db.query(
+        `SELECT raw FROM results
+         WHERE match_id = $1 OR raw->>'matchId' = $1`,
+        [matchId.trim()],
+      );
+      return result.rows.map(({ raw }) => raw);
+    },
   };
 }
 

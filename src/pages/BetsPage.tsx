@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { BetCreateRequest, BetsListResponse } from "../apiClient";
-import { BetForm } from "../components/BetForm";
+import { BetForm, type FixturePick } from "../components/BetForm";
 import { formatKickoff } from "../components/PickCard";
 import { formatPrediction, formatSettlementLabel } from "./PerformancePage";
 import { MARKET_LABELS, type MarketKey } from "../market";
@@ -8,6 +8,7 @@ import { MARKET_LABELS, type MarketKey } from "../market";
 export function BetsPage(props: {
   loadBets: () => Promise<BetsListResponse>;
   onCreateBet: (bet: BetCreateRequest) => Promise<void>;
+  fixtures?: FixturePick[];
 }): React.ReactElement {
   const [data, setData] = useState<BetsListResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,6 +76,7 @@ export function BetsPage(props: {
       {showForm ? (
         <div className="bets-page__form-overlay">
           <BetForm
+            fixtures={props.fixtures}
             onSave={handleSave}
             onCancel={() => setShowForm(false)}
             saving={saving}

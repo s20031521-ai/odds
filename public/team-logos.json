@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-24T01:18:07.712Z",
+  "generatedAt": "2026-07-25T01:18:16.287Z",
   "teams": {
     "AC Oulu": {
       "id": 2077,
@@ -109,6 +109,14 @@
     "Benfica": {
       "id": 211,
       "logo": "/team-logos/211.png"
+    },
+    "Blacktown City": {
+      "id": 3765,
+      "logo": "/team-logos/3765.png"
+    },
+    "Boca Juniors": {
+      "id": 451,
+      "logo": "/team-logos/451.png"
     },
     "Cumberland Utd": {
       "id": 10009,

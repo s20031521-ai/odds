@@ -261,6 +261,14 @@ export type BetsListResponse = {
     loss: number;
     push: number;
     hitRate: number | null;
+    byMarket: {
+      market: string;
+      total: number;
+      win: number;
+      loss: number;
+      push: number;
+      hitRate: number | null;
+    }[];
   };
 };
 

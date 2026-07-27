@@ -317,7 +317,8 @@ function summarizeBets(bets) {
   const win = settled.filter((b) => b.settlement === "win" || b.settlement === "half-win").length;
   const loss = settled.filter((b) => b.settlement === "loss" || b.settlement === "half-loss").length;
   const push = settled.filter((b) => b.settlement === "push").length;
-  const decided = win + loss;
+  const decided = win + loss + push;
+  const byMarket = groupBetSummary(settled);
   return {
     total: bets.length,
     settled: settled.length,
@@ -326,5 +327,31 @@ function summarizeBets(bets) {
     loss,
     push,
     hitRate: decided > 0 ? Math.round((win / decided) * 1000) / 10 : null,
+    byMarket,
   };
+}
+
+function groupBetSummary(settled) {
+  const groups = new Map();
+  for (const b of settled) {
+    const g = groups.get(b.market) ?? { total: 0, win: 0, loss: 0, push: 0 };
+    g.total++;
+    if (b.settlement === "win" || b.settlement === "half-win") g.win++;
+    else if (b.settlement === "loss" || b.settlement === "half-loss") g.loss++;
+    else if (b.settlement === "push") g.push++;
+    groups.set(b.market, g);
+  }
+  return Array.from(groups.entries())
+    .map(([market, g]) => {
+      const decided = g.win + g.loss + g.push;
+      return {
+        market,
+        total: g.total,
+        win: g.win,
+        loss: g.loss,
+        push: g.push,
+        hitRate: decided > 0 ? Math.round((g.win / decided) * 1000) / 10 : null,
+      };
+    })
+    .sort((a, b) => (b.hitRate ?? -1) - (a.hitRate ?? -1));
 }

@@ -71,6 +71,37 @@ export function BetsPage(props: {
         </div>
       ) : null}
 
+      {summary?.byMarket && summary.byMarket.length > 0 ? (
+        <div className="bets-by-market">
+          <table className="bets-table">
+            <thead>
+              <tr>
+                <th>玩法</th>
+                <th>注數</th>
+                <th>中</th>
+                <th>錯</th>
+                <th>走</th>
+                <th>中率</th>
+              </tr>
+            </thead>
+            <tbody>
+              {summary.byMarket.map((row) => (
+                <tr key={row.market}>
+                  <td>{MARKET_LABELS[row.market as MarketKey] ?? row.market}</td>
+                  <td>{row.total}</td>
+                  <td>{row.win}</td>
+                  <td className="negative">{row.loss}</td>
+                  <td className="muted">{row.push}</td>
+                  <td className={row.hitRate !== null && row.hitRate >= 50 ? "positive" : row.hitRate !== null ? "negative" : "muted"}>
+                    {row.hitRate !== null ? `${row.hitRate}%` : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
       {error ? <p className="notice error">{error}</p> : null}
 
       {showForm ? (

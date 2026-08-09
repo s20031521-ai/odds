@@ -11,3 +11,4 @@ debug-migrate.sh
 run-migration-debug.mjs
 skills-lock.json
 Users/
+.worktrees/

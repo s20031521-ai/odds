@@ -4,7 +4,7 @@ import type { BuyableOpportunity, CurrentRecommendationsResponse } from "../../s
 const FUTURE_KICKOFF = "2030-07-17T12:00:00.000Z";
 const PAST_KICKOFF = "2020-07-17T12:00:00.000Z";
 
-export type Scenario = "authenticated" | "guest" | "empty" | "live-failed" | "current-failed" | "backtest-failed" | "many-picks" | "flat-live";
+export type Scenario = "authenticated" | "empty" | "live-failed" | "current-failed" | "backtest-failed" | "many-picks" | "flat-live";
 
 export function entry(id: string, matchId: string, homeTeam: string, awayTeam: string, bookmaker: string, odds: { home: number; draw: number; away: number }, commenceTime = FUTURE_KICKOFF, league?: string) {
   return { id, matchId, homeTeam, awayTeam, commenceTime, bookmaker, odds, ...(league ? { league } : {}) };
@@ -135,8 +135,6 @@ export async function mockApi(
   scenario: Scenario,
   options: {
     status?: number;
-    onLogin?: Parameters<Page["route"]>[1];
-    onLogout?: Parameters<Page["route"]>[1];
   } = {},
 ) {
   const requestedPaths: string[] = [];
@@ -156,33 +154,8 @@ export async function mockApi(
     const method = route.request().method();
     requestedPaths.push(`${method} ${pathname}`);
 
-    if (pathname === "/api/v1/session") {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(scenario === "guest"
-          ? { authenticated: false }
-          : { authenticated: true, csrfToken: "csrf-token", owner: { username: "hugo" } }),
-      });
-      return;
-    }
-
-    if (pathname === "/api/v1/auth/login") {
-      if (options.onLogin) {
-        await options.onLogin(route, route.request());
-        return;
-      }
-      await route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: "invalid_credentials" }) });
-      return;
-    }
-
-    if (pathname === "/api/v1/auth/logout") {
-      if (options.onLogout) {
-        await options.onLogout(route, route.request());
-        return;
-      }
-      await route.fulfill({ status: 204, body: "" });
-      return;
+    if (pathname === "/api/v1/auth/login" || pathname === "/api/v1/auth/logout" || pathname === "/api/v1/session") {
+      throw new Error(`removed auth route used: ${route.request().url()}`);
     }
 
     if (pathname === "/api/v1/odds/live") {

@@ -2,12 +2,11 @@ import { parseCidr } from "./http/client-ip.mjs";
 
 export function loadServerConfig(env) {
   const databaseUrl = parseDatabaseUrl(env?.DATABASE_URL);
-  const sessionSecret = parseSessionSecret(env?.SESSION_SECRET);
   const publicOrigin = parsePublicOrigin(env?.PUBLIC_ORIGIN);
   const runMigrations = env?.RUN_MIGRATIONS !== "false";
   const trustedProxyCidrs = parseTrustedProxyCidrs(env?.TRUSTED_PROXY_CIDRS);
 
-  return { databaseUrl, sessionSecret, publicOrigin, runMigrations, trustedProxyCidrs };
+  return { databaseUrl, publicOrigin, runMigrations, trustedProxyCidrs };
 }
 
 function parseTrustedProxyCidrs(value) {
@@ -37,13 +36,6 @@ function parseDatabaseUrl(value) {
 
   if (!["postgres:", "postgresql:"].includes(url.protocol) || !url.hostname || url.pathname === "/") {
     throw new Error("DATABASE_URL must be a valid PostgreSQL URL");
-  }
-  return value;
-}
-
-function parseSessionSecret(value) {
-  if (typeof value !== "string" || Buffer.byteLength(value, "utf8") < 32) {
-    throw new Error("SESSION_SECRET must be at least 32 bytes");
   }
   return value;
 }

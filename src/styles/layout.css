@@ -159,23 +159,6 @@
   font-size: 0.65rem;
 }
 
-.sidebar__logout {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  background: transparent;
-  color: var(--color-muted);
-  transition: color 200ms ease, border-color 200ms ease;
-}
-
-.sidebar__logout:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
 /* ---------- Main column ---------- */
 
 .application-shell__main {
@@ -294,26 +277,6 @@
   display: none;
 }
 
-/* Mobile-only logout in the topbar (sidebar is hidden < 900px). */
-
-.topbar__logout {
-  display: none;
-  place-items: center;
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
-  background: transparent;
-  color: var(--color-muted);
-  transition: color 200ms ease, border-color 200ms ease;
-}
-
-.topbar__logout:hover {
-  border-color: var(--color-primary-border);
-  color: var(--color-primary);
-}
-
 /* ---------- Content ---------- */
 
 .application-shell__content {
@@ -359,10 +322,6 @@
 
   .topbar__brand {
     display: inline-flex;
-  }
-
-  .topbar__logout {
-    display: grid;
   }
 
   .global-search {

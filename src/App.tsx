@@ -12,8 +12,7 @@ import type { Page } from "./route";
 import { AppShell } from "./components/AppShell";
 import { TeamLogo, type TeamLogoMap } from "./components/TeamLogo";
 import { canShowActiveOpportunities, useConnectivityState } from "./pwa";
-import { ApiError, createApiClient, type BacktestPendingRow, type BuyableOpportunity, type PredictionObservationsResponse, type SessionState } from "./apiClient";
-import { LoginPage } from "./pages/LoginPage";
+import { createApiClient, type BacktestPendingRow, type BuyableOpportunity, type PredictionObservationsResponse } from "./apiClient";
 import { LandingPage } from "./pages/TodayPage";
 import { FixturesPage } from "./pages/FixturesPage";
 import { PerformancePage } from "./pages/PerformancePage";
@@ -104,16 +103,11 @@ function isResultEntry(item: unknown): item is ResultEntry {
   );
 }
 
+// 單機模式:登入系統已移除,所有 API 直接可用,唔再需要 session/CSRF。
 function App() {
   const [lastSuccessfulSync, setLastSuccessfulSync] = useState<string | null>(null);
   const connectivity = useConnectivityState(lastSuccessfulSync);
   const apiClient = useMemo(() => createApiClient(), []);
-  const [auth, setAuth] = useState<SessionState>({ authenticated: false });
-  const [csrfToken, setCsrfToken] = useState("");
-  const [authLoading, setAuthLoading] = useState(true);
-  const [loginPending, setLoginPending] = useState(false);
-  const [loginError, setLoginError] = useState<"invalid" | "rate_limited" | "offline" | null>(null);
-  const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | undefined>(undefined);
 
   const [entries, setEntries] = useState<ManualEntry[]>(initialEntries);
   const [resultEntries, setResultEntries] = useState<ResultEntry[]>([]);
@@ -157,72 +151,6 @@ function App() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    apiClient.session().then((state) => {
-      if (cancelled) return;
-      setAuth(state);
-      setCsrfToken(state.csrfToken ?? "");
-    }).catch(() => {
-      if (!cancelled) setAuth({ authenticated: false });
-    }).finally(() => {
-      if (!cancelled) setAuthLoading(false);
-    });
-    return () => { cancelled = true; };
-  }, [apiClient]);
-
-  async function handleLogin(username: string, password: string) {
-    setLoginPending(true);
-    setLoginError(null);
-    setRetryAfterSeconds(undefined);
-    try {
-      const state = await apiClient.login(username, password);
-      setAuth(state);
-      setCsrfToken(state.csrfToken ?? "");
-    } catch (error) {
-      setAuth({ authenticated: false });
-      if (error instanceof ApiError && error.status === 429) {
-        setLoginError("rate_limited");
-      } else if (error instanceof ApiError && error.status === 401) {
-        setLoginError("invalid");
-      } else {
-        setLoginError("offline");
-      }
-    } finally {
-      setLoginPending(false);
-    }
-  }
-
-  function clearAuthenticatedState() {
-    setAuth({ authenticated: false });
-    setCsrfToken("");
-    setEntries(initialEntries);
-    setResultEntries([]);
-    setCatalogResultRows([]);
-    setPendingEntries([]);
-    setRecordedOpportunities([]);
-    setRecommendationsGeneratedAt(null);
-    setRecommendationsLoaded(false);
-    setBacktestLoaded(false);
-    backtestAutoLoadStarted.current = false;
-  }
-
-  function handleProtectedError(error: unknown, fallback: string): string {
-    if (error instanceof ApiError && error.status === 401) {
-      clearAuthenticatedState();
-      return "登入已過期，請重新登入";
-    }
-    return error instanceof Error ? error.message : fallback;
-  }
-
-  async function handleLogout() {
-    try {
-      if (csrfToken) await apiClient.logout(csrfToken);
-    } finally {
-      clearAuthenticatedState();
-    }
-  }
 
   // Kickoff order only — FixturesPage re-sorts by commenceTime; 即將開賽 is a strip, not edge ranking.
   const dashboardFixtures = useMemo(() => upcomingFixtures(entries), [entries]);
@@ -292,12 +220,6 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (!auth.authenticated) {
-      setRecordedOpportunities([]);
-      setRecommendationsGeneratedAt(null);
-      setRecommendationsLoaded(false);
-      return;
-    }
     setRecommendationsLoaded(false);
     return startCurrentRecommendationsRefresh({
       load: apiClient.currentRecommendations,
@@ -312,32 +234,29 @@ function App() {
         setRecommendationsGeneratedAt(response.generatedAt);
         setRecommendationsLoaded(true);
       },
-      onError: (error) => {
+      onError: () => {
         setRecordedOpportunities([]);
         setRecommendationsGeneratedAt(null);
         setRecommendationsLoaded(false);
-        if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
       },
     });
-  }, [apiClient, auth.authenticated]);
+  }, [apiClient]);
 
   useEffect(() => {
-    if (!auth.authenticated) return;
     if (!backtestAutoLoadStarted.current) {
       backtestAutoLoadStarted.current = true;
       void loadBacktest();
       void loadCatalogResults();
     }
-  }, [auth.authenticated]);
+  }, []);
 
   useEffect(() => {
-    if (!auth.authenticated) return;
     void refreshHdcOdds();
     const timer = window.setInterval(() => {
       void refreshHdcOdds();
     }, HDC_REFRESH_MS);
     return () => window.clearInterval(timer);
-  }, [auth.authenticated]);
+  }, []);
 
   async function loadCatalogResults() {
     try {
@@ -345,8 +264,8 @@ function App() {
       const raw = Array.isArray(body?.resultEntries) ? body.resultEntries : [];
       const rows = raw.map(normalizeCatalogResultRow).filter((row): row is NonNullable<typeof row> => row !== null);
       setCatalogResultRows(rows);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
+    } catch {
+      // results feed failure is non-fatal; picker just has fewer finished rows
     }
   }
 
@@ -359,10 +278,8 @@ function App() {
       setPendingEntries(Array.isArray(body.pending) ? body.pending : []);
       setReadiness(Array.isArray(body.readiness) ? body.readiness.filter(isModelReadiness) : []);
       setBacktestLoaded(true);
-    } catch (error) {
-      // A protected feed answering 401 means the session is gone; fail back to login.
-      if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
-      // otherwise silently ignore backtest failures
+    } catch {
+      // silently ignore backtest failures
     }
   }
 
@@ -385,9 +302,7 @@ function App() {
       // so one successful fetch freshens both tracked sources.
       setDataLoads((current) => dataLoadStateAfter(dataLoadStateAfter(current, "hkjc", true), "hdc", true));
       setLastSuccessfulSync(new Date().toISOString());
-    } catch (error) {
-      // A protected feed answering 401 means the session is gone; fail back to login.
-      if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
+    } catch {
       setDataLoads((current) => dataLoadStateAfter(dataLoadStateAfter(current, "hkjc", false), "hdc", false));
     } finally {
       hdcRefreshRunning.current = false;
@@ -395,73 +310,32 @@ function App() {
   }
 
   async function handleUpdateBet(id: string, bet: BetCreateRequest) {
-    try {
-      await apiClient.updateBet(csrfToken, id, bet);
-      setBetPrefill(null);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        clearAuthenticatedState();
-        return;
-      }
-      throw error;
-    }
+    await apiClient.updateBet(id, bet);
+    setBetPrefill(null);
   }
 
   async function handleDeleteBet(id: string) {
-    try {
-      await apiClient.deleteBet(csrfToken, id);
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        clearAuthenticatedState();
-        return;
-      }
-      throw error;
-    }
+    await apiClient.deleteBet(id);
   }
 
   async function handleCreateBet(bet: BetCreateRequest) {
     setBetSaving(true);
     setBetError(null);
     try {
-      await apiClient.createBet(csrfToken, bet);
+      await apiClient.createBet(bet);
       setBetPrefill(null);
     } catch (error) {
-      if (error instanceof ApiError && error.status === 401) {
-        clearAuthenticatedState();
-        return;
-      }
       setBetError(error instanceof Error ? error.message : "儲存失敗");
     } finally {
       setBetSaving(false);
     }
   }
 
-  if (authLoading) {
-    return (
-      <div className="app-loading" role="status">
-        <p>載入中…</p>
-      </div>
-    );
-  }
-
-  if (!auth.authenticated) {
-    return (
-      <LoginPage
-        pending={loginPending}
-        error={loginError}
-        retryAfterSeconds={retryAfterSeconds}
-        onLogin={handleLogin}
-      />
-    );
-  }
-
   return (
     <AppShell
       route={page}
       dataWarning={dataWarning}
-      username={auth.session?.username}
       fixtures={betFixtures}
-      onLogout={handleLogout}
     >
       {page === "performance" ? (
         <PerformancePage readiness={readiness} historyStats={historyStatsByMarket} results={resultEntries} pending={pendingEntries} dataFreshness={recommendationsGeneratedAt} />

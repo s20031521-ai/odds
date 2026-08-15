@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { LayoutGrid, Calendar, Ticket, BarChart3, Zap, User, LogOut } from "lucide-react";
+import { LayoutGrid, Calendar, Ticket, BarChart3, Zap, User } from "lucide-react";
 import packageJson from "../../package.json";
 import type { Page } from "../route";
 import type { FixturePick } from "../fixtureSearch";
@@ -17,9 +17,7 @@ const navigationItems = [
 export function AppShell(props: {
   route: Page;
   dataWarning?: string;
-  username?: string;
   fixtures?: FixturePick[];
-  onLogout?: () => void;
   children: ReactNode;
 }): React.ReactElement {
   const hasWarning = Boolean(props.dataWarning?.trim());
@@ -56,20 +54,9 @@ export function AppShell(props: {
             <User size={16} />
           </span>
           <span className="sidebar__user-meta">
-            <span className="sidebar__username">{props.username ?? "用戶"}</span>
+            <span className="sidebar__username">單機模式</span>
             <span className="sidebar__version">v{APP_VERSION}</span>
           </span>
-          {props.onLogout ? (
-            <button
-              className="sidebar__logout"
-              onClick={props.onLogout}
-              type="button"
-              aria-label="登出"
-              title="登出"
-            >
-              <LogOut size={16} aria-hidden="true" />
-            </button>
-          ) : null}
         </div>
       </aside>
 
@@ -80,17 +67,6 @@ export function AppShell(props: {
             玄學賭波
           </span>
           <GlobalSearch fixtures={props.fixtures ?? []} />
-          {props.onLogout ? (
-            <button
-              className="topbar__logout"
-              onClick={props.onLogout}
-              type="button"
-              aria-label="登出"
-              title="登出"
-            >
-              <LogOut size={16} aria-hidden="true" />
-            </button>
-          ) : null}
         </header>
 
         <nav className="mobile-nav" aria-label="主導航（手機）">

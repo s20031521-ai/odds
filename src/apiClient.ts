@@ -17,16 +17,6 @@ export type PredictionSnapshot = {
   bookmaker?: string;
 };
 
-export type SessionState = {
-  authenticated: boolean;
-  csrfToken?: string;
-  session?: {
-    username: string;
-    idleExpiresAt?: string;
-    absoluteExpiresAt?: string;
-  };
-};
-
 export type LiveOddsResponse = {
   entries?: unknown[];
   h2hEntries?: unknown[];
@@ -309,39 +299,26 @@ export class ApiError extends Error {
 
 export function createApiClient(fetchImpl: FetchLike = fetch) {
   return Object.freeze({
-    session: () => request<SessionState>(fetchImpl, "/api/v1/session"),
-    login: (username: string, password: string) => request<SessionState>(fetchImpl, "/api/v1/auth/login", {
-      method: "POST",
-      body: { username, password },
-    }),
-    logout: (csrfToken: string) => request<void>(fetchImpl, "/api/v1/auth/logout", {
-      method: "POST",
-      csrfToken,
-    }),
     liveOdds: () => request<LiveOddsResponse>(fetchImpl, "/api/v1/odds/live"),
     results: () => request<ResultsResponse>(fetchImpl, "/api/v1/results"),
     currentRecommendations: () => request<CurrentRecommendationsResponse>(fetchImpl, "/api/v1/recommendations/current"),
     predictionObservations: (sampleId: number) => request<PredictionObservationsResponse>(fetchImpl, `/api/v1/predictions/observations?sampleId=${encodeURIComponent(String(sampleId))}`),
     backtest: () => request<BacktestResponse>(fetchImpl, "/api/v1/backtest"),
-    savePredictions: (csrfToken: string, snapshots: PredictionSnapshot[]) => request<PredictionSaveResponse>(fetchImpl, "/api/v1/predictions", {
+    savePredictions: (snapshots: PredictionSnapshot[]) => request<PredictionSaveResponse>(fetchImpl, "/api/v1/predictions", {
       method: "POST",
-      csrfToken,
       body: snapshots,
     }),
     bets: () => request<BetsListResponse>(fetchImpl, "/api/v1/bets"),
-    createBet: (csrfToken: string, bet: BetCreateRequest) => request<{ bet: BetResponse }>(fetchImpl, "/api/v1/bets", {
+    createBet: (bet: BetCreateRequest) => request<{ bet: BetResponse }>(fetchImpl, "/api/v1/bets", {
       method: "POST",
-      csrfToken,
       body: bet,
     }),
-    updateBet: (csrfToken: string, id: string, bet: BetCreateRequest) => request<{ bet: BetResponse }>(fetchImpl, `/api/v1/bets/${encodeURIComponent(id)}`, {
+    updateBet: (id: string, bet: BetCreateRequest) => request<{ bet: BetResponse }>(fetchImpl, `/api/v1/bets/${encodeURIComponent(id)}`, {
       method: "PATCH",
-      csrfToken,
       body: bet,
     }),
-    deleteBet: (csrfToken: string, id: string) => request<void>(fetchImpl, `/api/v1/bets/${encodeURIComponent(id)}`, {
+    deleteBet: (id: string) => request<void>(fetchImpl, `/api/v1/bets/${encodeURIComponent(id)}`, {
       method: "DELETE",
-      csrfToken,
     }),
   });
 }
@@ -349,7 +326,7 @@ export function createApiClient(fetchImpl: FetchLike = fetch) {
 async function request<T>(
   fetchImpl: FetchLike,
   path: string,
-  options: { method?: string; csrfToken?: string; body?: unknown } = {},
+  options: { method?: string; body?: unknown } = {},
 ): Promise<T> {
   const headers: Record<string, string> = {};
   let body: string | undefined;
@@ -357,7 +334,6 @@ async function request<T>(
     headers["content-type"] = "application/json";
     body = JSON.stringify(options.body);
   }
-  if (options.csrfToken) headers["x-csrf-token"] = options.csrfToken;
 
   const response = await fetchImpl(path, {
     method: options.method ?? "GET",

@@ -5,10 +5,9 @@ test.beforeEach(async ({ page }) => {
   await mockApi(page, "authenticated");
 });
 
-test("dashboard starts behind auth, then only shows fresh pre-match picks from same-origin API", async ({ page }) => {
+test("dashboard shows only fresh pre-match picks from same-origin API", async ({ page }) => {
   await page.goto("/#/today");
 
-  // 舊版斷言 pro 模式 .buy-dashboard .dashboard-card;Chiikawa 改版後
   // server-recorded 盤喺今日頁 .landing-page__picks 嘅 PickCard。
   const cards = page.locator(".landing-page__picks .pick-card");
   await expect(cards).toHaveCount(2);
@@ -16,43 +15,16 @@ test("dashboard starts behind auth, then only shows fresh pre-match picks from s
   await expect(cards.filter({ hasText: "Boundary FC" })).toHaveCount(1);
   await expect(page.locator(".landing-page__picks")).not.toContainText("Below United");
   await expect(page.locator(".landing-page__picks")).not.toContainText("Past High Edge");
-  await expect(page.getByRole("button", { name: "登出" })).toBeVisible();
   await expectNoDocumentOverflow(page);
 });
 
 test("renders dashboard when the API serves flat per-selection rows", async ({ page }) => {
-  // Regression: production /api/v1/odds/live returns one flat row per
-  // market+selection; the un-normalized payload crashed the render and the
-  // page went completely blank (#root emptied).
   await mockApi(page, "flat-live");
   await page.goto("/#/today");
 
   await expect(page.locator(".application-shell")).toBeVisible();
   await expect(page.locator("#root")).not.toBeEmpty();
   await expect(page.locator("main")).toContainText("Value United");
-});
-
-test("guest sees login page and login posts credentials to /api/v1/auth/login", async ({ page }) => {
-  let loginBody = "";
-  await mockApi(page, "guest", {
-    onLogin: async (route) => {
-      loginBody = route.request().postData() ?? "";
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ authenticated: true, csrfToken: "csrf-after-login", owner: { username: "hugo" } }),
-      });
-    },
-  });
-
-  await page.goto("/#/today");
-  await expect(page.locator(".login-panel")).toBeVisible();
-  await page.locator(".login-panel input").nth(0).fill("hugo");
-  await page.locator(".login-panel input").nth(1).fill("secret");
-  await page.getByRole("button", { name: /登入/ }).click();
-
-  await expect(page.locator(".landing-page__picks .pick-card")).toHaveCount(2);
-  expect(JSON.parse(loginBody)).toEqual({ username: "hugo", password: "secret" });
 });
 
 test("responsive navigation, touch targets, fixtures, and performance pages work", async ({ page }, testInfo) => {
@@ -109,13 +81,6 @@ test("current failures fail closed while a failed live audit feed keeps recorded
   expect(failedLive.requestedPaths).toContain("GET /api/v1/recommendations/current");
 });
 
-test("401 from protected API clears the session and returns to login", async ({ page }) => {
-  await mockApi(page, "live-failed", { status: 401 });
-  await page.goto("/#/today");
-
-  await expect(page.locator(".login-panel")).toBeVisible();
-});
-
 test("backtest failure on the performance page fails closed without exposing raw stack details", async ({ page }) => {
   // 舊版 #/history 會出 .empty-state[role=alert];改版後 backtest 失敗係靜默
   // fail closed:表現頁照常 render,樣本顯示「尚未有數據」,唔洩 stack。
@@ -126,22 +91,6 @@ test("backtest failure on the performance page fails closed without exposing raw
   await expect(page.locator(".performance-card")).toHaveCount(4);
   await expect(page.locator(".performance-page")).toContainText("尚未有數據");
   await expect(page.locator("body")).not.toContainText("Error:");
-});
-
-test("logout calls /api/v1/auth/logout with CSRF and returns to login", async ({ page }) => {
-  let csrf = "";
-  await mockApi(page, "authenticated", {
-    onLogout: async (route) => {
-      csrf = route.request().headers()["x-csrf-token"] ?? "";
-      await route.fulfill({ status: 204, body: "" });
-    },
-  });
-
-  await page.goto("/#/today");
-  await page.getByRole("button", { name: "登出" }).click();
-
-  expect(csrf).toBe("csrf-token");
-  await expect(page.locator(".login-panel")).toBeVisible();
 });
 
 test("production PWA exposes its manifest and registers a service worker", async ({ page }) => {

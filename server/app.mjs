@@ -1,19 +1,16 @@
 import { buildBacktest } from "./domain/backtest.mjs";
 import { FRESHNESS_MS, UNIFIED_STRATEGY_VERSION } from "../shared/unified-recommendations.mjs";
 import { readJsonBody } from "./http/body.mjs";
-import { resolveClientIp } from "./http/client-ip.mjs";
-import { clearSessionCookie, readSessionCookie, sessionCookie } from "./http/cookies.mjs";
 import { json, safeError } from "./http/responses.mjs";
-import { verifyMutationSecurity } from "./http/security.mjs";
 
-const AUTH_BODY_LIMIT = 16 * 1024;
 const PREDICTION_BODY_LIMIT = 1024 * 1024;
 
-export function createApp({ repositories, auth, publicOrigin, trustedProxyCidrs = [], readinessCheck = async () => ({ ok: true }), clock = () => new Date(), logger = console } = {}) {
+// 單機模式:登入系統已移除。所有請求直接用啟動時解析嘅唯一 owner
+// (entry.mjs → resolveOwnerId)。
+export function createApp({ repositories, ownerId, readinessCheck = async () => ({ ok: true }), clock = () => new Date(), logger = console } = {}) {
   if (!repositories?.snapshots || !repositories?.results || !repositories?.odds || !repositories?.opportunities) throw new TypeError("repositories are required");
   if (!repositories?.bets) throw new TypeError("repositories.bets is required");
-  if (!auth) throw new TypeError("auth is required");
-  if (typeof publicOrigin !== "string" || !publicOrigin) throw new TypeError("publicOrigin is required");
+  if (typeof ownerId !== "string" || !ownerId) throw new TypeError("ownerId is required");
 
   return async function app(req, res) {
     try {
@@ -26,27 +23,20 @@ export function createApp({ repositories, auth, publicOrigin, trustedProxyCidrs 
       if (routeStatus === 404) return safeError(res, 404, "not_found");
       if (routeStatus === 405) return safeError(res, 405, "method_not_allowed");
 
-      if (route === "POST /api/v1/auth/login") return await handleLogin(req, res, auth, trustedProxyCidrs);
-      if (route === "GET /api/v1/session") return await handleSession(req, res, auth);
-
-      const session = await requireSession(req, auth);
-      if (!session) return safeError(res, 401, "unauthorized");
-
-      if (route === "POST /api/v1/auth/logout") return await handleLogout(req, res, { auth, session, publicOrigin });
       if (route === "GET /api/v1/odds/live") return await handleLiveOdds(res, repositories, clock);
       if (route === "GET /api/v1/results") return await handleResults(res, repositories);
       if (route === "GET /api/v1/backtest") return await handleBacktest(res, repositories, clock);
       if (route === "GET /api/v1/recommendations/current") return await handleCurrentRecommendations(res, repositories, clock);
       if (route === "GET /api/v1/predictions/observations") return await handlePredictionObservations(res, repositories, url);
-      if (route === "POST /api/v1/predictions") return await handlePredictions(req, res, { repositories, auth, session, publicOrigin });
-      if (route === "GET /api/v1/bets") return await handleBetsList(res, repositories, session);
-      if (route === "POST /api/v1/bets") return await handleBetsCreate(req, res, { repositories, auth, session, publicOrigin });
+      if (route === "POST /api/v1/predictions") return await handlePredictions(req, res, repositories);
+      if (route === "GET /api/v1/bets") return await handleBetsList(res, repositories, ownerId);
+      if (route === "POST /api/v1/bets") return await handleBetsCreate(req, res, repositories, ownerId);
       const betIdMatch = url.pathname.match(/^\/api\/v1\/bets\/([^/]+)$/);
       if (betIdMatch && req.method === "PATCH") {
-        return await handleBetUpdate(req, res, { repositories, auth, session, publicOrigin }, decodeURIComponent(betIdMatch[1]));
+        return await handleBetUpdate(req, res, repositories, ownerId, decodeURIComponent(betIdMatch[1]));
       }
       if (betIdMatch && req.method === "DELETE") {
-        return await handleBetDelete(req, res, { repositories, auth, session, publicOrigin }, decodeURIComponent(betIdMatch[1]));
+        return await handleBetDelete(res, repositories, ownerId, decodeURIComponent(betIdMatch[1]));
       }
 
       return safeError(res, 404, "not_found");
@@ -58,38 +48,9 @@ export function createApp({ repositories, auth, publicOrigin, trustedProxyCidrs 
   };
 }
 
-async function handleLogin(req, res, auth, trustedProxyCidrs) {
-  const body = await readJsonBody(req, { limitBytes: AUTH_BODY_LIMIT });
-  const result = await auth.login({
-    username: body?.username,
-    password: body?.password,
-    clientIp: resolveClientIp(req.socket?.remoteAddress, req.headers["x-forwarded-for"], trustedProxyCidrs),
-  });
-  if (!result.ok) return json(res, result.reason === "rate_limited" ? 429 : 401, result);
-  return json(res, 200, {
-    authenticated: true,
-    csrfToken: result.csrfToken,
-    session: publicSession(result.session),
-  }, { "set-cookie": sessionCookie(result.sessionToken) });
-}
-
-async function handleSession(req, res, auth) {
-  const session = await requireSession(req, auth);
-  if (!session) return json(res, 200, { authenticated: false });
-  const csrfToken = await auth.issueCsrf(session.id);
-  if (!csrfToken) return json(res, 200, { authenticated: false });
-  return json(res, 200, { authenticated: true, csrfToken, session: publicSession(session) });
-}
-
 async function handleReady(res, readinessCheck) {
   const status = await readinessCheck();
   return json(res, 200, status);
-}
-
-async function handleLogout(req, res, { auth, session, publicOrigin }) {
-  if (!await verifyMutationSecurity({ req, auth, session, publicOrigin })) return safeError(res, 403, "forbidden");
-  await auth.logout(session.id);
-  return json(res, 200, { authenticated: false }, { "set-cookie": clearSessionCookie() });
 }
 
 async function handleLiveOdds(res, repositories, clock) {
@@ -140,8 +101,7 @@ async function handlePredictionObservations(res, repositories, url) {
   return json(res, 200, { sampleId, observations });
 }
 
-async function handlePredictions(req, res, { repositories, auth, session, publicOrigin }) {
-  if (!await verifyMutationSecurity({ req, auth, session, publicOrigin })) return safeError(res, 403, "forbidden");
+async function handlePredictions(req, res, repositories) {
   const body = await readJsonBody(req, { limitBytes: PREDICTION_BODY_LIMIT });
   const snapshots = Array.isArray(body) ? body : [body];
   const legacySnapshots = snapshots.filter((snapshot) => snapshot?.strategyVersion !== UNIFIED_STRATEGY_VERSION);
@@ -217,20 +177,6 @@ function positiveInteger(value) {
   return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
-async function requireSession(req, auth) {
-  const token = readSessionCookie(req.headers.cookie);
-  if (!token) return null;
-  return auth.authenticate(token);
-}
-
-function publicSession(session) {
-  return {
-    username: session.username,
-    idleExpiresAt: session.idleExpiresAt,
-    absoluteExpiresAt: session.absoluteExpiresAt,
-  };
-}
-
 function routeInventoryStatus(method, pathname) {
   if (/^\/api\/v1\/bets\/[^/]+$/.test(pathname)) {
     return method === "PATCH" || method === "DELETE" ? null : 405;
@@ -250,9 +196,6 @@ function isLegacyRoute(pathname) {
 }
 
 const ROUTES = new Map([
-  ["/api/v1/auth/login", new Set(["POST"])],
-  ["/api/v1/session", new Set(["GET"])],
-  ["/api/v1/auth/logout", new Set(["POST"])],
   ["/api/v1/odds/live", new Set(["GET"])],
   ["/api/v1/results", new Set(["GET"])],
   ["/api/v1/backtest", new Set(["GET"])],
@@ -263,30 +206,29 @@ const ROUTES = new Map([
   ["/internal/health/ready", new Set(["GET"])],
 ]);
 
-async function handleBetsList(res, repositories, session) {
+async function handleBetsList(res, repositories, ownerId) {
   // Backfill: every real bet is a sample; promote any slips missing sample_id.
-  await ensurePersonalBetSamples(repositories, session.ownerId);
+  await ensurePersonalBetSamples(repositories, ownerId);
   // Lazy settle pending slips that already have results.
   if (typeof repositories.results?.listByMatchId === "function") {
     await repositories.bets.settlePendingWithResults(
-      session.ownerId,
+      ownerId,
       (matchId) => repositories.results.listByMatchId(matchId),
     );
   }
-  const bets = await repositories.bets.listByOwner(session.ownerId);
+  const bets = await repositories.bets.listByOwner(ownerId);
   const summary = summarizeBets(bets);
   return json(res, 200, { bets, summary });
 }
 
-async function handleBetsCreate(req, res, { repositories, auth, session, publicOrigin }) {
-  if (!await verifyMutationSecurity({ req, auth, session, publicOrigin })) return safeError(res, 403, "forbidden");
+async function handleBetsCreate(req, res, repositories, ownerId) {
   const body = await readJsonBody(req, { limitBytes: 16 * 1024 });
   if (!body || typeof body.market !== "string" || typeof body.selection !== "string"
     || typeof body.odds !== "number" || typeof body.stake !== "number"
     || body.stake <= 0 || !Number.isFinite(body.odds) || body.odds <= 1) {
     return safeError(res, 400, "bad_request");
   }
-  let bet = await repositories.bets.create(session.ownerId, {
+  let bet = await repositories.bets.create(ownerId, {
     fixtureId: body.fixtureId,
     matchId: body.matchId,
     sampleId: body.sampleId,
@@ -310,10 +252,10 @@ async function handleBetsCreate(req, res, { repositories, auth, session, publicO
   if (bet?.match_id && typeof repositories.results?.listByMatchId === "function"
     && typeof repositories.bets.settlePendingWithResults === "function") {
     await repositories.bets.settlePendingWithResults(
-      session.ownerId,
+      ownerId,
       (matchId) => repositories.results.listByMatchId(matchId),
     );
-    const refreshed = await repositories.bets.listByOwner(session.ownerId);
+    const refreshed = await repositories.bets.listByOwner(ownerId);
     bet = refreshed.find((row) => row.id === bet.id) ?? bet;
   }
   return json(res, 201, { bet });
@@ -325,14 +267,13 @@ function validateBetBody(body) {
     && body.stake > 0 && Number.isFinite(body.odds) && body.odds > 1;
 }
 
-async function handleBetUpdate(req, res, { repositories, auth, session, publicOrigin }, betId) {
-  if (!await verifyMutationSecurity({ req, auth, session, publicOrigin })) return safeError(res, 403, "forbidden");
+async function handleBetUpdate(req, res, repositories, ownerId, betId) {
   const body = await readJsonBody(req, { limitBytes: 16 * 1024 });
   if (!validateBetBody(body)) return safeError(res, 400, "bad_request");
-  const existing = await repositories.bets.getById(session.ownerId, betId);
+  const existing = await repositories.bets.getById(ownerId, betId);
   if (!existing) return safeError(res, 404, "not_found");
   if (existing.settlement !== "pending") return safeError(res, 409, "conflict");
-  const bet = await repositories.bets.update(session.ownerId, betId, {
+  const bet = await repositories.bets.update(ownerId, betId, {
     fixtureId: body.fixtureId,
     matchId: body.matchId,
     homeTeam: body.homeTeam,
@@ -349,9 +290,8 @@ async function handleBetUpdate(req, res, { repositories, auth, session, publicOr
   return json(res, 200, { bet });
 }
 
-async function handleBetDelete(req, res, { repositories, auth, session, publicOrigin }, betId) {
-  if (!await verifyMutationSecurity({ req, auth, session, publicOrigin })) return safeError(res, 403, "forbidden");
-  const removed = await repositories.bets.remove(session.ownerId, betId);
+async function handleBetDelete(res, repositories, ownerId, betId) {
+  const removed = await repositories.bets.remove(ownerId, betId);
   if (!removed) return safeError(res, 404, "not_found");
   return json(res, 200, { deleted: betId });
 }

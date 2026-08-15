@@ -37,8 +37,8 @@ describe("PWA build contract", () => {
       'start_url: "/#/today"',
       'scope: "/"',
       'display: "standalone"',
-      'theme_color: "#11182B"',
-      'background_color: "#11182B"',
+      'theme_color: "#000000"',
+      'background_color: "#000000"',
       'src: "/icons/icon-192.png"',
       'sizes: "192x192"',
       'src: "/icons/icon-512.png"',
@@ -70,7 +70,7 @@ describe("PWA build contract", () => {
     const html = projectFile("index.html");
 
     expect(html).toContain('name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"');
-    expect(html).toContain('name="theme-color" content="#FFF8F0"');
+    expect(html).toContain('name="theme-color" content="#000000"');
     expect(html).toContain('name="apple-mobile-web-app-capable" content="yes"');
     expect(html).toContain('name="apple-mobile-web-app-status-bar-style" content="black-translucent"');
     expect(html).toContain('rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png"');

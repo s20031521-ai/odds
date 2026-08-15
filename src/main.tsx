@@ -5,8 +5,6 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./styles/tokens.css";
 import "./styles/layout.css";
 import "./styles.css";
-import "./styles/dashboard.css";
-import "./styles/kawaii.css";
 import "./styles/today.css";
 
 createRoot(document.getElementById("root")!).render(

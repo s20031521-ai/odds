@@ -1,8 +1,0 @@
-/* Dashboard styles - simplified for 2-page app */
-
-.match-teams {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-}

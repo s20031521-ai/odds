@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { Mascot } from "../components/Kawaii";
+import { Zap, AlertTriangle } from "lucide-react";
 
 type LoginPageProps = {
   pending: boolean;
@@ -21,10 +21,12 @@ export function LoginPage({ pending, error, retryAfterSeconds, onLogin }: LoginP
   return (
     <main className="login-page">
       <form className="login-panel" onSubmit={submit}>
-        <Mascot pose="login-duo" />
         <div>
-          <span className="login-kicker">BallBallChu Odds</span>
-          <h1>登入 Dashboard</h1>
+          <span className="login-kicker">
+            <Zap size={12} aria-hidden="true" style={{ marginRight: 6, verticalAlign: "-1px" }} />
+            玄學賭波
+          </span>
+          <h1>登入</h1>
         </div>
         <label>
           <span>用戶名</span>
@@ -34,8 +36,13 @@ export function LoginPage({ pending, error, retryAfterSeconds, onLogin }: LoginP
           <span>密碼</span>
           <input autoComplete="current-password" disabled={pending} onChange={(event) => setPassword(event.target.value)} type="password" value={password} />
         </label>
-        {error ? <p className="login-error" role="alert"><Mascot pose="momonga-alert" />{loginMessage(error, retryAfterSeconds)}</p> : null}
-        <button disabled={pending || !username || !password} type="submit">
+        {error ? (
+          <p className="login-error" role="alert">
+            <AlertTriangle size={16} aria-hidden="true" />
+            {loginMessage(error, retryAfterSeconds)}
+          </p>
+        ) : null}
+        <button className="primary-button" disabled={pending || !username || !password} type="submit">
           {pending ? "登入中..." : "登入"}
         </button>
       </form>

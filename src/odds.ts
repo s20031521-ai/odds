@@ -22,6 +22,8 @@ export type ManualEntry = {
   league?: string;
   leagueZh?: string;
   odds: OddsSet;
+  /** Previous price per outcome (from backend snapshot replace); drives movement arrows. */
+  previousOdds?: Partial<OddsSet>;
 };
 
 export type AnalyzerSettings = {

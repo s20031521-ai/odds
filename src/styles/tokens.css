@@ -1,28 +1,52 @@
+/* Obsidian Neon design tokens — pure black canvas + neon pink signal */
 :root {
-  --color-bg: #FFF5F0;
-  --color-surface: #FFFCFA;
-  --color-primary: #F4A7B9;
-  --color-primary-text: #B05A6E;
-  --color-accent-pink: #FFD4DD;
-  --color-accent-yellow: #FFF5D1;
-  --color-accent-mint: #D4F0E0;
-  --color-accent-lavender: #E8DFF5;
-  --color-positive: #7FCFA9;
-  --color-negative: #F2A0A0;
-  --color-positive-text: #1F5D3F;
-  --color-positive-surface: #D4F0E0;
-  --color-on-primary: #FFFFFF;
-  --color-primary-hover: #E894A8;
-  --color-negative-text: #C05A5A;
-  --color-warning: #F0C060;
-  --color-text: #2D2323;
-  --color-muted: #7A6E65;
-  --color-border: #F0E2D4;
-  --shadow-soft: 0 2px 12px rgba(200, 150, 150, 0.08), 0 8px 24px rgba(200, 150, 150, 0.06);
-  --shadow-card: 0 4px 16px rgba(200, 150, 150, 0.1), 0 1px 4px rgba(200, 150, 150, 0.06);
-  --radius-card: 24px;
-  --radius-card-lg: 28px;
+  /* Surface tiers */
+  --color-bg: #000000;
+  --color-surface: #121212;
+  --color-surface-elevated: #1e1e1e;
+  --color-surface-high: #2a2a2a;
+  --color-track: #1a1a1a;
+
+  /* Signal */
+  --color-primary: #ff2174;
+  --color-primary-hover: #ff3b84;
+  --color-primary-dim: rgba(255, 33, 116, 0.1);
+  --color-primary-border: rgba(255, 33, 116, 0.3);
+  --color-on-primary: #000000;
+
+  /* Text */
+  --color-text: #e2e2e2;
+  --color-muted: #a0a0a0;
+
+  /* Structure */
+  --color-border: #222222;
+
+  /* Semantic */
+  --color-positive: var(--color-primary);
+  --color-positive-text: var(--color-primary);
+  --color-positive-surface: rgba(255, 33, 116, 0.12);
+  --color-negative: #a0a0a0;
+  --color-negative-text: #a0a0a0;
+  --color-warning: #ffb4ab;
+  --color-error: #ffb4ab;
+  --color-error-surface: rgba(147, 0, 10, 0.35);
+
+  /* Neon glows */
+  --glow-primary: 0 0 8px rgba(255, 33, 116, 0.3);
+  --glow-primary-strong: 0 0 15px rgba(255, 33, 116, 0.5);
+  --shadow-card: 0 0 15px rgba(0, 0, 0, 0.5);
+  --shadow-panel: 0 0 20px rgba(0, 0, 0, 0.6);
+
+  /* Shape — technical-sharp */
+  --radius-card: 4px;
+  --radius-card-lg: 4px;
   --radius-pill: 999px;
-  --font-rounded: "Nunito", "Baloo 2", "PingFang TC", "Hiragino Sans GB", "Microsoft JhengHei", sans-serif;
+
+  /* Type */
+  --font-sans: "Hanken Grotesk", "PingFang TC", "Hiragino Sans GB", "Microsoft JhengHei", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+  --font-rounded: var(--font-sans);
+
   --touch-target: 44px;
+  --sidebar-width: 240px;
 }

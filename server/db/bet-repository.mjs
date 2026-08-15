@@ -49,6 +49,43 @@ export function createBetRepository(db) {
       return result.rows;
     },
 
+    async getById(ownerId, betId) {
+      const result = await db.query(
+        `SELECT * FROM bet_slips WHERE id = $1 AND owner_id = $2`,
+        [betId, ownerId],
+      );
+      return result.rows[0] ?? null;
+    },
+
+    /** Update editable fields; pending bets only (settled history stays immutable). */
+    async update(ownerId, betId, bet) {
+      const result = await db.query(
+        `UPDATE bet_slips SET
+           fixture_id = $3, match_id = $4,
+           home_team = $5, home_team_zh = $6, away_team = $7, away_team_zh = $8,
+           commence_time = $9, market = $10, selection = $11, line = $12,
+           odds = $13, stake = $14, updated_at = now()
+         WHERE id = $1 AND owner_id = $2 AND settlement = 'pending'
+         RETURNING *`,
+        [
+          betId, ownerId,
+          bet.fixtureId ?? null, bet.matchId ?? null,
+          bet.homeTeam ?? null, bet.homeTeamZh ?? null, bet.awayTeam ?? null, bet.awayTeamZh ?? null,
+          bet.commenceTime ?? null, bet.market, bet.selection, bet.line ?? null,
+          bet.odds, bet.stake,
+        ],
+      );
+      return result.rows[0] ?? null;
+    },
+
+    async remove(ownerId, betId) {
+      const result = await db.query(
+        `DELETE FROM bet_slips WHERE id = $1 AND owner_id = $2 RETURNING id`,
+        [betId, ownerId],
+      );
+      return result.rows.length > 0;
+    },
+
     async setSampleId(betId, sampleId) {
       const result = await db.query(
         `UPDATE bet_slips SET sample_id = $2, updated_at = now()

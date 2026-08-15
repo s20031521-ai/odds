@@ -265,6 +265,57 @@ test("resolves login client ip from X-Forwarded-For only via trusted proxies", a
   assert.equal(seenClientIps.at(-1), "127.0.0.1", "no trusted proxies: spoofed XFF ignored");
 });
 
+test("updates and deletes pending bets and exposes collector quota on live odds", async (t) => {
+  const repositories = createFakeRepositories();
+  const auth = createFakeAuth();
+  const server = await listen(createApp({
+    repositories,
+    auth,
+    publicOrigin: PUBLIC_ORIGIN,
+    clock: () => NOW,
+    logger: { error() {} },
+  }));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+
+  const login = await request(baseUrl, "POST", "/api/v1/auth/login", { json: { username: "owner", password: "password" } });
+  const cookie = login.headers.get("set-cookie");
+  const headers = { origin: PUBLIC_ORIGIN, "x-csrf-token": "csrf-login" };
+
+  const live = await request(baseUrl, "GET", "/api/v1/odds/live", { cookie });
+  assert.equal(live.status, 200);
+  assert.deepEqual(live.body.quota, { used: 123, remaining: 377 });
+
+  assert.equal((await request(baseUrl, "PUT", "/api/v1/bets/bet-1", { cookie, headers, json: validBetBody() })).status, 405);
+
+  const noCsrf = await request(baseUrl, "PATCH", "/api/v1/bets/bet-1", { cookie, headers: { origin: PUBLIC_ORIGIN }, json: validBetBody() });
+  assert.equal(noCsrf.status, 403);
+
+  const created = await request(baseUrl, "POST", "/api/v1/bets", { cookie, headers, json: validBetBody() });
+  assert.equal(created.status, 201);
+  const betId = created.body.bet.id;
+  assert.equal(created.body.bet.settlement, "pending");
+
+  const invalid = await request(baseUrl, "PATCH", `/api/v1/bets/${betId}`, { cookie, headers, json: { ...validBetBody(), odds: 1 } });
+  assert.equal(invalid.status, 400);
+
+  const updated = await request(baseUrl, "PATCH", `/api/v1/bets/${betId}`, { cookie, headers, json: { ...validBetBody(), odds: 2.5, stake: 200 } });
+  assert.equal(updated.status, 200);
+  assert.equal(updated.body.bet.odds, 2.5);
+  assert.equal(updated.body.bet.stake, 200);
+
+  assert.equal((await request(baseUrl, "PATCH", "/api/v1/bets/bet-missing", { cookie, headers, json: validBetBody() })).status, 404);
+
+  repositories.bets.rows.get(betId).settlement = "won";
+  const settledUpdate = await request(baseUrl, "PATCH", `/api/v1/bets/${betId}`, { cookie, headers, json: validBetBody() });
+  assert.equal(settledUpdate.status, 409);
+
+  const deleted = await request(baseUrl, "DELETE", `/api/v1/bets/${betId}`, { cookie, headers });
+  assert.equal(deleted.status, 200);
+  assert.deepEqual(deleted.body, { deleted: betId });
+  assert.equal((await request(baseUrl, "DELETE", `/api/v1/bets/${betId}`, { cookie, headers })).status, 404);
+});
+
 function createFakeAuth() {
   const sessions = new Map();
   let refreshes = 0;
@@ -313,6 +364,13 @@ function createFakeRepositories() {
     buyableQuotes: [quote("Pinnacle", 2.2, "2026-07-17T23:30:00.000Z")],
   }];
   return {
+    bets: createFakeBets(),
+    collectorState: {
+      async get(key) {
+        assert.equal(key, "hdc-collector");
+        return { quotaUsed: 123, quotaRemaining: 377 };
+      },
+    },
     odds: {
       async listLive(now) {
         assert.equal(now.toISOString(), NOW.toISOString());
@@ -371,6 +429,43 @@ function createFakeRepositories() {
         return { inserted, duplicate, rejected, rejectedByReason };
       },
     },
+  };
+}
+
+function createFakeBets() {
+  const rows = new Map();
+  let nextId = 1;
+  return {
+    rows,
+    async listByOwner() { return [...rows.values()]; },
+    async create(ownerId, input) {
+      const bet = { id: `bet-${nextId++}`, ...input, settlement: "pending", profit: null };
+      rows.set(bet.id, bet);
+      return bet;
+    },
+    async getById(ownerId, id) { return rows.get(id) ?? null; },
+    async update(ownerId, id, input) {
+      const bet = rows.get(id);
+      if (!bet) return null;
+      Object.assign(bet, input);
+      return bet;
+    },
+    async remove(ownerId, id) { return rows.delete(id); },
+    async settlePendingWithResults() {},
+  };
+}
+
+function validBetBody() {
+  return {
+    fixtureId: "fixture-bet",
+    matchId: "match-bet",
+    homeTeam: "Alpha",
+    awayTeam: "Beta",
+    commenceTime: "2026-07-18T10:00:00.000Z",
+    market: "hdc",
+    selection: "home",
+    odds: 2.1,
+    stake: 100,
   };
 }
 

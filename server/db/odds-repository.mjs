@@ -10,8 +10,22 @@ export function createOddsRepository(pool) {
           "SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))",
           [provider],
         );
+        // Capture current prices so the next snapshot can expose previousOdds
+        // (frontend odds-movement arrows) without a separate history table.
+        const previousRows = await client.query(
+          "SELECT identity_key, odds FROM live_odds WHERE provider = $1",
+          [provider],
+        );
+        const previousByIdentity = new Map(
+          previousRows.rows.map((row) => [row.identity_key, Number(row.odds)]),
+        );
         await client.query("DELETE FROM live_odds WHERE provider = $1", [provider]);
         for (const entry of entries) {
+          const identity = liveOddsIdentity({ ...entry, provider });
+          const previousOdds = previousByIdentity.get(identity);
+          const raw = previousOdds !== undefined && Number.isFinite(previousOdds) && previousOdds !== entry.odds
+            ? { ...entry, previousOdds }
+            : entry;
           await client.query(`
             INSERT INTO live_odds (
               identity_key, entry_id, provider, match_id, home_team, away_team,
@@ -23,7 +37,7 @@ export function createOddsRepository(pool) {
               $13, $14
             )
           `, [
-            liveOddsIdentity({ ...entry, provider }),
+            identity,
             entry.id ?? null,
             provider,
             entry.matchId ?? null,
@@ -36,7 +50,7 @@ export function createOddsRepository(pool) {
             entry.odds ?? null,
             observedAt,
             entry.expiresAt ?? null,
-            entry,
+            raw,
           ]);
         }
       });

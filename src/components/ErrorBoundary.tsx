@@ -1,5 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { Mascot } from "./Kawaii";
+import { AlertTriangle } from "lucide-react";
 
 type Props = { children: ReactNode };
 type State = { hasError: boolean };
@@ -21,9 +21,9 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div className="app-loading" role="alert">
-          <Mascot pose="momonga-alert" />
+          <AlertTriangle size={32} aria-hidden="true" />
           <p>頁面載入時出咗問題，請重新整理。</p>
-          <button type="button" onClick={() => window.location.reload()}>
+          <button type="button" className="secondary-button" onClick={() => window.location.reload()}>
             重新整理
           </button>
         </div>

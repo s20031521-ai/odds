@@ -33,6 +33,8 @@ export type LiveOddsResponse = {
   totalEntries?: unknown[];
   cornerEntries?: unknown[];
   handicapEntries?: unknown[];
+  /** The Odds API monthly quota, surfaced by the collector (backend Phase-7). */
+  quota?: { used?: number | null; remaining?: number | null } | null;
 };
 
 export type ResultsResponse = {
@@ -331,6 +333,15 @@ export function createApiClient(fetchImpl: FetchLike = fetch) {
       method: "POST",
       csrfToken,
       body: bet,
+    }),
+    updateBet: (csrfToken: string, id: string, bet: BetCreateRequest) => request<{ bet: BetResponse }>(fetchImpl, `/api/v1/bets/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      csrfToken,
+      body: bet,
+    }),
+    deleteBet: (csrfToken: string, id: string) => request<void>(fetchImpl, `/api/v1/bets/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      csrfToken,
     }),
   });
 }

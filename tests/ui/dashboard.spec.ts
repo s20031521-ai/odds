@@ -57,28 +57,29 @@ test("guest sees login page and login posts credentials to /api/v1/auth/login", 
 
 test("responsive navigation, touch targets, fixtures, and performance pages work", async ({ page }, testInfo) => {
   await page.goto("/#/today");
-  const touchLayout = testInfo.project.name !== "desktop";
-  // 舊版有 .app-navigation--top/--bottom 雙導航;改版後得一條三格 bottom nav,
-  // 所有 viewport 都顯示。
-  const nav = page.locator(".app-navigation");
+  // Obsidian Neon 改版:≥900px 用左 sidebar,<900px 用頂部 mobile-nav。
+  const touchLayout = testInfo.project.name === "phone" || testInfo.project.name === "tablet";
+  const nav = page.locator(touchLayout ? ".mobile-nav" : ".sidebar__nav");
   await expect(nav).toBeVisible();
-  await expect(nav.getByRole("link", { name: "今日" })).toHaveAttribute("aria-current", "page");
+  await expect(nav.getByRole("link", { name: "今日概覽" })).toHaveAttribute("aria-current", "page");
   await expect(page.locator(".landing-page__picks .pick-card")).toHaveCount(2);
   if (touchLayout) {
     await expectMinimumHeight(nav.locator("a"), 44);
   }
 
-  await nav.getByRole("link", { name: "賽程" }).click();
+  await nav.getByRole("link", { name: "賽程列表" }).click();
   await expect(page).toHaveURL(/#\/fixtures$/);
-  await expect(page.locator(".fixtures-group__item")).toHaveCount(3);
+  // 賽程頁預設「今日」tab;mock 賽事全部喺將來,要切「即將到來」先睇到。
+  await page.getByRole("tab", { name: "即將到來" }).click();
+  await expect(page.locator(".fixture-card")).toHaveCount(3);
   await expectNoDocumentOverflow(page);
 
-  await nav.getByRole("link", { name: "表現" }).click();
+  await nav.getByRole("link", { name: "表現分析" }).click();
   await expect(page).toHaveURL(/#\/performance$/);
   await expect(page.locator(".performance-card")).toHaveCount(4);
   if (touchLayout) await expectMinimumHeight(page.getByRole("button"), 44, true);
 
-  await nav.getByRole("link", { name: "今日" }).click();
+  await nav.getByRole("link", { name: "今日概覽" }).click();
   await expect(page).toHaveURL(/#\/today$/);
   await expect(page.locator(".landing-page")).toBeVisible();
 });
@@ -159,14 +160,18 @@ test("production PWA exposes its manifest and registers a service worker", async
 });
 
 test("fixtures page lists every upcoming fixture and excludes past kickoffs", async ({ page }) => {
-  // 舊版斷言聯賽 chip 篩選、球隊搜尋同 buy dot;呢啲 toolbar 功能已喺改版移除,
-  // 而家賽程頁按日期分組列出所有未開賽賽事。
+  // Neon 改版:賽程卡係 .fixture-card,按 今日/明日/即將到來 分 tab;
+  // mock 賽事全部喺將來,切「即將到來」tab 先會列出。
   await page.goto("/#/fixtures");
 
-  await expect(page.locator(".fixtures-group__item")).toHaveCount(3);
-  await expect(page.locator(".fixtures-page")).toContainText("Value United vs Signal City");
-  await expect(page.locator(".fixtures-page")).toContainText("Boundary FC vs Threshold Town");
-  await expect(page.locator(".fixtures-page")).toContainText("Below United vs No Buy Rovers");
+  await page.getByRole("tab", { name: "即將到來" }).click();
+  await expect(page.locator(".fixture-card")).toHaveCount(3);
+  await expect(page.locator(".fixtures-page")).toContainText("Value United");
+  await expect(page.locator(".fixtures-page")).toContainText("Signal City");
+  await expect(page.locator(".fixtures-page")).toContainText("Boundary FC");
+  await expect(page.locator(".fixtures-page")).toContainText("Threshold Town");
+  await expect(page.locator(".fixtures-page")).toContainText("Below United");
+  await expect(page.locator(".fixtures-page")).toContainText("No Buy Rovers");
   await expect(page.locator(".fixtures-page")).not.toContainText("Past High Edge");
 });
 

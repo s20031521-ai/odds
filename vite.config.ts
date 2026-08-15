@@ -18,8 +18,8 @@ export default defineConfig({
         start_url: "/#/today",
         scope: "/",
         display: "standalone",
-        theme_color: "#11182B",
-        background_color: "#11182B",
+        theme_color: "#000000",
+        background_color: "#000000",
         icons: [
           {
             src: "/icons/icon-192.png",

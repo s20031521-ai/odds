@@ -25,7 +25,6 @@ import {
   type FixturePick,
 } from "./fixtureSearch";
 import type { BetCreateRequest } from "./apiClient";
-import { Mascot } from "./components/Kawaii";
 import { startCurrentRecommendationsRefresh } from "./currentRecommendations";
 import { normalizeLiveOddsPayload } from "./liveOddsMapping";
 import { READINESS_MODELS } from "./readinessModels";
@@ -139,6 +138,8 @@ function App() {
   const [betPrefill, setBetPrefill] = useState<Partial<BetCreateRequest> | null>(null);
   const [betSaving, setBetSaving] = useState(false);
   const [betError, setBetError] = useState<string | null>(null);
+  const [apiLatencyMs, setApiLatencyMs] = useState<number | null>(null);
+  const [apiQuota, setApiQuota] = useState<{ used?: number | null; remaining?: number | null } | null>(null);
 
   const hdcRefreshRunning = useRef(false);
   const backtestAutoLoadStarted = useRef(false);
@@ -225,6 +226,21 @@ function App() {
 
   // Kickoff order only — FixturesPage re-sorts by commenceTime; 即將開賽 is a strip, not edge ranking.
   const dashboardFixtures = useMemo(() => upcomingFixtures(entries), [entries]);
+
+  /** 1X2 odds per match for FixtureCard buttons — prefer HKJC bookmaker rows. */
+  const fixtureOddsByMatch = useMemo(() => {
+    const map = new Map<string, { current: ManualEntry["odds"]; previous?: Partial<ManualEntry["odds"]> | null; bookmaker?: string }>();
+    for (const entry of entries) {
+      if (!entry?.matchId || !entry.odds) continue;
+      const existing = map.get(entry.matchId);
+      const isHkjc = /hkjc/i.test(entry.bookmaker ?? "");
+      const existingIsHkjc = /hkjc/i.test(existing?.bookmaker ?? "");
+      if (!existing || (isHkjc && !existingIsHkjc)) {
+        map.set(entry.matchId, { current: entry.odds, previous: entry.previousOdds ?? null, bookmaker: entry.bookmaker });
+      }
+    }
+    return map;
+  }, [entries]);
 
   /**
    * Bet form search pools (grill UX 2026-07-26):
@@ -357,8 +373,11 @@ function App() {
   async function refreshHdcOdds() {
     if (hdcRefreshRunning.current) return;
     hdcRefreshRunning.current = true;
+    const startedAt = performance.now();
     try {
       const payload = await apiClient.liveOdds();
+      setApiLatencyMs(Math.round(performance.now() - startedAt));
+      if (payload?.quota) setApiQuota(payload.quota);
       // Flat feed → complete h2h ManualEntry rows only (for fixture lists).
       const normalized = normalizeLiveOddsPayload(payload);
       setEntries((current) => mergeById(current, normalized.entries));
@@ -372,6 +391,31 @@ function App() {
       setDataLoads((current) => dataLoadStateAfter(dataLoadStateAfter(current, "hkjc", false), "hdc", false));
     } finally {
       hdcRefreshRunning.current = false;
+    }
+  }
+
+  async function handleUpdateBet(id: string, bet: BetCreateRequest) {
+    try {
+      await apiClient.updateBet(csrfToken, id, bet);
+      setBetPrefill(null);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        clearAuthenticatedState();
+        return;
+      }
+      throw error;
+    }
+  }
+
+  async function handleDeleteBet(id: string) {
+    try {
+      await apiClient.deleteBet(csrfToken, id);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) {
+        clearAuthenticatedState();
+        return;
+      }
+      throw error;
     }
   }
 
@@ -395,7 +439,6 @@ function App() {
   if (authLoading) {
     return (
       <div className="app-loading" role="status">
-        <Mascot pose="momonga-loading" />
         <p>載入中…</p>
       </div>
     );
@@ -413,13 +456,25 @@ function App() {
   }
 
   return (
-    <AppShell route={page} dataWarning={dataWarning} onLogout={handleLogout}>
+    <AppShell
+      route={page}
+      dataWarning={dataWarning}
+      username={auth.session?.username}
+      fixtures={betFixtures}
+      onLogout={handleLogout}
+    >
       {page === "performance" ? (
-        <PerformancePage readiness={readiness} historyStats={historyStatsByMarket} results={resultEntries} pending={pendingEntries} />
+        <PerformancePage readiness={readiness} historyStats={historyStatsByMarket} results={resultEntries} pending={pendingEntries} dataFreshness={recommendationsGeneratedAt} />
       ) : page === "bets" ? (
-        <BetsPage loadBets={() => apiClient.bets()} onCreateBet={handleCreateBet} fixtures={betFixtures} />
+        <BetsPage
+          loadBets={() => apiClient.bets()}
+          onCreateBet={handleCreateBet}
+          onUpdateBet={handleUpdateBet}
+          onDeleteBet={handleDeleteBet}
+          fixtures={betFixtures}
+        />
       ) : page === "fixtures" ? (
-        <FixturesPage fixtures={dashboardFixtures} logos={teamLogos} onBet={setBetPrefill} />
+        <FixturesPage fixtures={dashboardFixtures} logos={teamLogos} oddsByMatch={fixtureOddsByMatch} onBet={setBetPrefill} />
       ) : (
         <LandingPage
           opportunities={activeRecordedOpportunities}
@@ -427,6 +482,8 @@ function App() {
           generatedAt={recommendationsGeneratedAt}
           dataFresh={recommendationsTrusted}
           logos={teamLogos}
+          latencyMs={apiLatencyMs}
+          quota={apiQuota}
           loadObservations={loadRecommendationObservations}
           onBet={setBetPrefill}
         />

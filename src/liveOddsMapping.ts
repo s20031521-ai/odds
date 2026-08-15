@@ -32,7 +32,7 @@ export function normalizeLiveOddsPayload(payload: unknown): NormalizedLiveOdds {
     ? ((payload as { entries: unknown[] }).entries as FlatRow[])
     : [];
 
-  const h2hGroups = new Map<string, { meta: FlatRow; odds: Partial<OddsSet> }>();
+  const h2hGroups = new Map<string, { meta: FlatRow; odds: Partial<OddsSet>; previous: Partial<OddsSet> }>();
 
   for (const row of rows) {
     if (!isUsableRow(row)) continue;
@@ -49,8 +49,12 @@ export function normalizeLiveOddsPayload(payload: unknown): NormalizedLiveOdds {
 
     if (row.market === "h2h" && (H2H_OUTCOMES as string[]).includes(selection)) {
       const key = baseId(row, selection);
-      const group = h2hGroups.get(key) ?? { meta: row, odds: {} };
+      const group = h2hGroups.get(key) ?? { meta: row, odds: {}, previous: {} };
       group.odds[selection as OutcomeKey] = price;
+      const previousPrice = (row as { previousOdds?: unknown }).previousOdds;
+      if (typeof previousPrice === "number" && Number.isFinite(previousPrice)) {
+        group.previous[selection as OutcomeKey] = previousPrice;
+      }
       h2hGroups.set(key, group);
     }
     // totals / corners / spreads deliberately ignored for the client UI path
@@ -58,7 +62,9 @@ export function normalizeLiveOddsPayload(payload: unknown): NormalizedLiveOdds {
 
   for (const [key, group] of h2hGroups) {
     if (H2H_OUTCOMES.every((outcome) => typeof group.odds[outcome] === "number" && Number.isFinite(group.odds[outcome]))) {
-      result.entries.push(buildH2hEntry({ ...group.meta, id: key }, group.odds as OddsSet));
+      const entry = buildH2hEntry({ ...group.meta, id: key }, group.odds as OddsSet);
+      if (Object.keys(group.previous).length > 0) entry.previousOdds = group.previous;
+      result.entries.push(entry);
     }
   }
 

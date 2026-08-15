@@ -41,6 +41,13 @@ export function createApp({ repositories, auth, publicOrigin, trustedProxyCidrs 
       if (route === "POST /api/v1/predictions") return await handlePredictions(req, res, { repositories, auth, session, publicOrigin });
       if (route === "GET /api/v1/bets") return await handleBetsList(res, repositories, session);
       if (route === "POST /api/v1/bets") return await handleBetsCreate(req, res, { repositories, auth, session, publicOrigin });
+      const betIdMatch = url.pathname.match(/^\/api\/v1\/bets\/([^/]+)$/);
+      if (betIdMatch && req.method === "PATCH") {
+        return await handleBetUpdate(req, res, { repositories, auth, session, publicOrigin }, decodeURIComponent(betIdMatch[1]));
+      }
+      if (betIdMatch && req.method === "DELETE") {
+        return await handleBetDelete(req, res, { repositories, auth, session, publicOrigin }, decodeURIComponent(betIdMatch[1]));
+      }
 
       return safeError(res, 404, "not_found");
     } catch (error) {
@@ -87,7 +94,17 @@ async function handleLogout(req, res, { auth, session, publicOrigin }) {
 
 async function handleLiveOdds(res, repositories, clock) {
   const entries = await repositories.odds.listLive(new Date(clock()));
-  return json(res, 200, { entries });
+  let quota = null;
+  if (typeof repositories.collectorState?.get === "function") {
+    const state = await repositories.collectorState.get("hdc-collector");
+    if (state && (state.quotaUsed != null || state.quotaRemaining != null)) {
+      quota = {
+        used: state.quotaUsed ?? null,
+        remaining: state.quotaRemaining ?? null,
+      };
+    }
+  }
+  return json(res, 200, { entries, quota });
 }
 
 async function handleResults(res, repositories) {
@@ -215,6 +232,9 @@ function publicSession(session) {
 }
 
 function routeInventoryStatus(method, pathname) {
+  if (/^\/api\/v1\/bets\/[^/]+$/.test(pathname)) {
+    return method === "PATCH" || method === "DELETE" ? null : 405;
+  }
   const allowed = ROUTES.get(pathname);
   if (!allowed) return 404;
   return allowed.has(method) ? null : 405;
@@ -297,6 +317,43 @@ async function handleBetsCreate(req, res, { repositories, auth, session, publicO
     bet = refreshed.find((row) => row.id === bet.id) ?? bet;
   }
   return json(res, 201, { bet });
+}
+
+function validateBetBody(body) {
+  return body && typeof body.market === "string" && typeof body.selection === "string"
+    && typeof body.odds === "number" && typeof body.stake === "number"
+    && body.stake > 0 && Number.isFinite(body.odds) && body.odds > 1;
+}
+
+async function handleBetUpdate(req, res, { repositories, auth, session, publicOrigin }, betId) {
+  if (!await verifyMutationSecurity({ req, auth, session, publicOrigin })) return safeError(res, 403, "forbidden");
+  const body = await readJsonBody(req, { limitBytes: 16 * 1024 });
+  if (!validateBetBody(body)) return safeError(res, 400, "bad_request");
+  const existing = await repositories.bets.getById(session.ownerId, betId);
+  if (!existing) return safeError(res, 404, "not_found");
+  if (existing.settlement !== "pending") return safeError(res, 409, "conflict");
+  const bet = await repositories.bets.update(session.ownerId, betId, {
+    fixtureId: body.fixtureId,
+    matchId: body.matchId,
+    homeTeam: body.homeTeam,
+    homeTeamZh: body.homeTeamZh,
+    awayTeam: body.awayTeam,
+    awayTeamZh: body.awayTeamZh,
+    commenceTime: body.commenceTime,
+    market: body.market,
+    selection: body.selection,
+    line: body.line,
+    odds: body.odds,
+    stake: body.stake,
+  });
+  return json(res, 200, { bet });
+}
+
+async function handleBetDelete(req, res, { repositories, auth, session, publicOrigin }, betId) {
+  if (!await verifyMutationSecurity({ req, auth, session, publicOrigin })) return safeError(res, 403, "forbidden");
+  const removed = await repositories.bets.remove(session.ownerId, betId);
+  if (!removed) return safeError(res, 404, "not_found");
+  return json(res, 200, { deleted: betId });
 }
 
 async function ensurePersonalBetSamples(repositories, ownerId) {

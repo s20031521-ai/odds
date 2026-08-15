@@ -298,6 +298,56 @@ export async function mockApi(
       return;
     }
 
+    if (pathname === "/api/v1/results") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ resultEntries: [] }),
+      });
+      return;
+    }
+
+    if (pathname === "/api/v1/bets" && method === "GET") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          bets: [],
+          summary: { total: 0, settled: 0, pending: 0, win: 0, loss: 0, push: 0, hitRate: null, byMarket: [] },
+        }),
+      });
+      return;
+    }
+
+    if (pathname === "/api/v1/bets" && method === "POST") {
+      const body = route.request().postDataJSON() ?? {};
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({ bet: { id: "bet-mock-1", ...body, settlement: "pending", profit: null } }),
+      });
+      return;
+    }
+
+    if (/^\/api\/v1\/bets\/[^/]+$/.test(pathname) && method === "PATCH") {
+      const body = route.request().postDataJSON() ?? {};
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ bet: { id: pathname.split("/").pop(), ...body, settlement: "pending", profit: null } }),
+      });
+      return;
+    }
+
+    if (/^\/api\/v1\/bets\/[^/]+$/.test(pathname) && method === "DELETE") {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ deleted: pathname.split("/").pop() }),
+      });
+      return;
+    }
+
     throw new Error(`Unmocked app data request: ${route.request().method()} ${route.request().url()}`);
   });
 

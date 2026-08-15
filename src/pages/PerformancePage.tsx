@@ -1,7 +1,14 @@
-import { useState } from "react";
-import { Mascot } from "../components/Kawaii";
+import { useMemo, useState } from "react";
+import { TrendingUp, Radar, BrainCircuit } from "lucide-react";
 import { formatKickoff } from "../components/PickCard";
+import { RadarChart } from "../components/RadarChart";
 import { READINESS_MODELS } from "../readinessModels";
+import {
+  computeDailyHitRates,
+  computeOverallAccuracy,
+  computeRollingDiff,
+  sparklinePath,
+} from "../performanceMetrics";
 import type { MarketKey } from "../market";
 
 type PendingEntry = {
@@ -98,6 +105,8 @@ export function PerformancePage(props: {
   historyStats: Map<string, HistoryStats>;
   results: ResultEntry[];
   pending: PendingEntry[];
+  /** ISO timestamp of last successful recommendation refresh (資料新鮮度). */
+  dataFreshness?: string | null;
 }): React.ReactElement {
   const [selectedMarket, setSelectedMarket] = useState<MarketKey | null>(null);
   const [detailTab, setDetailTab] = useState<"settled" | "pending">("settled");
@@ -107,6 +116,39 @@ export function PerformancePage(props: {
       ? null
       : READINESS_MODELS.find((m) => m.market === selectedMarket) ?? null;
 
+  /* ---------- Overview aggregations (B4.1 / B4.3) ---------- */
+  const overview = useMemo(() => {
+    const rows = props.results;
+    return {
+      accuracy: computeOverallAccuracy(rows),
+      sparkline: sparklinePath(computeDailyHitRates(rows)),
+      rollingDiff: computeRollingDiff(rows),
+    };
+  }, [props.results]);
+
+  const radarAxes = useMemo(
+    () =>
+      READINESS_MODELS.map(({ market, label }) => ({
+        label,
+        value: props.historyStats.get(market)?.winPercent ?? 0,
+      })),
+    [props.historyStats],
+  );
+
+  const modelVersions = useMemo(
+    () => [...new Set(props.readiness.map((r) => r.modelVersion))],
+    [props.readiness],
+  );
+
+  const freshnessLabel = useMemo(() => {
+    if (!props.dataFreshness) return "—";
+    const t = Date.parse(props.dataFreshness);
+    if (Number.isNaN(t)) return "—";
+    const minutes = Math.max(0, Math.round((Date.now() - t) / 60000));
+    return minutes === 0 ? "啱啱更新" : `${minutes} 分鐘前`;
+  }, [props.dataFreshness]);
+
+  /* ---------- Detail view (kept, reskinned) ---------- */
   if (selectedMarket !== null && model) {
     const readiness = props.readiness.find(
       (r) => r.market === selectedMarket && r.modelVersion === model.modelVersion
@@ -304,66 +346,149 @@ export function PerformancePage(props: {
     );
   }
 
+  /* ---------- Overview ---------- */
   return (
     <section className="performance-page" aria-labelledby="performance-title">
-      <h1 id="performance-title" className="page-heading">
-        模型表現
-      </h1>
-      <div className="performance-grid">
-        {READINESS_MODELS.map(({ market, label, modelVersion }) => {
-          const readiness = props.readiness.find(
-            (r) => r.market === market && r.modelVersion === modelVersion
-          );
-          const stats = props.historyStats.get(market);
-          const settled = readiness?.settledMatches ?? 0;
-          const percent = Math.min(
-            100,
-            Math.round((settled / READINESS_TARGET) * 100)
-          );
-          const hasStats = stats !== undefined && stats.win + stats.loss > 0;
+      <header>
+        <h1 id="performance-title" className="page-heading">表現分析</h1>
+        <p className="performance-page__sub mono">
+          模型 {modelVersions.join(" · ") || "—"}
+        </p>
+      </header>
 
-          return (
-            <button
-              className="performance-card"
-              key={market}
-              onClick={() => { setSelectedMarket(market); setDetailTab("settled"); }}
-              type="button"
-            >
-              <div className="performance-card__head">
-                <h2>{label}</h2>
-                <span className="performance-card__count">
-                  {settled}/{READINESS_TARGET} 場
-                </span>
-              </div>
-              <div className="performance-card__bar" aria-hidden="true">
-                <span style={{ width: `${percent}%` }} />
-              </div>
-              {hasStats ? (
-                <p className="performance-card__accuracy">
-                  <span className="positive">
-                    中 {stats.winPercent.toFixed(1)}%
-                  </span>
-                  {" · "}
-                  <span className="negative">
-                    錯 {stats.lossPercent.toFixed(1)}%
-                  </span>
-                  {stats.push > 0 ? (
-                    <small> · 走盤 {stats.push}</small>
-                  ) : null}
-                </p>
-              ) : (
-                <p className="performance-card__accuracy muted">
-                  {settled === 0 ? "尚未有數據" : "樣本不足"}
-                </p>
-              )}
-              <span className="performance-card__chevron" aria-hidden="true">
-                ›
+      <div className="performance-overview">
+        <div className="performance-overview__main">
+          <div className="accuracy-callout">
+            <span className="accuracy-callout__label">
+              <span className="accuracy-callout__dot" aria-hidden="true" />
+              整體準確率
+            </span>
+            <div className="accuracy-callout__row">
+              <span className="accuracy-callout__value">
+                {overview.accuracy !== null ? (
+                  <>
+                    {overview.accuracy}
+                    <span className="accuracy-callout__percent">%</span>
+                  </>
+                ) : "—"}
               </span>
-            </button>
-          );
-        })}
+              {overview.sparkline ? (
+                <svg
+                  className="accuracy-callout__sparkline"
+                  viewBox="0 0 200 80"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                >
+                  <path d={overview.sparkline} />
+                </svg>
+              ) : null}
+              {overview.rollingDiff !== null ? (
+                <span className="accuracy-callout__diff">
+                  <span className="accuracy-callout__diff-label">7天滾動平均</span>
+                  <span className="accuracy-callout__diff-value">
+                    <TrendingUp size={14} aria-hidden="true" />
+                    {overview.rollingDiff > 0 ? "+" : ""}
+                    {overview.rollingDiff}% 差異
+                  </span>
+                </span>
+              ) : null}
+            </div>
+            <div className="accuracy-callout__track" aria-hidden="true">
+              <div
+                className="accuracy-callout__fill"
+                style={{ width: `${overview.accuracy ?? 0}%` }}
+              />
+            </div>
+          </div>
+
+          <h2 className="performance-section-heading">市場校準</h2>
+          <div className="performance-grid">
+            {READINESS_MODELS.map(({ market, label, modelVersion }) => {
+              const readiness = props.readiness.find(
+                (r) => r.market === market && r.modelVersion === modelVersion
+              );
+              const stats = props.historyStats.get(market);
+              const settled = readiness?.settledMatches ?? 0;
+              const percent = Math.min(
+                100,
+                Math.round((settled / READINESS_TARGET) * 100)
+              );
+              const hasStats = stats !== undefined && stats.win + stats.loss > 0;
+
+              return (
+                <button
+                  className="performance-card"
+                  key={market}
+                  onClick={() => { setSelectedMarket(market); setDetailTab("settled"); }}
+                  type="button"
+                >
+                  <div className="performance-card__head">
+                    <h2>{label}</h2>
+                    <span className="performance-card__count mono">
+                      n={settled.toLocaleString()}
+                    </span>
+                  </div>
+                  {hasStats ? (
+                    <p className="performance-card__hitrate">
+                      <span className="performance-card__hitrate-value">
+                        {stats.winPercent.toFixed(1)}%
+                      </span>
+                      <small className="muted">
+                        錯 {stats.lossPercent.toFixed(1)}%
+                        {stats.push > 0 ? ` · 走盤 ${stats.push}` : ""}
+                      </small>
+                    </p>
+                  ) : (
+                    <p className="performance-card__accuracy muted">
+                      {settled === 0 ? "尚未有數據" : "樣本不足"}
+                    </p>
+                  )}
+                  <div
+                    className="performance-card__bar"
+                    role="img"
+                    aria-label={`樣本進度 ${settled}/${READINESS_TARGET} 場`}
+                  >
+                    <span style={{ width: `${percent}%` }} />
+                  </div>
+                  <span className="performance-card__count mono">
+                    {settled}/{READINESS_TARGET} 場
+                  </span>
+                  <span className="performance-card__chevron" aria-hidden="true">
+                    ›
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <aside className="performance-overview__side">
+          <div className="insights-panel">
+            <h3 className="insights-panel__heading">
+              <BrainCircuit size={16} aria-hidden="true" />
+              模型洞察
+            </h3>
+            <div className="insights-panel__row">
+              <span className="insights-panel__label">資料新鮮度</span>
+              <span className="insights-panel__value mono">{freshnessLabel}</span>
+            </div>
+            <div className="insights-panel__row">
+              <span className="insights-panel__label">模型版本</span>
+              <span className="insights-panel__value mono">
+                {modelVersions.join(" · ") || "—"}
+              </span>
+            </div>
+          </div>
+
+          <div className="radar-panel">
+            <h3 className="insights-panel__heading">
+              <Radar size={16} aria-hidden="true" />
+              各玩法中率
+            </h3>
+            <RadarChart axes={radarAxes} />
+          </div>
+        </aside>
       </div>
-      <Mascot pose="chiikawa-empty" />
     </section>
   );
 }

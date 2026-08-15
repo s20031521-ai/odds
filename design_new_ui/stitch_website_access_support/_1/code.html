@@ -1,0 +1,194 @@
+<html lang="zh-TW"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;background-color:#131313;}body{overscroll-behavior:none;overflow-x:hidden;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}
+@keyframes breathe {
+  0%, 100% { box-shadow: 0 0 15px rgba(255, 33, 116, 0.3); }
+  50% { box-shadow: 0 0 30px rgba(255, 33, 116, 0.7); }
+}
+.animate-breathe {
+  animation: breathe 3s infinite ease-in-out;
+}
+</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">tailwind.config={darkMode:"class",theme:{extend:{"colors":{"error":"#ffb4ab","tertiary-fixed-dim":"#c8c6c6","inverse-primary":"#bc0051","border-dim":"#222222","on-secondary":"#313030","on-tertiary":"#303030","outline":"#ac888d","outline-variant":"#5c3f44","secondary":"#c8c6c5","on-surface-variant":"#e5bcc3","on-secondary-fixed":"#1c1b1b","on-primary-fixed-variant":"#90003c","surface-container-high":"#2a2a2a","secondary-container":"#474746","inverse-on-surface":"#303030","on-primary-fixed":"#3f0016","primary-container":"#ff4d82","surface-bright":"#393939","surface-dim":"#131313","secondary-fixed-dim":"#c8c6c5","primary":"#ffb1c0","surface-charcoal":"#121212","on-tertiary-container":"#292a2a","tertiary-fixed":"#e4e2e1","surface-tint":"#ffb1c0","on-tertiary-fixed-variant":"#474747","on-primary-container":"#5a0023","on-error-container":"#ffdad6","on-tertiary-fixed":"#1b1c1c","primary-fixed":"#ffd9df","background":"#131313","on-surface":"#e2e2e2","surface-variant":"#353535","surface-container-lowest":"#0e0e0e","error-container":"#93000a","on-secondary-container":"#b7b5b4","secondary-fixed":"#e5e2e1","on-secondary-fixed-variant":"#474746","surface-container-low":"#1b1b1b","on-primary":"#660028","on-error":"#690005","surface-container":"#1f1f1f","on-background":"#e2e2e2","surface":"#131313","primary-fixed-dim":"#ffb1c0","surface-elevated":"#1E1E1E","neon-pink":"#FF2174","inverse-surface":"#e2e2e2","text-muted":"#A0A0A0","tertiary":"#c8c6c6","tertiary-container":"#929090","surface-container-highest":"#353535"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"page-margin":"32px","container-padding":"20px","gutter":"16px","component-gap":"12px","8pt-unit":"8px"},"fontFamily":{"body-lg":["Hanken Grotesk"],"body-md":["Hanken Grotesk"],"headline-lg-mobile":["Hanken Grotesk"],"headline-lg":["Hanken Grotesk"],"label-md":["JetBrains Mono"],"headline-md":["Hanken Grotesk"],"label-sm":["JetBrains Mono"]},"fontSize":{"body-lg":["16px",{"lineHeight":"24px","fontWeight":"400"}],"body-md":["14px",{"lineHeight":"20px","fontWeight":"400"}],"headline-lg-mobile":["32px",{"lineHeight":"40px","letterSpacing":"-0.02em","fontWeight":"700"}],"headline-lg":["40px",{"lineHeight":"48px","letterSpacing":"-0.02em","fontWeight":"700"}],"label-md":["12px",{"lineHeight":"16px","letterSpacing":"0.05em","fontWeight":"500"}],"headline-md":["28px",{"lineHeight":"36px","letterSpacing":"-0.01em","fontWeight":"600"}],"label-sm":["10px",{"lineHeight":"14px","letterSpacing":"0.03em","fontWeight":"500"}]}}}}</script></head><body class="bg-background font-body-md text-on-surface"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-charcoal border-r border-border-dim z-50 flex flex-col"><div class="p-page-margin flex items-center gap-component-gap"><div class="w-8 h-8 bg-neon-pink shadow-[0_0_8px_rgba(255,33,116,0.3)] flex items-center justify-center rounded-lg"><span class="material-symbols-outlined text-background">terminal</span></div><span class="font-headline-md text-headline-md tracking-tighter text-neon-pink">NEONBET</span></div><nav class="flex-1 mt-4" data-active-classes="text-neon-pink border-l-2 border-neon-pink bg-surface-container-low"><a class="flex items-center px-page-margin py-4 text-on-surface-variant hover:text-neon-pink hover:bg-surface-container-low transition-all duration-200 group" data-path="today-overview" href="#"><span class="material-symbols-outlined mr-gutter group-hover:text-neon-pink">dashboard</span><span class="font-body-lg text-body-lg">今日概覽</span></a><a class="flex items-center px-page-margin py-4 text-on-surface-variant hover:text-neon-pink hover:bg-surface-container-low transition-all duration-200 group" data-path="schedules" href="#"><span class="material-symbols-outlined mr-gutter group-hover:text-neon-pink">event_note</span><span class="font-body-lg text-body-lg">賽程列表</span></a><a class="flex items-center px-page-margin py-4 text-on-surface-variant hover:text-neon-pink hover:bg-surface-container-low transition-all duration-200 group" data-path="bet-management" href="#"><span class="material-symbols-outlined mr-gutter group-hover:text-neon-pink">confirmation_number</span><span class="font-body-lg text-body-lg">注單管理</span></a><a aria-current="page" class="flex items-center px-page-margin py-4 transition-all duration-200 group text-neon-pink border-l-2 border-neon-pink bg-surface-container-low" data-path="performance-analytics" href="#"><span class="material-symbols-outlined mr-gutter group-hover:text-neon-pink">monitoring</span><span class="font-body-lg text-body-lg">表現分析</span></a></nav><div class="p-page-margin border-t border-border-dim"><div class="flex items-center gap-component-gap"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-[0_0_10px_rgba(255,177,192,0.2)]"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div><div class="flex flex-col"><span class="font-label-md text-on-surface">系統管理員</span><span class="font-label-sm text-text-muted">職業玩家</span></div></div></div></aside><div class="pl-72"><header class="fixed top-0 left-72 right-0 h-20 bg-background/80 backdrop-blur-xl border-b border-border-dim z-40 flex items-center justify-between px-page-margin"><div class="flex items-center flex-1 max-w-xl"><div class="relative w-full group"><span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-neon-pink transition-colors">search</span><input class="w-full bg-surface-charcoal border border-border-dim focus:border-neon-pink focus:outline-none py-2.5 pl-12 pr-4 rounded-lg font-label-md text-on-surface placeholder:text-text-muted transition-all" placeholder="搜尋賽程、球隊或注單..." type="text"/></div></div><div class="flex items-center gap-page-margin"><div class="flex flex-col items-end"><span class="font-label-sm text-text-muted uppercase tracking-widest">錢包餘額</span><span class="font-label-md text-neon-pink text-xl">$2,450.00</span></div><div class="h-10 w-[1px] bg-border-dim"></div><div class="flex items-center gap-gutter"><button class="p-2 hover:bg-surface-container-high rounded-lg text-on-surface-variant hover:text-neon-pink transition-colors"><span class="material-symbols-outlined">notifications</span></button><button class="p-2 hover:bg-surface-container-high rounded-lg text-on-surface-variant hover:text-neon-pink transition-colors"><span class="material-symbols-outlined">settings</span></button></div></div></header><main class="relative pt-20 bg-background min-h-screen px-page-margin py-page-margin"><div class="flex flex-col w-full h-full max-w-[1440px] mx-auto pb-16">
+<div class="flex items-center gap-4 mb-12">
+<div class="w-1.5 h-8 bg-neon-pink shadow-[0_0_8px_rgba(255,33,116,0.5)]"></div>
+<div class="flex flex-col">
+<h1 class="font-headline-lg text-headline-lg text-on-surface uppercase tracking-tight">模型表現分析</h1>
+<p class="font-label-md text-label-md text-text-muted uppercase tracking-[0.1em]">模型 v4.2.1 • 延遲： <span class="text-neon-pink">12ms</span></p>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+<div class="lg:col-span-8 flex flex-col gap-8">
+<!-- Global Accuracy Callout -->
+<div class="relative bg-surface-charcoal border border-border-dim rounded-lg p-10 overflow-hidden group">
+<!-- Decorative grid overlay -->
+<div class="absolute inset-0 opacity-5 pointer-events-none" style="background-image: linear-gradient(#303030 1px, transparent 1px), linear-gradient(90deg, #303030 1px, transparent 1px); background-size: 20px 20px;"></div>
+<div class="relative flex flex-col justify-between">
+<span class="font-label-md text-label-md text-text-muted uppercase mb-4 tracking-widest flex items-center gap-2">
+<span class="w-2 h-2 bg-neon-pink block rounded-sm shadow-[0_0_5px_rgba(255,33,116,0.5)]"></span>
+              整體準確率
+            </span>
+<div class="flex items-end justify-between w-full mt-2">
+<div class="font-headline-lg text-[120px] leading-none font-bold text-neon-pink tracking-tighter drop-shadow-[0_0_15px_rgba(255,33,116,0.3)]">
+              76.4<span class="text-[60px]">%</span>
+</div>
+<div class="flex-1 px-8 hidden md:block max-w-[400px] h-[80px]">
+<svg class="w-full h-full stroke-neon-pink fill-none stroke-[3]" preserveaspectratio="none" viewbox="0 0 200 80">
+<path d="M0,70 L25,50 L50,60 L75,30 L100,40 L125,10 L150,20 L175,5 L200,15" style="filter: drop-shadow(0 0 6px rgba(255,33,116,0.6));"></path>
+<path class="fill-neon-pink/10 stroke-none" d="M0,70 L25,50 L50,60 L75,30 L100,40 L125,10 L150,20 L175,5 L200,15 L200,80 L0,80 Z"></path>
+</svg>
+</div>
+<div class="text-right">
+<div class="font-label-sm text-label-sm text-text-muted uppercase mb-1">7天滾動平均</div>
+<div class="font-label-md text-label-md text-on-surface flex items-center justify-end gap-1">
+<span class="material-symbols-outlined text-[16px] text-neon-pink">trending_up</span>
+              +1.2% 差異
+            </div>
+</div>
+</div>
+</div>
+<div class="mt-10 h-1 w-full bg-surface-container-high rounded-full overflow-hidden relative">
+<div class="absolute top-0 left-0 h-full bg-neon-pink w-[76.4%] shadow-[0_0_10px_rgba(255,33,116,0.8)]"></div>
+</div>
+</div>
+<!-- Market Performance -->
+<div class="flex flex-col gap-6">
+<h2 class="font-headline-md text-headline-md text-on-surface uppercase flex items-center gap-3">
+<span class="material-symbols-outlined text-text-muted">analytics</span>
+          市場校準
+        </h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<div class="bg-surface-container-low border border-neon-pink/30 rounded-lg p-6 hover:border-neon-pink transition-colors duration-300 flex flex-col gap-4 group">
+<div class="flex justify-between items-start">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase">大小盤</span>
+<span class="material-symbols-outlined text-text-muted text-[18px] group-hover:text-neon-pink transition-colors">show_chart</span>
+</div>
+<div class="flex justify-between items-end mt-4">
+<span class="font-headline-lg text-headline-lg text-neon-pink drop-shadow-[0_0_8px_rgba(255,33,116,0.2)]">82.1%</span>
+<span class="font-label-sm text-label-sm text-text-muted mb-2">n=1,420</span>
+</div>
+<div class="h-[2px] w-full bg-surface-container-high mt-2 relative">
+<div class="absolute top-0 left-0 h-full bg-neon-pink w-[82.1%] shadow-[0_0_15px_rgba(255,33,116,1)]"></div>
+</div>
+</div>
+<div class="bg-surface-container-low border border-neon-pink/30 rounded-lg p-6 hover:border-neon-pink transition-colors duration-300 flex flex-col gap-4 group">
+<div class="flex justify-between items-start">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase">亞洲盤</span>
+<span class="material-symbols-outlined text-text-muted text-[18px] group-hover:text-neon-pink transition-colors">show_chart</span>
+</div>
+<div class="flex justify-between items-end mt-4">
+<span class="font-headline-lg text-headline-lg text-neon-pink drop-shadow-[0_0_8px_rgba(255,33,116,0.2)]">74.5%</span>
+<span class="font-label-sm text-label-sm text-text-muted mb-2">n=2,105</span>
+</div>
+<div class="h-[2px] w-full bg-surface-container-high mt-2 relative">
+<div class="absolute top-0 left-0 h-full bg-neon-pink w-[74.5%] shadow-[0_0_15px_rgba(255,33,116,1)]"></div>
+</div>
+</div>
+<div class="bg-surface-container-low border border-neon-pink/30 rounded-lg p-6 hover:border-neon-pink transition-colors duration-300 flex flex-col gap-4 group">
+<div class="flex justify-between items-start">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase">獨贏盤</span>
+<span class="material-symbols-outlined text-text-muted text-[18px] group-hover:text-neon-pink transition-colors">show_chart</span>
+</div>
+<div class="flex justify-between items-end mt-4">
+<span class="font-headline-lg text-headline-lg text-neon-pink drop-shadow-[0_0_8px_rgba(255,33,116,0.2)]">79.8%</span>
+<span class="font-label-sm text-label-sm text-text-muted mb-2">n=840</span>
+</div>
+<div class="h-[2px] w-full bg-surface-container-high mt-2 relative">
+<div class="absolute top-0 left-0 h-full bg-neon-pink w-[79.8%] shadow-[0_0_15px_rgba(255,33,116,1)]"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Sidebar / Model Insights -->
+<div class="lg:col-span-4 flex flex-col gap-8">
+<div class="bg-surface-charcoal border border-neon-pink/30 rounded-lg p-6 relative overflow-hidden">
+<!-- Accent corner -->
+<div class="absolute top-0 right-0 w-8 h-8 border-t border-r border-neon-pink opacity-50"></div>
+<h3 class="font-label-md text-label-md text-neon-pink uppercase tracking-widest mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">psychology</span>
+           模型洞察
+        </h3>
+<div class="flex flex-col gap-4">
+<div class="flex justify-between items-center py-2 border-b border-border-dim">
+<span class="font-label-sm text-label-sm text-text-muted uppercase">信心閾值</span>
+<span class="font-label-md text-label-md text-on-surface">65.0%</span>
+</div>
+<div class="flex justify-between items-center py-2 border-b border-border-dim">
+<span class="font-label-sm text-label-sm text-text-muted uppercase">資料新鮮度</span>
+<span class="font-label-md text-label-md text-on-surface">42秒前</span>
+</div>
+<div class="flex justify-between items-center py-2 border-b border-border-dim">
+<span class="font-label-sm text-label-sm text-text-muted uppercase">偵測到的異常</span>
+<span class="font-label-md text-label-md text-neon-pink">2 (高嚴重性)</span>
+</div>
+<div class="flex justify-between items-center py-2">
+<span class="font-label-sm text-label-sm text-text-muted uppercase">系統延遲</span>
+<span class="font-label-md text-label-md text-on-surface flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-neon-pink shadow-[0_0_4px_rgba(255,33,116,0.8)] animate-pulse"></span>
+                    12ms
+                </span>
+</div>
+</div>
+<button class="mt-8 w-full py-3 bg-neon-pink text-surface-charcoal font-label-md text-label-md uppercase tracking-wider rounded flex justify-center items-center gap-2 hover:bg-[#ff3b84] transition-colors animate-breathe">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+            重新校準權重
+        </button>
+</div>
+<!-- Visual Element -->
+<div class="bg-surface-container-low border border-border-dim rounded-lg p-6 h-64 relative flex items-center justify-center overflow-hidden group">
+<div class="absolute inset-0 opacity-20 pointer-events-none flex items-center justify-center">
+<svg class="w-full h-full stroke-neon-pink fill-none stroke-[0.5]" style="mask-image: radial-gradient(circle, black 30%, transparent 70%);" viewbox="0 0 100 100">
+<circle class="opacity-30" cx="50" cy="50" r="20"></circle>
+<circle class="opacity-50" cx="50" cy="50" r="30"></circle>
+<circle class="opacity-70" cx="50" cy="50" r="40"></circle>
+<path class="opacity-50" d="M50 10 L50 90 M10 50 L90 50"></path>
+<path class="opacity-30" d="M20 20 L80 80 M20 80 L80 20"></path>
+</svg>
+</div>
+<div class="relative z-10 text-center flex flex-col items-center">
+<div class="w-12 h-12 rounded-full border border-neon-pink flex items-center justify-center mb-4 shadow-[0_0_15px_rgba(255,33,116,0.2)]">
+<span class="material-symbols-outlined text-neon-pink">radar</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface uppercase tracking-widest block mb-1">即時動態</span>
+<span class="font-label-sm text-label-sm text-text-muted uppercase">正在監控 1,204 場賽程</span>
+</div>
+</div><div class="bg-surface-charcoal border border-border-dim rounded-lg p-6 relative overflow-hidden">
+<div class="absolute top-0 right-0 w-8 h-8 border-t border-r border-neon-pink opacity-50"></div>
+<h3 class="font-label-md text-label-md text-neon-pink uppercase tracking-widest mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">radar</span>
+    信心度分布雷達圖
+  </h3>
+<div class="relative h-48 flex items-center justify-center">
+<!-- Radar Chart SVG -->
+<svg class="w-full h-full" viewbox="0 0 100 100">
+<!-- Background Hexagons -->
+<polygon class="stroke-border-dim fill-none stroke-[0.5]" points="50,5 93.3,30 93.3,80 50,105 6.7,80 6.7,30" transform="scale(0.8) translate(12.5, 12.5)"></polygon>
+<polygon class="stroke-border-dim fill-none stroke-[0.5]" points="50,5 93.3,30 93.3,80 50,105 6.7,80 6.7,30" transform="scale(0.6) translate(33.3, 33.3)"></polygon>
+<polygon class="stroke-border-dim fill-none stroke-[0.5]" points="50,5 93.3,30 93.3,80 50,105 6.7,80 6.7,30" transform="scale(0.4) translate(75, 75)"></polygon>
+<!-- Axis Lines -->
+<line class="stroke-border-dim stroke-[0.5]" x1="50" x2="50" y1="10" y2="90"></line>
+<line class="stroke-border-dim stroke-[0.5]" x1="15" x2="85" y1="30" y2="70"></line>
+<line class="stroke-border-dim stroke-[0.5]" x1="15" x2="85" y1="70" y2="30"></line>
+<!-- Data Polygon -->
+<polygon class="fill-neon-pink/20 stroke-neon-pink stroke-[2] drop-shadow-[0_0_8px_rgba(255,33,116,0.5)]" points="50,20 80,40 75,75 50,85 25,70 30,35"></polygon>
+<!-- Labels -->
+<text class="fill-text-muted font-label-sm text-[6px] uppercase" text-anchor="middle" x="50" y="8">大小盤</text>
+<text class="fill-text-muted font-label-sm text-[6px] uppercase" text-anchor="start" x="92" y="35">讓球</text>
+<text class="fill-text-muted font-label-sm text-[6px] uppercase" text-anchor="start" x="92" y="75">獨贏</text>
+<text class="fill-text-muted font-label-sm text-[6px] uppercase" text-anchor="middle" x="50" y="98">角球</text>
+<text class="fill-text-muted font-label-sm text-[6px] uppercase" text-anchor="end" x="8" y="75">波膽</text>
+<text class="fill-text-muted font-label-sm text-[6px] uppercase" text-anchor="end" x="8" y="35">半全場</text>
+</svg>
+</div>
+<div class="mt-4 grid grid-cols-2 gap-2">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-neon-pink"></span>
+<span class="font-label-sm text-text-muted">高信心區間</span>
+</div>
+<div class="text-right">
+<span class="font-label-md text-on-surface">88.4% Avg</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div></main></div></body></html>

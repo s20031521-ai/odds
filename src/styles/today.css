@@ -1,5 +1,5 @@
 /* ============================================================
-   Obsidian Neon — page styles (today / fixtures / bets /
+   Cyber-Metric Dark — page styles (today / fixtures / bets /
    performance / bet form / pick cards)
    ============================================================ */
 
@@ -55,7 +55,7 @@
 }
 
 .today-header__clock-value {
-  color: var(--color-text);
+  color: var(--color-accent);
   font-family: var(--font-mono);
   font-size: 0.9rem;
   font-weight: 500;
@@ -65,6 +65,15 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+}
+
+/* Landing H1 + stat values use success-cyan (design: data highlights in cyan) */
+.landing-page .page-heading {
+  color: var(--color-accent);
+}
+
+.today-monitoring .stat-card__value {
+  color: var(--color-accent);
 }
 
 .stat-card__label {
@@ -93,7 +102,7 @@
   align-items: center;
   gap: 10px;
   margin-bottom: 18px;
-  color: var(--color-text);
+  color: var(--color-accent);
   font-size: 1.05rem;
   font-weight: 600;
 }
@@ -113,7 +122,7 @@
 }
 
 .radar-alerts__view-all:hover {
-  color: var(--color-text);
+  color: var(--color-accent);
 }
 
 .radar-alerts__list {
@@ -181,7 +190,7 @@
   align-items: center;
   gap: 8px;
   overflow: hidden;
-  color: var(--color-text);
+  color: var(--color-accent);
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -286,7 +295,7 @@
 .pick-card:hover,
 .pick-card:focus-within {
   border-color: var(--color-primary-border);
-  box-shadow: var(--shadow-card), 0 0 20px rgba(255, 33, 116, 0.12);
+  box-shadow: var(--shadow-card), 0 0 20px rgba(255, 0, 122, 0.12);
 }
 
 .pick-card__summary {
@@ -321,7 +330,7 @@
   font-family: var(--font-mono);
   font-size: 1.05rem;
   font-weight: 600;
-  text-shadow: 0 0 8px rgba(255, 33, 116, 0.25);
+  text-shadow: 0 0 8px rgba(255, 0, 122, 0.25);
 }
 
 .pick-card__details {
@@ -440,7 +449,7 @@
 
 .performance-card:hover {
   border-color: var(--color-primary-border);
-  box-shadow: var(--shadow-card), 0 0 20px rgba(255, 33, 116, 0.12);
+  box-shadow: var(--shadow-card), 0 0 20px rgba(255, 0, 122, 0.12);
 }
 
 .performance-card__head {
@@ -472,7 +481,7 @@
   display: block;
   height: 100%;
   background: var(--color-primary);
-  box-shadow: 0 0 10px rgba(255, 33, 116, 0.8);
+  box-shadow: 0 0 10px rgba(255, 0, 122, 0.8);
   transition: width 400ms ease;
 }
 
@@ -669,7 +678,7 @@
   border-color: var(--color-primary-border);
   background: var(--color-primary-dim);
   color: var(--color-primary);
-  box-shadow: 0 0 12px rgba(255, 33, 116, 0.25);
+  box-shadow: 0 0 12px rgba(255, 0, 122, 0.25);
 }
 
 .settlement--push {
@@ -1098,7 +1107,7 @@
   border-color: var(--color-primary-border);
   background: var(--color-surface);
   color: var(--color-primary);
-  box-shadow: 0 0 8px rgba(255, 33, 116, 0.2);
+  box-shadow: 0 0 8px rgba(255, 0, 122, 0.2);
 }
 
 .fixtures-page__chips {
@@ -1128,7 +1137,7 @@
 
 .fixture-card:hover {
   border-color: var(--color-primary-border);
-  box-shadow: var(--shadow-card), 0 0 20px rgba(255, 33, 116, 0.12);
+  box-shadow: var(--shadow-card), 0 0 20px rgba(255, 0, 122, 0.12);
 }
 
 .fixture-card__accent {
@@ -1143,7 +1152,7 @@
 
 .fixture-card:hover .fixture-card__accent {
   background: var(--color-primary);
-  box-shadow: 0 0 10px rgba(255, 33, 116, 0.5);
+  box-shadow: 0 0 10px rgba(255, 0, 122, 0.5);
 }
 
 .fixture-card__head {
@@ -1162,7 +1171,7 @@
 .fixture-card__countdown {
   color: var(--color-primary);
   font-size: 0.72rem;
-  text-shadow: 0 0 4px rgba(255, 33, 116, 0.5);
+  text-shadow: 0 0 4px rgba(255, 0, 122, 0.5);
   animation: pulse-dot 2s ease-in-out infinite;
 }
 
@@ -1339,7 +1348,7 @@
 
 .donut__fill {
   stroke: var(--color-primary);
-  filter: drop-shadow(0 0 4px rgba(255, 33, 116, 0.6));
+  filter: drop-shadow(0 0 4px rgba(255, 0, 122, 0.6));
 }
 
 .donut__icon {
@@ -1545,7 +1554,7 @@
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.04em;
-  text-shadow: 0 0 15px rgba(255, 33, 116, 0.3);
+  text-shadow: 0 0 15px rgba(255, 0, 122, 0.3);
 }
 
 .accuracy-callout__percent {
@@ -1563,7 +1572,7 @@
   fill: none;
   stroke: var(--color-primary);
   stroke-width: 3;
-  filter: drop-shadow(0 0 6px rgba(255, 33, 116, 0.6));
+  filter: drop-shadow(0 0 6px rgba(255, 0, 122, 0.6));
 }
 
 .accuracy-callout__diff {
@@ -1604,7 +1613,7 @@
 .accuracy-callout__fill {
   height: 100%;
   background: var(--color-primary);
-  box-shadow: 0 0 10px rgba(255, 33, 116, 0.8);
+  box-shadow: 0 0 10px rgba(255, 0, 122, 0.8);
 }
 
 .performance-section-heading {
@@ -1625,7 +1634,7 @@
   font-family: var(--font-mono);
   font-size: 1.6rem;
   font-weight: 600;
-  text-shadow: 0 0 8px rgba(255, 33, 116, 0.2);
+  text-shadow: 0 0 8px rgba(255, 0, 122, 0.2);
 }
 
 /* Insights + radar side panels */
@@ -1697,10 +1706,10 @@
 }
 
 .radar-chart__data {
-  fill: rgba(255, 33, 116, 0.2);
+  fill: rgba(255, 0, 122, 0.2);
   stroke: var(--color-primary);
   stroke-width: 2;
-  filter: drop-shadow(0 0 8px rgba(255, 33, 116, 0.5));
+  filter: drop-shadow(0 0 8px rgba(255, 0, 122, 0.5));
 }
 
 .radar-chart__label {

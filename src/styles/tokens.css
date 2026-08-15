@@ -1,39 +1,45 @@
-/* Obsidian Neon design tokens — pure black canvas + neon pink signal */
+/* Cyber-Metric Dark design tokens — pure black canvas + neon magenta signal + success cyan */
 :root {
   /* Surface tiers */
   --color-bg: #000000;
-  --color-surface: #121212;
-  --color-surface-elevated: #1e1e1e;
+  --color-surface: #0d0d0d;
+  --color-surface-elevated: #1a1a1a;
   --color-surface-high: #2a2a2a;
   --color-track: #1a1a1a;
 
   /* Signal */
-  --color-primary: #ff2174;
-  --color-primary-hover: #ff3b84;
-  --color-primary-dim: rgba(255, 33, 116, 0.1);
-  --color-primary-border: rgba(255, 33, 116, 0.3);
-  --color-on-primary: #000000;
+  --color-primary: #ff007a;
+  --color-primary-hover: #ff3395;
+  --color-primary-dim: rgba(255, 0, 122, 0.1);
+  --color-primary-border: rgba(255, 0, 122, 0.3);
+  --color-on-primary: #ffffff;
+
+  /* Secondary accent — data highlights, charts, live values */
+  --color-accent: #00f0ff;
+  --color-accent-dim: rgba(0, 240, 255, 0.1);
+  --color-accent-border: rgba(0, 240, 255, 0.3);
 
   /* Text */
   --color-text: #e2e2e2;
-  --color-muted: #a0a0a0;
+  --color-muted: #808080;
 
   /* Structure */
-  --color-border: #222222;
+  --color-border: #262626;
 
   /* Semantic */
-  --color-positive: var(--color-primary);
-  --color-positive-text: var(--color-primary);
-  --color-positive-surface: rgba(255, 33, 116, 0.12);
-  --color-negative: #a0a0a0;
-  --color-negative-text: #a0a0a0;
+  --color-positive: #64df6e;
+  --color-positive-text: #64df6e;
+  --color-positive-surface: rgba(100, 223, 110, 0.12);
+  --color-negative: var(--color-primary);
+  --color-negative-text: var(--color-primary);
   --color-warning: #ffb4ab;
   --color-error: #ffb4ab;
   --color-error-surface: rgba(147, 0, 10, 0.35);
 
   /* Neon glows */
-  --glow-primary: 0 0 8px rgba(255, 33, 116, 0.3);
-  --glow-primary-strong: 0 0 15px rgba(255, 33, 116, 0.5);
+  --glow-primary: 0 0 8px rgba(255, 0, 122, 0.3);
+  --glow-primary-strong: 0 0 15px rgba(255, 0, 122, 0.5);
+  --glow-accent: 0 0 8px rgba(0, 240, 255, 0.3);
   --shadow-card: 0 0 15px rgba(0, 0, 0, 0.5);
   --shadow-panel: 0 0 20px rgba(0, 0, 0, 0.6);
 

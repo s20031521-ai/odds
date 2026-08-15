@@ -1,7 +1,8 @@
 /* ============================================================
-   Obsidian Neon — global base & shared components
-   Design: pure black canvas, #FF2174 neon signal, 4px radius,
-   1px #222 borders + neon glows, Hanken Grotesk + JetBrains Mono
+   Cyber-Metric Dark — global base & shared components
+   Design: pure black canvas, #FF007A neon magenta signal,
+   #00F0FF success cyan accent, 4px radius, 1px #262626 borders
+   + neon glows, Hanken Grotesk + JetBrains Mono
    ============================================================ */
 
 @font-face {
@@ -357,8 +358,8 @@ td {
 }
 
 .stat-card__value--neon {
-  color: var(--color-primary);
-  text-shadow: 0 0 15px rgba(255, 33, 116, 0.3);
+  color: var(--color-accent);
+  text-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
 }
 
 .stat-card__track {
@@ -372,7 +373,7 @@ td {
 .stat-card__fill {
   height: 100%;
   background: var(--color-primary);
-  box-shadow: 0 0 10px rgba(255, 33, 116, 0.8);
+  box-shadow: 0 0 10px rgba(255, 0, 122, 0.8);
 }
 
 .stat-card__meta {
@@ -410,7 +411,7 @@ td {
 .filter-chip.active {
   border-color: var(--color-primary);
   color: var(--color-primary);
-  box-shadow: 0 0 12px rgba(255, 33, 116, 0.3);
+  box-shadow: 0 0 12px rgba(255, 0, 122, 0.3);
 }
 
 /* Status badge (settlement states) */
@@ -441,12 +442,12 @@ td {
   border-color: var(--color-primary-border);
   background: var(--color-primary-dim);
   color: var(--color-primary);
-  box-shadow: 0 0 12px rgba(255, 33, 116, 0.3);
+  box-shadow: 0 0 12px rgba(255, 0, 122, 0.3);
 }
 
 .status-badge--win::before {
   background: var(--color-primary);
-  box-shadow: 0 0 8px rgba(255, 33, 116, 1);
+  box-shadow: 0 0 8px rgba(255, 0, 122, 1);
 }
 
 .status-badge--pending::before {
@@ -502,10 +503,10 @@ td {
 @keyframes breathe {
   0%,
   100% {
-    box-shadow: 0 0 15px rgba(255, 33, 116, 0.3);
+    box-shadow: 0 0 15px rgba(255, 0, 122, 0.3);
   }
   50% {
-    box-shadow: 0 0 30px rgba(255, 33, 116, 0.7);
+    box-shadow: 0 0 30px rgba(255, 0, 122, 0.7);
   }
 }
 

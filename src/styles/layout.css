@@ -1,4 +1,4 @@
-/* Obsidian Neon — application frame: left sidebar + topbar */
+/* Cyber-Metric Dark — application frame: left sidebar + topbar */
 
 .application-shell {
   min-height: 100vh;
@@ -103,7 +103,7 @@
 }
 
 .sidebar__nav a:hover {
-  color: var(--color-text);
+  color: var(--color-accent);
   background: var(--color-surface);
 }
 

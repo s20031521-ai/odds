@@ -64,6 +64,13 @@ node scripts/unified-sampler.mjs
 Reads current PostgreSQL odds, resolves fixture aliases, applies the unchanged four models and 3% gate, and records fingerprinted observations. Production supervision attempts HDC each five-minute iteration, HKJC every third iteration, then exactly one sampler run even if a provider failed.
 
 ```powershell
+npm run import:history -- --download E0 2425
+npm run import:history -- --dir data/historical
+```
+
+Imports historical scorelines and closing odds (Pinnacle preferred, Bet365 fallback) from football-data.co.uk CSVs into `team_match_history` (migration 006). This is offline model-fitting and backtest data for new model experiments (ADR 0003); it is PostgreSQL-only, idempotent on `(source, league_code, match_date, home_team, away_team)`, and never touches live odds or snapshot tables.
+
+```powershell
 npm run monitor:odds:once
 ```
 
@@ -79,6 +86,7 @@ node scripts/hdc-collector.mjs --self-test
 node scripts/hkjc-import.mjs --self-test
 node scripts/odds-monitor.mjs --self-test
 node scripts/unified-sampler.mjs --self-test
+node scripts/import-historical-scores.mjs --self-test
 npm run check:data
 npm test
 npm run build
@@ -90,7 +98,7 @@ npm run build
 
 - Keep `.env.local` local. Do not print or commit API keys.
 - Do not lower the 3% edge threshold just to create picks.
-- Do not retune weights, thresholds, or Kelly until current-model settled distinct matches reach 30.
+- Model experimentation is allowed (ADR 0003, 2026-08-16), but the existing four models (`consensus-v1`, `hdc-loo-v2`, `totals-loo-v1`, `corner-loo-v1`) stay byte-for-byte unchanged; new math ships only under new `modelVersion` labels via `evaluateUnifiedOdds`. 30 settled distinct matches remains the trust threshold for any model, old or new.
 - `unified-buyable-v1` identity is `fixtureId|market|selection|line|modelVersion|strategyVersion`; identical fingerprints extend an observation and changed inputs create a new one.
 - Count each settled `fixtureId + market` once for readiness, not bookmaker rows, observations, dashboard cards, or correlated line opportunities. Legacy rows never count toward new-strategy readiness.
 - Opportunity returns use all qualifying prices as a lower/upper unit-return range. The last pre-kick evaluation is the closing benchmark; an empty closing observation is `N/A`.

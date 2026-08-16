@@ -71,6 +71,12 @@ npm run import:history -- --dir data/historical
 Imports historical scorelines and closing odds (Pinnacle preferred, Bet365 fallback) from football-data.co.uk CSVs into `team_match_history` (migration 006). This is offline model-fitting and backtest data for new model experiments (ADR 0003); it is PostgreSQL-only, idempotent on `(source, league_code, match_date, home_team, away_team)`, and never touches live odds or snapshot tables.
 
 ```powershell
+npm run backtest:dc
+```
+
+Runs the dc-v1 (Dixon-Coles) walk-forward offline backtest over `data/historical/*.csv`: per-league Brier/log-loss/RPS against de-vigged Pinnacle closing, plus a flat-stake simulation through the production 3% edge gate. Read-only research tooling; nothing here affects live recommendations.
+
+```powershell
 npm run monitor:odds:once
 ```
 
@@ -87,6 +93,7 @@ node scripts/hkjc-import.mjs --self-test
 node scripts/odds-monitor.mjs --self-test
 node scripts/unified-sampler.mjs --self-test
 node scripts/import-historical-scores.mjs --self-test
+node scripts/dc-v1-backtest.mjs --self-test
 npm run check:data
 npm test
 npm run build

@@ -11,7 +11,9 @@ export function createTeamHistoryRepository(pool) {
                home_team,
                away_team,
                home_goals,
-               away_goals
+               away_goals,
+               home_xg,
+               away_xg
         FROM team_match_history
         ORDER BY league_code, match_date, id
       `);
@@ -22,6 +24,9 @@ export function createTeamHistoryRepository(pool) {
         awayTeam: row.away_team,
         homeGoals: row.home_goals,
         awayGoals: row.away_goals,
+        // pg returns numeric as string; null stays null (pre-2014/15 rows).
+        homeXg: row.home_xg === null ? null : Number.parseFloat(row.home_xg),
+        awayXg: row.away_xg === null ? null : Number.parseFloat(row.away_xg),
       }));
     },
   };

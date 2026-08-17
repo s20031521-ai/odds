@@ -7,7 +7,7 @@ const DATA_FRESH_MS = 45 * 60_000;
 const UNIFIED_STRATEGY_VERSION = "unified-buyable-v1";
 // Shadow experiment strategies (ADR 0003): opportunity-shaped samples that
 // are muted on the Today page but settle and report readiness separately.
-const SHADOW_STRATEGY_VERSIONS = new Set(["dc-shadow-v1", "dc-blend-v1", "market-sharp-v1"]);
+const SHADOW_STRATEGY_VERSIONS = new Set(["dc-shadow-v1", "dc-blend-v1", "market-sharp-v1", "dc-xg-shadow-v1"]);
 const PERFORMANCE_SETTLEMENTS = new Set(["win", "half-win", "push", "half-loss", "loss"]);
 
 export function flattenLiveCache(cached) {

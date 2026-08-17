@@ -12,7 +12,7 @@ import {
   observationFingerprint,
 } from "../shared/unified-recommendations.mjs";
 import { createPool } from "../server/db/pool.mjs";
-import { DC_BLEND_STRATEGY_VERSION, DC_SHADOW_STRATEGY_VERSION, buildBlendOpportunities, buildShadowOpportunities, fitLeagues, leagueCodeFromName } from "./lib/dc-shadow.mjs";
+import { DC_BLEND_STRATEGY_VERSION, DC_SHADOW_STRATEGY_VERSION, DC_XG_MODEL_VERSION, DC_XG_STRATEGY_VERSION, buildBlendOpportunities, buildShadowOpportunities, fitLeagues, fitLeaguesXg, leagueCodeFromName } from "./lib/dc-shadow.mjs";
 import { SHARP_STRATEGY_VERSION, buildSharpOpportunities } from "./lib/market-sharp.mjs";
 import { createPostgresSink } from "./lib/postgres-sink.mjs";
 
@@ -57,7 +57,11 @@ async function loadShadowFits(sink, resolvedFixtures, evaluatedAt) {
     if (codes.size === 0) return null;
     const history = await sink.listTeamHistory();
     const fits = fitLeagues(history, [...codes], evaluatedAt);
-    return fits.size > 0 ? fits : null;
+    const xgFits = fits.size > 0 ? fitLeaguesXg(history, [...codes], evaluatedAt, fits) : new Map();
+    return {
+      goals: fits.size > 0 ? fits : null,
+      xg: xgFits.size > 0 ? xgFits : null,
+    };
   } catch (error) {
     console.warn(`[unified-sampler] dc-shadow skipped this run: ${error?.message ?? error}`);
     return null;
@@ -80,13 +84,23 @@ export function createUnifiedEvaluation(liveRows, resolvedFixtures, now, options
   for (const empty of emptyOpportunityShells(evaluated.inputs)) {
     if (!byIdentity.has(evaluationIdentity(empty))) byIdentity.set(evaluationIdentity(empty), empty);
   }
-  const shadowFits = options?.shadowFits;
+  const shadowOption = options?.shadowFits;
+  // loadShadowFits returns { goals, xg } fit maps; a bare Map (goals fits)
+  // is still accepted for backwards compatibility with existing callers.
+  const goalsFits = shadowOption instanceof Map ? shadowOption : shadowOption?.goals;
+  const xgFits = shadowOption instanceof Map ? null : shadowOption?.xg;
   const shadowBuilders = [buildSharpOpportunities(evaluated.inputs)];
-  if (shadowFits instanceof Map && shadowFits.size > 0) {
+  if (goalsFits instanceof Map && goalsFits.size > 0) {
     shadowBuilders.push(
-      buildShadowOpportunities(evaluated.inputs, shadowFits),
-      buildBlendOpportunities(evaluated.inputs, shadowFits),
+      buildShadowOpportunities(evaluated.inputs, goalsFits),
+      buildBlendOpportunities(evaluated.inputs, goalsFits),
     );
+  }
+  if (xgFits instanceof Map && xgFits.size > 0) {
+    shadowBuilders.push(buildShadowOpportunities(evaluated.inputs, xgFits, {
+      strategyVersion: DC_XG_STRATEGY_VERSION,
+      modelVersion: DC_XG_MODEL_VERSION,
+    }));
   }
   for (const shadow of shadowBuilders.flat()) {
     if (!byIdentity.has(evaluationIdentity(shadow))) byIdentity.set(evaluationIdentity(shadow), shadow);

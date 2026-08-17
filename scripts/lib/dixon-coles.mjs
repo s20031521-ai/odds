@@ -84,10 +84,17 @@ function clampLogRate(value) {
   return Math.min(LOG_RATE_MAX, Math.max(LOG_RATE_MIN, value));
 }
 
-export function fitDixonColes(matches, { xi = 0.0019, refDate, maxOuter = 10, sweepsPerOuter = 8, tolerance = 1e-7, init } = {}) {
-  const usable = (Array.isArray(matches) ? matches : []).filter((m) =>
-    m && m.homeTeam && m.awayTeam && Number.isInteger(m.homeGoals) && Number.isInteger(m.awayGoals) && m.matchDate,
-  );
+export function fitDixonColes(matches, { xi = 0.0019, refDate, maxOuter = 10, sweepsPerOuter = 8, tolerance = 1e-7, init, response = "goals" } = {}) {
+  const useXg = response === "xg";
+  // xG mode: response variables are continuous expected goals, so the
+  // integer low-score tau/rho correction is meaningless and stays off.
+  const usable = (Array.isArray(matches) ? matches : []).filter((m) => {
+    if (!m || !m.homeTeam || !m.awayTeam || !m.matchDate) return false;
+    if (useXg) {
+      return Number.isFinite(m.homeXg) && m.homeXg >= 0 && Number.isFinite(m.awayXg) && m.awayXg >= 0;
+    }
+    return Number.isInteger(m.homeGoals) && Number.isInteger(m.awayGoals);
+  });
   const teams = [...new Set(usable.flatMap((m) => [m.homeTeam, m.awayTeam]))];
   if (teams.length < 2 || usable.length === 0) throw new Error("fitDixonColes needs matches from at least two teams");
 
@@ -96,8 +103,8 @@ export function fitDixonColes(matches, { xi = 0.0019, refDate, maxOuter = 10, sw
     index,
     home: m.homeTeam,
     away: m.awayTeam,
-    homeGoals: m.homeGoals,
-    awayGoals: m.awayGoals,
+    homeGoals: useXg ? m.homeXg : m.homeGoals,
+    awayGoals: useXg ? m.awayXg : m.awayGoals,
     weight: Math.exp(-xi * Math.max(0, daysBetween(m.matchDate, refMs))),
   }));
   const gamesByTeam = new Map(teams.map((t) => [t, { home: [], away: [] }]));
@@ -179,7 +186,7 @@ export function fitDixonColes(matches, { xi = 0.0019, refDate, maxOuter = 10, sw
       centre(params.attack, teams);
       centre(params.defence, teams);
     }
-    params.rho = rhoStep(data, rateHome, rateAway, params.rho);
+    if (!useXg) params.rho = rhoStep(data, rateHome, rateAway, params.rho);
     if (maxStep < tolerance) break;
   }
 
@@ -188,9 +195,10 @@ export function fitDixonColes(matches, { xi = 0.0019, refDate, maxOuter = 10, sw
     defence: params.defence,
     intercept: params.intercept,
     homeAdv: params.homeAdv,
-    rho: params.rho,
+    rho: useXg ? 0 : params.rho,
     teams,
     xi,
+    response,
     refDate: new Date(refMs).toISOString().slice(0, 10),
     matchCount: data.length,
   };

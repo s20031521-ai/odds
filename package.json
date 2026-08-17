@@ -22,7 +22,10 @@
     "server": "node server/entry.mjs",
     "server:self-test": "node server/entry.mjs --self-test",
     "preview": "vite preview --host 127.0.0.1",
-    "tune:xi": "node scripts/dc-v1-tune-xi.mjs"
+    "tune:xi": "node scripts/dc-v1-tune-xi.mjs",
+    "fetch:xg": "node scripts/fetch-understat-xg.mjs",
+    "join:xg": "node scripts/join-xg-history.mjs",
+    "compare:xg": "node scripts/dc-xg-compare.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

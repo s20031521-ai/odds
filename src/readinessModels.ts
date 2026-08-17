@@ -32,4 +32,8 @@ export const SHADOW_READINESS_MODELS: Array<{
   { market: "h2h", label: `${MARKET_LABELS.h2h} · dc-v2 混合影子`, modelVersion: "dc-v2" },
   { market: "totals", label: `${MARKET_LABELS.totals} · dc-v2 混合影子`, modelVersion: "dc-v2" },
   { market: "handicap", label: `${MARKET_LABELS.handicap} · dc-v2 混合影子`, modelVersion: "dc-v2" },
+  // 路線三：xG 攻防 + 比分 rho（dc-xg-v1，離線對比贏咗比分版）
+  { market: "h2h", label: `${MARKET_LABELS.h2h} · dc-xg 影子`, modelVersion: "dc-xg-v1" },
+  { market: "totals", label: `${MARKET_LABELS.totals} · dc-xg 影子`, modelVersion: "dc-xg-v1" },
+  { market: "handicap", label: `${MARKET_LABELS.handicap} · dc-xg 影子`, modelVersion: "dc-xg-v1" },
 ];

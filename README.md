@@ -83,6 +83,14 @@ npm run tune:xi
 Sweeps the dc-v1 time-decay parameter xi per league through the same walk-forward harness and reports h2h log-loss / Brier / RPS per value. Winners feed `XI_BY_LEAGUE` in `scripts/lib/dc-shadow.mjs` (used by the live shadow fits). Read-only; re-run when history is refreshed.
 
 ```powershell
+npm run fetch:xg        # download Understat xG into data/understat/ (cached)
+npm run join:xg         # write home_xg/away_xg onto team_match_history (needs DATABASE_URL, migration 007)
+npm run compare:xg      # walk-forward goals vs xG vs xg-rho vs mix comparison
+```
+
+xG pipeline (ADR 0003): Understat `getLeagueData` payloads are cached under `data/understat/` (five leagues, 2014/15 onward), joined onto `team_match_history.home_xg/away_xg` by (league, date, canonical team names) with scoreline cross-checks — expect ~99.8% match rate. `dc-xg-v1` fits attack/defence on xG with rho borrowed from the scoreline fit; it runs as shadow strategy `dc-xg-shadow-v1` and never surfaces on the Today page. Offline comparison over 10,955 matches (2019–2026): xg-rho logLoss 0.9904 vs scoreline 0.9975, winning in all five leagues.
+
+```powershell
 npm run monitor:odds:once
 ```
 

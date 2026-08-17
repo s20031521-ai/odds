@@ -17,12 +17,15 @@ import {
   DC_BLEND_STRATEGY_VERSION,
   DC_MODEL_VERSION,
   DC_SHADOW_STRATEGY_VERSION,
+  DC_XG_MODEL_VERSION,
+  DC_XG_STRATEGY_VERSION,
   XI_BY_LEAGUE,
   blendQuoteEvaluation,
   buildBlendOpportunities,
   buildShadowOpportunities,
   canonicalTeamName,
   fitLeagues,
+  fitLeaguesXg,
   leagueCodeFromName,
   quoteEvaluation,
   resolveTeamName,
@@ -404,6 +407,62 @@ test("fitLeagues fits only the requested leagues and tolerates thin data", () =>
 
   const overridden = fitLeagues(history, ["E0"], "2026-08-01T00:00:00.000Z", { xi: 0.0042 });
   assert.equal(overridden.get("E0").xi, 0.0042, "an explicit xi option wins over the tuned table");
+});
+
+// ---------- dc-xg-v1 ----------
+
+test("fitLeaguesXg fits on xG and borrows rho from the goals fit", () => {
+  const history = [];
+  const rng = (seed => () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648)(7);
+  const teams = ["Alpha", "Beta", "Gamma", "Delta"];
+  for (let day = 0; day < 120; day += 7) {
+    for (let pair = 0; pair < 2; pair += 1) {
+      const home = teams[(day / 7 + pair) % 4];
+      const away = teams[(day / 7 + pair + 1) % 4];
+      const homeGoals = Math.floor(rng() * 4);
+      const awayGoals = Math.floor(rng() * 3);
+      history.push({
+        league_code: "E0",
+        match_date: `2026-01-${String((day % 27) + 1).padStart(2, "0")}`,
+        home_team: home,
+        away_team: away,
+        home_goals: homeGoals,
+        away_goals: awayGoals,
+        home_xg: homeGoals + 0.31,
+        away_xg: awayGoals + 0.17,
+      });
+    }
+  }
+  // A pre-xG-era row with NULL xg must not break the xg fit.
+  history.push({ league_code: "E0", match_date: "2025-12-01", home_team: "Alpha", away_team: "Beta", home_goals: 2, away_goals: 1, home_xg: null, away_xg: null });
+
+  const goalsFits = fitLeagues(history, ["E0"], "2026-08-01T00:00:00.000Z");
+  const xgFits = fitLeaguesXg(history, ["E0"], "2026-08-01T00:00:00.000Z", goalsFits);
+  const xgFit = xgFits.get("E0");
+  assert.ok(xgFit, "xg fit exists");
+  assert.equal(xgFit.response, "xg");
+  assert.equal(xgFit.rho, goalsFits.get("E0").rho, "rho borrowed from scoreline fit");
+  assert.equal(xgFit.matchCount, 36, "null-xg row excluded from the xg fit");
+
+  const rawXgFit = fitLeagues(history, ["E0"], "2026-08-01T00:00:00.000Z", { response: "xg" }).get("E0");
+  assert.equal(rawXgFit.rho, 0, "raw xg fit keeps rho off");
+});
+
+test("buildShadowOpportunities honors strategy/model version overrides", () => {
+  const rows = englishRows(
+    quoteRow({ bookmaker: "Pinnacle", provider: "hdc", selection: "home", odds: 2.4 }),
+    quoteRow({ bookmaker: "Pinnacle", provider: "hdc", selection: "draw", odds: 3.4 }),
+    quoteRow({ bookmaker: "Pinnacle", provider: "hdc", selection: "away", odds: 3.1 }),
+  );
+  const opportunities = buildShadowOpportunities(rows, FITS, {
+    strategyVersion: DC_XG_STRATEGY_VERSION,
+    modelVersion: DC_XG_MODEL_VERSION,
+  });
+  assert.ok(opportunities.length > 0);
+  for (const op of opportunities) {
+    assert.equal(op.strategyVersion, DC_XG_STRATEGY_VERSION);
+    assert.equal(op.modelVersion, DC_XG_MODEL_VERSION);
+  }
 });
 
 // ---------- dc-v2 blend ----------

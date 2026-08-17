@@ -37,6 +37,12 @@ export const DC_BLEND_MODEL_VERSION = "dc-v2";
 // literature consensus is that a market-anchored blend beats either side
 // alone. Shadow evidence will confirm or refute that at HKJC prices.
 export const DC_BLEND_MODEL_WEIGHT = 0.3;
+// dc-xg-v1 shadow: attack/defence fitted on Understat xG (continuous
+// response, tau off), rho borrowed from the scoreline fit. Offline
+// walk-forward (scripts/dc-xg-compare.mjs) showed xg-rho beating the
+// scoreline fit in all five leagues (logLoss 0.9904 vs 0.9975 overall).
+export const DC_XG_STRATEGY_VERSION = "dc-xg-shadow-v1";
+export const DC_XG_MODEL_VERSION = "dc-xg-v1";
 
 // Per-league time decay, tuned by scripts/dc-v1-tune-xi.mjs (walk-forward
 // h2h log-loss over the 2019–2026 history, grid {0.0005…0.005}). The curve
@@ -48,7 +54,7 @@ export const XI_BY_LEAGUE = {
   I1: 0.003,
   F1: 0.0019,
 };
-const DEFAULT_XI = 0.0019;
+export const DEFAULT_XI = 0.0019;
 
 const SUPPORTED_MARKETS = new Set(["h2h", "totals", "handicap"]);
 const MARKET_SELECTIONS = {
@@ -257,7 +263,7 @@ function selectionDist(distributions, market, selection, line) {
  * empty-quotes shell, mirroring unified-sampler's emptyOpportunityShells so
  * existing samples observe the market drying up.
  */
-export function buildShadowOpportunities(inputs, fitsByLeague) {
+export function buildShadowOpportunities(inputs, fitsByLeague, { strategyVersion = DC_SHADOW_STRATEGY_VERSION, modelVersion = DC_MODEL_VERSION } = {}) {
   const opportunities = [];
   walkShadowFixtures(inputs, fitsByLeague, ({ owner, distributions, groups }) => {
     for (const groupRows of groups.values()) {
@@ -279,7 +285,7 @@ export function buildShadowOpportunities(inputs, fitsByLeague) {
             observedAt: row.observedAt,
           }];
         }).sort(compareQuotes);
-        opportunities.push(shadowShell(owner, DC_SHADOW_STRATEGY_VERSION, DC_MODEL_VERSION, market, selection, line, quotes));
+        opportunities.push(shadowShell(owner, strategyVersion, modelVersion, market, selection, line, quotes));
       }
     }
   });
@@ -443,6 +449,8 @@ export function fitLeagues(historyRows, leagueCodes, refDate, fitOptions = {}) {
       awayTeam: row.awayTeam ?? row.away_team,
       homeGoals: row.homeGoals ?? row.home_goals,
       awayGoals: row.awayGoals ?? row.away_goals,
+      homeXg: row.homeXg ?? row.home_xg,
+      awayXg: row.awayXg ?? row.away_xg,
       matchDate: row.matchDate ?? row.match_date,
     };
     byCode.set(code, [...(byCode.get(code) ?? []), match]);
@@ -461,4 +469,19 @@ export function fitLeagues(historyRows, leagueCodes, refDate, fitOptions = {}) {
     }
   }
   return fits;
+}
+
+/**
+ * dc-xg-v1: fits the same leagues on xG (response "xg") and borrows rho
+ * from the corresponding scoreline fit in `goalsFits` (the xg-rho variant
+ * that won the offline comparison). Leagues whose history has too few
+ * xG-populated rows are skipped like any other thin-data case.
+ */
+export function fitLeaguesXg(historyRows, leagueCodes, refDate, goalsFits, fitOptions = {}) {
+  const xgFits = fitLeagues(historyRows, leagueCodes, refDate, { ...fitOptions, response: "xg" });
+  for (const [code, fit] of xgFits) {
+    const goalsFit = goalsFits instanceof Map ? goalsFits.get(code) : null;
+    if (goalsFit && Number.isFinite(goalsFit.rho)) fit.rho = goalsFit.rho;
+  }
+  return xgFits;
 }

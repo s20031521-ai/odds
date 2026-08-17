@@ -1,8 +1,6 @@
-* text=auto
+# Line-ending discipline: SQL migrations are sha256-checksummed by
+# server/db/migrate.mjs, and deploy shell scripts must stay POSIX-portable.
+# Pin both to LF so a Windows checkout can never flip them to CRLF and
+# break production checksum verification (004 incident, 2026-08-17).
+*.sql text eol=lf
 *.sh text eol=lf
-*.mjs text eol=lf
-*.ts text eol=lf
-*.tsx text eol=lf
-*.json text eol=lf
-*.css text eol=lf
-*.html text eol=lf

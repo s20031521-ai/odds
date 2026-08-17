@@ -164,6 +164,37 @@ test("all rows becoming stale before kickoff records an empty observation", asyn
   });
 });
 
+test("sampler records dc-shadow-v1 opportunities without surfacing them as current", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const sink = createPostgresSink({ pool });
+    await seedTeamHistory(pool);
+
+    await sink.saveLiveOdds("provider-a", "2026-07-18T10:00:00.000Z", [
+      quote("provider-a-over", "provider-a", "Book A", "over", 9, { league: "EPL" }),
+      quote("provider-a-under", "provider-a", "Book A", "under", 1.65, { league: "EPL" }),
+    ]);
+
+    assert.equal(await runUnifiedSampler({ sink, now: NOW }), "ran");
+
+    const shadowSamples = await pool.query(
+      "SELECT market, prediction, model_version, raw FROM prediction_snapshots WHERE strategy_version = 'dc-shadow-v1'",
+    );
+    assert.ok(shadowSamples.rowCount > 0, "shadow opportunities are recorded under dc-shadow-v1");
+    assert.ok(shadowSamples.rows.every((row) => row.model_version === "dc-v1"));
+    const shadowOver = shadowSamples.rows.find((row) => row.market === "totals" && row.prediction === "over");
+    assert.ok(shadowOver, "a priced shadow totals opportunity exists");
+    assert.ok(shadowOver.raw.quotes.length > 0, "the generous over quote qualifies");
+
+    const repository = createOpportunityRepository(pool);
+    const current = await repository.listCurrent("2026-07-18T10:05:00.000Z");
+    assert.equal(
+      current.every((row) => row.strategyVersion === "unified-buyable-v1"),
+      true,
+      "listCurrent never surfaces shadow samples on the Today page",
+    );
+  });
+});
+
 test("sampler source contains no provider API path", async () => {
   const source = await readFile(path.join(PROJECT_ROOT, "scripts", "unified-sampler.mjs"), "utf8");
   assert.doesNotMatch(source, /\bfetch\s*\(|hkjc-import|hdc-collector|api-sports\.io|api\.the-odds-api\.com/i);
@@ -174,6 +205,26 @@ async function saveBook(sink, provider, bookmaker, over, under, observedAt) {
     quote(`${provider}-over`, provider, bookmaker, "over", over),
     quote(`${provider}-under`, provider, bookmaker, "under", under),
   ]);
+}
+
+// Enough E0 history for a stable dc-v1 fit: four teams round-robin over two
+// months before the sampler's evaluatedAt.
+async function seedTeamHistory(pool) {
+  const teams = ["Alpha FC", "Beta United", "Gamma Rovers", "Delta Town"];
+  const values = [];
+  for (let week = 0; week < 8; week += 1) {
+    for (let pair = 0; pair < 2; pair += 1) {
+      const home = teams[(week + pair) % 4];
+      const away = teams[(week + pair + 1) % 4];
+      const matchDate = `2026-0${week < 4 ? "5" : "6"}-${String(3 + (week % 4) * 7).padStart(2, "0")}`;
+      values.push(`('football-data', 'E0', '2526', '${matchDate}', '${home}', '${away}', ${(week + pair) % 3}, ${(week * pair) % 2})`);
+    }
+  }
+  await pool.query(`
+    INSERT INTO team_match_history (
+      source, league_code, season, match_date, home_team, away_team, home_goals, away_goals
+    ) VALUES ${values.join(",\n")}
+  `);
 }
 
 function quote(id, provider, bookmaker, selection, odds, overrides = {}) {

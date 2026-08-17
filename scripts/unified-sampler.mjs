@@ -12,6 +12,7 @@ import {
   observationFingerprint,
 } from "../shared/unified-recommendations.mjs";
 import { createPool } from "../server/db/pool.mjs";
+import { DC_SHADOW_STRATEGY_VERSION, buildShadowOpportunities, fitLeagues, leagueCodeFromName } from "./lib/dc-shadow.mjs";
 import { createPostgresSink } from "./lib/postgres-sink.mjs";
 
 const LOCK_NAME = "unified-buyable-sampler";
@@ -34,12 +35,35 @@ export async function runUnifiedSampler({ sink, now }) {
   return sink.acquireCollectorLock(LOCK_NAME, async () => {
     const liveRows = await sink.listLiveOdds(evaluatedAt);
     const resolvedFixtures = await sink.resolveFixtures(liveRows);
-    const evaluation = createUnifiedEvaluation(liveRows, resolvedFixtures, evaluatedAt);
+    const shadowFits = await loadShadowFits(sink, resolvedFixtures, evaluatedAt);
+    const evaluation = createUnifiedEvaluation(liveRows, resolvedFixtures, evaluatedAt, { shadowFits });
     await sink.recordRecommendationEvaluation(evaluation);
   });
 }
 
-export function createUnifiedEvaluation(liveRows, resolvedFixtures, now) {
+// dc-v1 shadow mode (ADR 0003): fit one Dixon-Coles model per live league
+// from team_match_history. Any failure here must never take the unified
+// sampler down — shadow is evidence-gathering only, so we log and skip.
+async function loadShadowFits(sink, resolvedFixtures, evaluatedAt) {
+  if (typeof sink.listTeamHistory !== "function") return null;
+  try {
+    const fixtureRows = Array.isArray(resolvedFixtures)
+      ? resolvedFixtures
+      : resolvedFixtures?.fixtures;
+    const codes = new Set((Array.isArray(fixtureRows) ? fixtureRows : [])
+      .map((row) => leagueCodeFromName(row?.league))
+      .filter(Boolean));
+    if (codes.size === 0) return null;
+    const history = await sink.listTeamHistory();
+    const fits = fitLeagues(history, [...codes], evaluatedAt);
+    return fits.size > 0 ? fits : null;
+  } catch (error) {
+    console.warn(`[unified-sampler] dc-shadow skipped this run: ${error?.message ?? error}`);
+    return null;
+  }
+}
+
+export function createUnifiedEvaluation(liveRows, resolvedFixtures, now, options = {}) {
   if (!Array.isArray(liveRows)) throw new TypeError("liveRows must be an array");
   const evaluatedAt = timestamp(now, "evaluation time");
   const fixtureRows = Array.isArray(resolvedFixtures)
@@ -54,6 +78,12 @@ export function createUnifiedEvaluation(liveRows, resolvedFixtures, now) {
   ]));
   for (const empty of emptyOpportunityShells(evaluated.inputs)) {
     if (!byIdentity.has(evaluationIdentity(empty))) byIdentity.set(evaluationIdentity(empty), empty);
+  }
+  const shadowFits = options?.shadowFits;
+  if (shadowFits instanceof Map && shadowFits.size > 0) {
+    for (const shadow of buildShadowOpportunities(evaluated.inputs, shadowFits)) {
+      if (!byIdentity.has(evaluationIdentity(shadow))) byIdentity.set(evaluationIdentity(shadow), shadow);
+    }
   }
   return {
     evaluatedAt,
@@ -168,6 +198,35 @@ function selfTest() {
     buyableQuotes: evaluation.opportunities.find(({ selection }) => selection === "over").quotes,
   });
   assert.equal(fingerprint(first), fingerprint(second));
+
+  // dc-shadow (ADR 0003): with a league fit supplied, the same inputs also
+  // produce dc-shadow-v1 opportunities alongside the unified ones; identities
+  // never collide because strategyVersion is part of the identity.
+  const shadowFit = {
+    attack: { Alpha: 0.4, Beta: 0.3 },
+    defence: { Alpha: -0.2, Beta: -0.1 },
+    intercept: Math.log(1.6),
+    homeAdv: 0.2,
+    rho: -0.05,
+    teams: ["Alpha", "Beta"],
+  };
+  const shadowRows = rows.map((row) => ({ ...row, league: "EPL" }));
+  const withShadow = createUnifiedEvaluation(
+    shadowRows,
+    { fixtures: shadowRows },
+    "2026-07-18T10:05:00.000Z",
+    { shadowFits: new Map([["E0", shadowFit]]) },
+  );
+  const shadowOpportunities = withShadow.opportunities.filter(
+    (item) => item.strategyVersion === DC_SHADOW_STRATEGY_VERSION,
+  );
+  assert.ok(shadowOpportunities.length > 0);
+  assert.ok(shadowOpportunities.every((item) => item.modelVersion === "dc-v1"));
+  const shadowQuotes = shadowOpportunities.flatMap((item) => item.quotes);
+  assert.ok(shadowQuotes.length > 0);
+  assert.ok(shadowQuotes.every((quote) => quote.edge >= BUY_EDGE_THRESHOLD));
+  assert.ok(shadowQuotes.every((quote) => quote.chance >= 0 && quote.chance <= 1));
+  assert.ok(withShadow.opportunities.some((item) => item.strategyVersion === UNIFIED_STRATEGY_VERSION));
   console.log("[unified-sampler] self-test passed");
 }
 

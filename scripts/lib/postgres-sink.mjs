@@ -4,6 +4,7 @@ import { createOddsRepository } from "../../server/db/odds-repository.mjs";
 import { createOpportunityRepository } from "../../server/db/opportunity-repository.mjs";
 import { createResultRepository } from "../../server/db/result-repository.mjs";
 import { createSnapshotRepository } from "../../server/db/snapshot-repository.mjs";
+import { createTeamHistoryRepository } from "../../server/db/team-history-repository.mjs";
 
 export function createPostgresSink({ pool, clock = () => new Date() }) {
   if (!pool || typeof pool.connect !== "function" || typeof pool.query !== "function") {
@@ -16,6 +17,7 @@ export function createPostgresSink({ pool, clock = () => new Date() }) {
   const snapshots = createSnapshotRepository(pool);
   const results = createResultRepository(pool);
   const collectorState = createCollectorStateRepository(pool);
+  const teamHistory = createTeamHistoryRepository(pool);
 
   return {
     async acquireCollectorLock(name, callback) {
@@ -65,6 +67,10 @@ export function createPostgresSink({ pool, clock = () => new Date() }) {
     async resolveFixtures(rows) {
       if (!Array.isArray(rows)) throw new TypeError("fixture rows must be an array");
       return fixtures.resolveBatch(rows);
+    },
+
+    async listTeamHistory() {
+      return teamHistory.listAll();
     },
 
     async recordRecommendationEvaluation(value) {

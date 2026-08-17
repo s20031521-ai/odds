@@ -355,6 +355,44 @@ test("unresolved unified opportunities become terminal seven days after the curr
   assert.equal(terminal.readiness.length, 0, "unsettleable opportunities never count toward readiness");
 });
 
+test("dc-shadow opportunities settle and report readiness under their own strategy", () => {
+  const snapshots = [
+    shadowOpportunity({ sampleId: 31, fixtureId: "fixture-1", market: "totals", selection: "over", line: 2.5 }),
+    shadowOpportunity({ sampleId: 32, fixtureId: "fixture-1", market: "h2h", selection: "home", line: undefined }),
+    shadowOpportunity({ sampleId: 33, fixtureId: "fixture-future", market: "totals", selection: "over", line: 2.5, commenceTime: "2026-07-20T10:00:00Z" }),
+    unifiedOpportunity({ sampleId: 1, fixtureId: "fixture-1", selection: "over", line: 2.5 }),
+  ];
+  const response = buildBacktest(snapshots, [
+    { fixtureId: "fixture-1", matchId: "provider-fixture-1", market: "totals", actual: "3 球" },
+    { fixtureId: "fixture-1", matchId: "provider-fixture-1", market: "h2h", actual: "2-1" },
+  ], NOW);
+
+  const shadowRows = response.rows.filter((row) => row.strategyVersion === "dc-shadow-v1");
+  assert.deepEqual(shadowRows.map((row) => [row.sampleId, row.settlement]), [[31, "win"], [32, "win"]]);
+  assert.equal(shadowRows[0].modelVersion, "dc-v1");
+
+  const summary = response.summary;
+  assert.equal(summary.finished, 1, "headline performance stays unified-only");
+  assert.deepEqual(
+    response.readiness.filter((row) => row.strategyVersion === "unified-buyable-v1").map((row) => row.modelVersion),
+    ["totals-loo-v1"],
+    "unified readiness is unchanged",
+  );
+
+  const shadowReadiness = response.readiness.filter((row) => row.strategyVersion === "dc-shadow-v1");
+  assert.equal(shadowReadiness.length, 2, "shadow readiness is reported per market");
+  const totals = shadowReadiness.find((row) => row.market === "totals");
+  assert.equal(totals.modelVersion, "dc-v1");
+  assert.equal(totals.settled, 1);
+  assert.equal(totals.pending, 1, "the future fixture counts as pending");
+  assert.equal(totals.upcoming, 1);
+  const h2h = shadowReadiness.find((row) => row.market === "h2h");
+  assert.equal(h2h.settled, 1);
+
+  const pendingShadow = response.pending.filter((row) => row.strategyVersion === "dc-shadow-v1");
+  assert.deepEqual(pendingShadow.map((row) => [row.sampleId, row.status]), [[33, "upcoming"]]);
+});
+
 function unifiedOpportunity(overrides = {}) {
   return {
     sampleId: 1,
@@ -373,6 +411,14 @@ function unifiedOpportunity(overrides = {}) {
     observations: [observation("2026-07-11T08:00:00Z", [unifiedQuote("Book A", 2)])],
     ...overrides,
   };
+}
+
+function shadowOpportunity(overrides = {}) {
+  return unifiedOpportunity({
+    modelVersion: "dc-v1",
+    strategyVersion: "dc-shadow-v1",
+    ...overrides,
+  });
 }
 
 function observation(lastEvaluatedAt, buyableQuotes) {

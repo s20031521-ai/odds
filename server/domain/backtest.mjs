@@ -5,6 +5,7 @@ const SETTLEMENT_GRACE_MS = 180 * 60_000;
 const UNSETTLEABLE_AFTER_MS = 7 * 24 * 60 * 60_000;
 const DATA_FRESH_MS = 45 * 60_000;
 const UNIFIED_STRATEGY_VERSION = "unified-buyable-v1";
+const DC_SHADOW_STRATEGY_VERSION = "dc-shadow-v1";
 const PERFORMANCE_SETTLEMENTS = new Set(["win", "half-win", "push", "half-loss", "loss"]);
 
 export function flattenLiveCache(cached) {
@@ -30,11 +31,12 @@ export function buildHealth(updatedAtBySource, now = Date.now()) {
 
 export function buildBacktest(snapshots, results, now = Date.now()) {
   const unified = snapshots.filter(isUnifiedOpportunity);
-  const stored = mergeSnapshots([], snapshots.filter((item) => !isUnifiedOpportunity(item)));
+  const shadow = snapshots.filter(isShadowOpportunity);
+  const stored = mergeSnapshots([], snapshots.filter((item) => !isUnifiedOpportunity(item) && !isShadowOpportunity(item)));
   const snapshotQuality = summarizeSnapshotQuality(stored);
   const legacy = stored.filter((item) => classifySnapshot(item).status === "valid-current");
-  const usable = [...unified, ...legacy];
-  const resolvedResults = [...results, ...terminalUnsettleableResults(unified, results, now)];
+  const usable = [...unified, ...shadow, ...legacy];
+  const resolvedResults = [...results, ...terminalUnsettleableResults([...unified, ...shadow], results, now)];
   const rows = resolvedResults.flatMap((row) => {
     const matches = snapshotsForResult(usable, row);
     if (matches.length === 0) return {
@@ -51,7 +53,7 @@ export function buildBacktest(snapshots, results, now = Date.now()) {
     };
     return matches.map((snapshot) => {
       const settlement = settleResult(snapshot, row);
-      if (isUnifiedOpportunity(snapshot)) return unifiedPerformanceRow(snapshot, row, settlement);
+      if (isOpportunitySnapshot(snapshot)) return opportunityPerformanceRow(snapshot, row, settlement);
       const homeTeam = nonEmptyTeam(snapshot.homeTeam) ?? nonEmptyTeam(row.homeTeam);
       const awayTeam = nonEmptyTeam(snapshot.awayTeam) ?? nonEmptyTeam(row.awayTeam);
       return {
@@ -68,6 +70,7 @@ export function buildBacktest(snapshots, results, now = Date.now()) {
         observationSummary: observationSummary(snapshot.observations),
         snapshotStatus: "valid-current",
         modelVersion: snapshot.modelVersion,
+        strategyVersion: snapshot.strategyVersion,
         source: snapshot.source,
         ...(homeTeam ? { homeTeam } : {}),
         ...(awayTeam ? { awayTeam } : {}),
@@ -82,7 +85,8 @@ export function buildBacktest(snapshots, results, now = Date.now()) {
     : allFinished;
   const legacyFinished = allFinished.filter((row) => row.strategyVersion !== UNIFIED_STRATEGY_VERSION);
   const pending = [
-    ...buildUnifiedPendingRows(unified, rows, resolvedResults, now),
+    ...buildOpportunityPendingRows(UNIFIED_STRATEGY_VERSION, unified, rows, resolvedResults, now),
+    ...buildOpportunityPendingRows(DC_SHADOW_STRATEGY_VERSION, shadow, rows, resolvedResults, now),
     ...buildPendingRows(legacy, legacyFinished, resolvedResults, now),
   ].sort((left, right) => pendingTime(left.commenceTime) - pendingTime(right.commenceTime) || left.id.localeCompare(right.id));
   return {
@@ -90,7 +94,10 @@ export function buildBacktest(snapshots, results, now = Date.now()) {
     summary: summarize(finished),
     byMarket: groupSummary(finished, (row) => row.market),
     buckets: groupSummary(finished, (row) => bucket(row.chance)),
-    readiness: summarizeUnifiedReadiness(unified, rows, finished, resolvedResults, now),
+    readiness: [
+      ...summarizeStrategyReadiness(UNIFIED_STRATEGY_VERSION, unified, rows, allFinished, resolvedResults, now),
+      ...summarizeStrategyReadiness(DC_SHADOW_STRATEGY_VERSION, shadow, rows, allFinished, resolvedResults, now),
+    ],
     pending,
     snapshotQuality,
   };
@@ -119,7 +126,7 @@ function terminalUnsettleableResults(snapshots, results, now) {
   return [...terminal.values()];
 }
 
-function unifiedPerformanceRow(snapshot, result, settlement) {
+function opportunityPerformanceRow(snapshot, result, settlement) {
   const quotes = qualifyingQuotes(snapshot);
   const quoteRange = oddsRange(quotes);
   const bestQuote = quotes.toSorted(compareQuotes)[0];
@@ -146,7 +153,7 @@ function unifiedPerformanceRow(snapshot, result, settlement) {
     observationSummary: observationSummary(snapshot.observations),
     snapshotStatus: "valid-current",
     modelVersion: snapshot.modelVersion,
-    strategyVersion: UNIFIED_STRATEGY_VERSION,
+    strategyVersion: snapshot.strategyVersion,
     source: "unified-sampler",
     ...(homeTeam ? { homeTeam } : {}),
     ...(awayTeam ? { awayTeam } : {}),
@@ -166,12 +173,12 @@ function nonEmptyTeam(value) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
-function summarizeUnifiedReadiness(snapshots, rows, finished, results, now) {
+function summarizeStrategyReadiness(strategyVersion, snapshots, rows, finished, results, now) {
   const terminalKeys = new Set(rows
-    .filter((row) => row.strategyVersion === UNIFIED_STRATEGY_VERSION && (row.settlement === "void" || row.settlement === "unsettleable"))
+    .filter((row) => row.strategyVersion === strategyVersion && (row.settlement === "void" || row.settlement === "unsettleable"))
     .map(fixtureMarketIdentity));
   const settledKeys = new Set(finished
-    .filter((row) => row.strategyVersion === UNIFIED_STRATEGY_VERSION)
+    .filter((row) => row.strategyVersion === strategyVersion)
     .map(fixtureMarketIdentity));
   const eligible = snapshots.filter((item) => !terminalKeys.has(fixtureMarketIdentity(item)));
   const commenceByFixture = new Map(results
@@ -198,7 +205,7 @@ function summarizeUnifiedReadiness(snapshots, rows, finished, results, now) {
     return {
       market,
       modelVersion,
-      strategyVersion: UNIFIED_STRATEGY_VERSION,
+      strategyVersion,
       snapshots: items.length,
       settled: settledMatches,
       pending: matchItems.length - settledMatches,
@@ -224,9 +231,9 @@ function summarizeUnifiedReadiness(snapshots, rows, finished, results, now) {
   });
 }
 
-function buildUnifiedPendingRows(snapshots, rows, results, now) {
+function buildOpportunityPendingRows(strategyVersion, snapshots, rows, results, now) {
   const resolvedSamples = new Set(rows
-    .filter((row) => row.strategyVersion === UNIFIED_STRATEGY_VERSION && row.settlement)
+    .filter((row) => row.strategyVersion === strategyVersion && row.settlement)
     .map((row) => row.sampleId));
   const commenceByFixture = new Map(results
     .filter((item) => item?.fixtureId && item?.commenceTime)
@@ -253,7 +260,7 @@ function buildUnifiedPendingRows(snapshots, rows, results, now) {
       lastQualifiedAt: item.lastQualifiedAt ?? null,
       observationSummary: observationSummary(item.observations),
       modelVersion: item.modelVersion,
-     strategyVersion: UNIFIED_STRATEGY_VERSION,
+     strategyVersion,
      source: "unified-sampler",
      homeTeam: item.homeTeam,
      awayTeam: item.awayTeam,
@@ -559,6 +566,16 @@ function isUnifiedOpportunity(item) {
   return item?.strategyVersion === UNIFIED_STRATEGY_VERSION;
 }
 
+function isShadowOpportunity(item) {
+  return item?.strategyVersion === DC_SHADOW_STRATEGY_VERSION;
+}
+
+// Snapshots recorded through the opportunity pipeline (unified + dc-shadow)
+// share the same shape: fixtureId-based identity, observations, quotes.
+function isOpportunitySnapshot(item) {
+  return isUnifiedOpportunity(item) || isShadowOpportunity(item);
+}
+
 function unifiedOpportunityIdentity(item) {
   return [item.fixtureId, item.market, item.selection, Number.isFinite(item.line) ? item.line : "", item.modelVersion, item.strategyVersion].join("|");
 }
@@ -579,7 +596,7 @@ function isPredictionSnapshot(item) {
 
 function snapshotsForResult(snapshots, result) {
   return snapshots.filter((snapshot) => {
-    if (isUnifiedOpportunity(snapshot)) {
+    if (isOpportunitySnapshot(snapshot)) {
       const sameFixture = snapshot.fixtureId && result.fixtureId
         ? snapshot.fixtureId === result.fixtureId
         : snapshot.matchId === result.matchId;

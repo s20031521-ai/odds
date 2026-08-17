@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { TrendingUp, Radar, BrainCircuit } from "lucide-react";
 import { formatKickoff } from "../components/PickCard";
 import { RadarChart } from "../components/RadarChart";
-import { READINESS_MODELS } from "../readinessModels";
+import { READINESS_MODELS, SHADOW_READINESS_MODELS } from "../readinessModels";
 import {
   computeDailyHitRates,
   computeOverallAccuracy,
@@ -457,6 +457,44 @@ export function PerformancePage(props: {
                     ›
                   </span>
                 </button>
+              );
+            })}
+          </div>
+
+          <h2 className="performance-section-heading">影子模型（實驗中）</h2>
+          <div className="performance-grid">
+            {SHADOW_READINESS_MODELS.map(({ market, label, modelVersion }) => {
+              const readiness = props.readiness.find(
+                (r) => r.market === market && r.modelVersion === modelVersion
+              );
+              const settled = readiness?.settledMatches ?? 0;
+              const percent = Math.min(
+                100,
+                Math.round((settled / READINESS_TARGET) * 100)
+              );
+
+              return (
+                <div className="performance-card" key={`shadow-${market}`}>
+                  <div className="performance-card__head">
+                    <h2>{label}</h2>
+                    <span className="performance-card__count mono">
+                      n={settled.toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="performance-card__accuracy muted">
+                    {settled === 0 ? "收集緊數據" : "影子模式 · 唔會出推薦"}
+                  </p>
+                  <div
+                    className="performance-card__bar"
+                    role="img"
+                    aria-label={`影子樣本進度 ${settled}/${READINESS_TARGET} 場`}
+                  >
+                    <span style={{ width: `${percent}%` }} />
+                  </div>
+                  <span className="performance-card__count mono">
+                    {settled}/{READINESS_TARGET} 場
+                  </span>
+                </div>
               );
             })}
           </div>

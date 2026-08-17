@@ -281,6 +281,17 @@ export function marginDistribution(matrix) {
   return margins;
 }
 
+export function goalTotalDistribution(matrix) {
+  const totals = new Map();
+  for (let h = 0; h < matrix.length; h += 1) {
+    for (let a = 0; a < matrix[h].length; a += 1) {
+      const total = h + a;
+      totals.set(total, (totals.get(total) ?? 0) + matrix[h][a]);
+    }
+  }
+  return totals;
+}
+
 // Mirrors server/domain/backtest.mjs asianLines: quarter lines split into two half-lines.
 export function asianLines(line) {
   const quarter = Math.round((line - Math.floor(line)) * 4) / 4;
@@ -290,7 +301,7 @@ export function asianLines(line) {
 }
 
 export function handicapSettlementDist(margins, line, side) {
-  const dist = { win: 0, "half-win": 0, push: 0, "half-loss": 0, loss: 0 };
+  const dist = emptySettlementDist();
   const sublines = asianLines(line);
   for (const [margin, prob] of margins) {
     let value = 0;
@@ -298,14 +309,36 @@ export function handicapSettlementDist(margins, line, side) {
       const adjusted = side === "home" ? margin + subline : -(margin + subline);
       value += Math.abs(adjusted) < 1e-9 ? 0 : Math.sign(adjusted);
     }
-    const mean = value / sublines.length;
-    if (mean === 1) dist.win += prob;
-    else if (mean === 0.5) dist["half-win"] += prob;
-    else if (mean === 0) dist.push += prob;
-    else if (mean === -0.5) dist["half-loss"] += prob;
-    else dist.loss += prob;
+    addSettlementReturn(dist, value / sublines.length, prob);
   }
   return dist;
+}
+
+// Mirrors server/domain/backtest.mjs settle() for totals: quarter lines split
+// into two half-lines, "over" wins when total > line, "under" when line > total.
+export function totalsSettlementDist(totals, line, side) {
+  const dist = emptySettlementDist();
+  const sublines = asianLines(line);
+  for (const [total, prob] of totals) {
+    let value = 0;
+    for (const subline of sublines) {
+      value += side === "over" ? Math.sign(total - subline) : Math.sign(subline - total);
+    }
+    addSettlementReturn(dist, value / sublines.length, prob);
+  }
+  return dist;
+}
+
+function emptySettlementDist() {
+  return { win: 0, "half-win": 0, push: 0, "half-loss": 0, loss: 0 };
+}
+
+function addSettlementReturn(dist, meanReturn, prob) {
+  if (meanReturn === 1) dist.win += prob;
+  else if (meanReturn === 0.5) dist["half-win"] += prob;
+  else if (meanReturn === 0) dist.push += prob;
+  else if (meanReturn === -0.5) dist["half-loss"] += prob;
+  else dist.loss += prob;
 }
 
 export function settlementEV(dist, odds) {

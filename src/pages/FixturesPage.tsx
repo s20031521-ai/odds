@@ -53,7 +53,7 @@ function useNow(): number {
   return now;
 }
 
-function groupFixturesByDate(fixtures: Fixture[]): Array<{ label: string; fixtures: Fixture[] }> {
+function groupFixturesByDate(fixtures: Fixture[], now: number): Array<{ label: string; fixtures: Fixture[] }> {
   const groups = new Map<string, Fixture[]>();
   for (const fixture of fixtures) {
     const key = localDayKey(fixture.commenceTime);
@@ -68,7 +68,12 @@ function groupFixturesByDate(fixtures: Fixture[]): Array<{ label: string; fixtur
       const label = `${d.getMonth() + 1}月${d.getDate()}日`;
       return {
         label,
-        fixtures: items.sort((a, b) => Date.parse(a.commenceTime) - Date.parse(b.commenceTime)),
+        // 未開賽排先（按開波時間），已開賽沉底
+        fixtures: items.sort((a, b) => {
+          const aStarted = Date.parse(a.commenceTime) <= now ? 1 : 0;
+          const bStarted = Date.parse(b.commenceTime) <= now ? 1 : 0;
+          return aStarted - bStarted || Date.parse(a.commenceTime) - Date.parse(b.commenceTime);
+        }),
       };
     });
 }
@@ -123,7 +128,7 @@ export function FixturesPage(props: {
     [tabbed, activeLeague],
   );
 
-  const groups = useMemo(() => groupFixturesByDate(filtered), [filtered]);
+  const groups = useMemo(() => groupFixturesByDate(filtered, now), [filtered, now]);
 
   // 搜尋跳入：捲去嗰場、highlight 幾秒、清返個 hash 參數
   useEffect(() => {

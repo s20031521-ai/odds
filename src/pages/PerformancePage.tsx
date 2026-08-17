@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { TrendingUp, Radar, BrainCircuit } from "lucide-react";
 import { formatKickoff } from "../components/PickCard";
 import { RadarChart } from "../components/RadarChart";
@@ -100,6 +100,15 @@ export function formatPrediction(prediction: string, line?: number): string {
   return prediction;
 }
 
+const DETAIL_PAGE_SIZE = 15;
+
+/** Detail view 入 URL：#/performance/<market>，浏览器返回掣先會正常 */
+function marketFromHash(): MarketKey | null {
+  const match = window.location.hash.match(/^#\/performance\/([a-z0-9-]+)/i);
+  const value = match?.[1] as MarketKey | undefined;
+  return value && READINESS_MODELS.some((m) => m.market === value) ? value : null;
+}
+
 export function PerformancePage(props: {
   readiness: ModelReadiness[];
   historyStats: Map<string, HistoryStats>;
@@ -107,9 +116,37 @@ export function PerformancePage(props: {
   pending: PendingEntry[];
   /** ISO timestamp of last successful recommendation refresh (資料新鮮度). */
   dataFreshness?: string | null;
+  /** backtest 資料 load 失敗（区分「真冇數據」定「load 衰咗」） */
+  loadFailed?: boolean;
+  onRetry?: () => void;
 }): React.ReactElement {
-  const [selectedMarket, setSelectedMarket] = useState<MarketKey | null>(null);
+  const [selectedMarket, setSelectedMarketState] = useState<MarketKey | null>(() => marketFromHash());
   const [detailTab, setDetailTab] = useState<"settled" | "pending">("settled");
+  const [detailPage, setDetailPage] = useState(0);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+
+  function setSelectedMarket(market: MarketKey | null) {
+    setSelectedMarketState(market);
+    window.location.hash = market ? `#/performance/${market}` : "#/performance";
+  }
+
+  // 瀏覽器返回 / 前進：跟返 hash 轉 detail
+  useEffect(() => {
+    const onHashChange = () => setSelectedMarketState(marketFromHash());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  // 「X 分鐘前」每 30 秒重計
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  // 轉玩法 / 轉 tab 就返第一頁
+  useEffect(() => {
+    setDetailPage(0);
+  }, [selectedMarket, detailTab]);
 
   const model =
     selectedMarket === null
@@ -144,9 +181,9 @@ export function PerformancePage(props: {
     if (!props.dataFreshness) return "—";
     const t = Date.parse(props.dataFreshness);
     if (Number.isNaN(t)) return "—";
-    const minutes = Math.max(0, Math.round((Date.now() - t) / 60000));
+    const minutes = Math.max(0, Math.round((nowTick - t) / 60000));
     return minutes === 0 ? "啱啱更新" : `${minutes} 分鐘前`;
-  }, [props.dataFreshness]);
+  }, [props.dataFreshness, nowTick]);
 
   /* ---------- Detail view (kept, reskinned) ---------- */
   if (selectedMarket !== null && model) {
@@ -188,6 +225,40 @@ export function PerformancePage(props: {
       });
 
     const pendingCount = pendingRows.length;
+
+    const activeRows = detailTab === "settled" ? rows.length : pendingRows.length;
+    const pageCount = Math.max(1, Math.ceil(activeRows / DETAIL_PAGE_SIZE));
+    const safePage = Math.min(detailPage, pageCount - 1);
+    const pageSlice = <T,>(list: T[]): T[] =>
+      list.slice(safePage * DETAIL_PAGE_SIZE, safePage * DETAIL_PAGE_SIZE + DETAIL_PAGE_SIZE);
+
+    const pagination = activeRows > DETAIL_PAGE_SIZE ? (
+      <div className="pagination">
+        <span className="pagination__info">
+          顯示 {safePage * DETAIL_PAGE_SIZE + 1}-{Math.min((safePage + 1) * DETAIL_PAGE_SIZE, activeRows)} 項，共 {activeRows.toLocaleString()} 項
+        </span>
+        <div className="pagination__buttons">
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="上一頁"
+            disabled={safePage === 0}
+            onClick={() => setDetailPage(safePage - 1)}
+          >
+            ←
+          </button>
+          <button
+            className="icon-button"
+            type="button"
+            aria-label="下一頁"
+            disabled={safePage >= pageCount - 1}
+            onClick={() => setDetailPage(safePage + 1)}
+          >
+            →
+          </button>
+        </div>
+      </div>
+    ) : null;
 
     return (
       <section
@@ -270,7 +341,7 @@ export function PerformancePage(props: {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => {
+                {pageSlice(rows).map((row) => {
                   const settlement = formatSettlementLabel(row.settlement);
                   return (
                     <tr key={row.id}>
@@ -292,6 +363,7 @@ export function PerformancePage(props: {
                 })}
               </tbody>
             </table>
+            {pagination}
           </div>
         )}
           </>
@@ -314,7 +386,7 @@ export function PerformancePage(props: {
                 </tr>
               </thead>
               <tbody>
-                {pendingRows.map((row) => {
+                {pageSlice(pendingRows).map((row) => {
                   const status = formatPendingStatus(row.status);
                   return (
                     <tr key={row.id}>
@@ -338,6 +410,7 @@ export function PerformancePage(props: {
                 })}
               </tbody>
             </table>
+            {pagination}
           </div>
         )}
           </>
@@ -355,6 +428,15 @@ export function PerformancePage(props: {
           模型 {modelVersions.join(" · ") || "—"}
         </p>
       </header>
+
+      {props.loadFailed ? (
+        <p className="notice error">
+          表現數據載入失敗{" "}
+          <button type="button" className="secondary-button compact" onClick={props.onRetry}>
+            重試
+          </button>
+        </p>
+      ) : null}
 
       <div className="performance-overview">
         <div className="performance-overview__main">

@@ -57,6 +57,21 @@ export function formatBetRef(id: string): string {
   return `#${clean.slice(0, 6) || "——————"}`;
 }
 
+/**
+ * 認住一注係邊場邊個盤 — 推薦卡用嚟標記「已記 ✓」。
+ * BetResponse.line 係 string，opportunity.line 係 number，統一 normalize。
+ */
+export function betRecordKey(parts: {
+  matchId?: string | null;
+  market: string;
+  selection: string;
+  line?: number | string | null;
+}): string | null {
+  if (!parts.matchId) return null;
+  const line = parts.line === null || parts.line === undefined ? "" : String(Number(parts.line));
+  return `${parts.matchId}|${parts.market}|${parts.selection}|${line}`;
+}
+
 /** Filter buckets for the status dropdown. */
 export type BetStatusFilter = "all" | "win" | "loss" | "push" | "pending";
 

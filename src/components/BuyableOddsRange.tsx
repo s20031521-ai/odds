@@ -71,14 +71,9 @@ export function ObservationTimeline(props: { observations: RecommendationObserva
             {" → "}
             <time dateTime={observation.lastEvaluatedAt}>{formatDateTime(observation.lastEvaluatedAt)}</time>
           </span>
-          <code>{observation.fingerprint}</code>
           {observation.buyableQuotes.length > 0 ? (
             <QuoteList quotes={observation.buyableQuotes} />
           ) : <p>呢個批次已無可買報價。</p>}
-          <details>
-            <summary>Audit inputs（{observation.inputs.length}）</summary>
-            <pre>{JSON.stringify(observation.inputs, null, 2)}</pre>
-          </details>
         </li>
       ))}
     </ol>
@@ -94,7 +89,7 @@ function QuoteList({ quotes }: { quotes: BuyableQuote[] }): React.ReactElement {
           <span>{providerLabel(quote.provider)}</span>
           <span>採樣 {formatOdds(quote.odds)}</span>
           <span>最低 {formatOdds(quote.minimumBuyOdds)}</span>
-          <span>Edge +{formatPercent(quote.edge)}</span>
+          <span>優勢 +{formatPercent(quote.edge)}</span>
           <time dateTime={quote.observedAt}>{formatDateTime(quote.observedAt)}</time>
         </div>
       ))}

@@ -23,7 +23,7 @@ describe("BuyableOddsRange", () => {
     expect(markup).toContain("HKJC");
     expect(markup).toContain("採樣 1.91");
     expect(markup).toContain("最低 1.84");
-    expect(markup).toContain("Edge +6.96%");
+    expect(markup).toContain("優勢 +6.96%");
     expect(markup).toContain('dateTime="2026-07-21T11:55:00.000Z"');
     expect(markup).toContain("Beta");
     expect(markup).toContain("The Odds API");
@@ -38,7 +38,7 @@ describe("BuyableOddsRange", () => {
     expect(markup).toContain("recommendation-observations");
   });
 
-  it("renders every lazy-loaded batch with its server quotes and audit inputs", () => {
+  it("renders batches with server quotes, hiding internal audit payloads", () => {
     const markup = renderToStaticMarkup(<ObservationTimeline observations={[{
       id: 501,
       fingerprint: "batch-501",
@@ -51,7 +51,8 @@ describe("BuyableOddsRange", () => {
     expect(markup).toContain("批次 1");
     expect(markup).toContain("Alpha");
     expect(markup).toContain("最低 1.84");
-    expect(markup).toContain("batch-501");
-    expect(markup).toContain('&quot;bookmaker&quot;: &quot;Peer A&quot;');
+    // debug 用嘅 fingerprint / raw JSON 唔再暴露俾用戶
+    expect(markup).not.toContain("batch-501");
+    expect(markup).not.toContain("Peer A");
   });
 });

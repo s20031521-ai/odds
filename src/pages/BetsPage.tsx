@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Filter, MoreVertical, Plus, Trophy } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreVertical, Plus, Trophy } from "lucide-react";
 import type { BetCreateRequest, BetResponse, BetsListResponse } from "../apiClient";
 import { BetForm, type FixturePick } from "../components/BetForm";
 import { formatKickoff } from "../components/PickCard";
@@ -182,7 +182,18 @@ export function BetsPage(props: {
     setMenuFor(null);
   }, [statusFilter, dateFilter]);
 
-  if (loading) return <p className="muted">載入中…</p>;
+  if (loading) {
+    return (
+      <section className="bets-page" aria-label="載入中">
+        <div className="skeleton-card" aria-hidden="true">
+          <span className="skeleton-line skeleton-line--wide" />
+          <span className="skeleton-line" />
+          <span className="skeleton-line" />
+          <span className="skeleton-line skeleton-line--short" />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="bets-page" aria-labelledby="bets-title">
@@ -226,18 +237,6 @@ export function BetsPage(props: {
           </span>
         </div>
         <div className="bets-page__actions">
-          <div className="bets-page__filter">
-            <Filter size={16} aria-hidden="true" />
-            <select
-              aria-label="狀態篩選"
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as BetStatusFilter)}
-            >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.key} value={option.key}>{option.label}</option>
-              ))}
-            </select>
-          </div>
           <button className="primary-button compact" onClick={() => { setEditingBet(null); setShowForm(true); }}>
             <Plus size={16} aria-hidden="true" />
             新增注單
@@ -245,7 +244,19 @@ export function BetsPage(props: {
         </div>
       </div>
 
-      <div className="bets-page__quick-filters">
+      <div className="bets-page__quick-filters" role="group" aria-label="狀態篩選">
+        {STATUS_OPTIONS.map(({ key, label }) => (
+          <button
+            key={key}
+            className={`filter-chip${statusFilter === key ? " active" : ""}`}
+            onClick={() => setStatusFilter(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="bets-page__quick-filters" role="group" aria-label="日期篩選">
         {DATE_FILTERS.map(({ key, label }) => (
           <button
             key={key}

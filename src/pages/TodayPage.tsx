@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Radar, ArrowRight, ListChecks } from "lucide-react";
 import type { BuyableOpportunity } from "../apiClient";
 import type { BetCreateRequest } from "../apiClient";
+import { betRecordKey } from "../betMetrics";
 import type { ObservationLoader } from "../components/BuyableOddsRange";
 import { EmptyState } from "../components/EmptyState";
 import { FreshnessBar } from "../components/FreshnessBar";
@@ -36,6 +37,10 @@ export function LandingPage(props: {
   quota?: QuotaInfo | null;
   loadObservations?: ObservationLoader;
   onBet?: (prefill: Partial<BetCreateRequest>) => void;
+  /** 首輪推薦仲 load 緊 → 顯示骨架屏 */
+  loading?: boolean;
+  /** 已記注單嘅 record keys（betRecordKey） */
+  recordedKeys?: Set<string>;
 }): React.ReactElement {
   const now = props.now ?? Date.now();
   const clock = useHkClock();
@@ -79,21 +84,40 @@ export function LandingPage(props: {
 
       <FreshnessBar generatedAt={props.generatedAt} dataFresh={props.dataFresh} now={now} />
 
-      {!props.dataFresh ? (
+      {props.loading ? (
+        <div className="landing-page__picks" aria-label="載入中">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="skeleton-card" aria-hidden="true">
+              <span className="skeleton-line skeleton-line--wide" />
+              <span className="skeleton-line" />
+              <span className="skeleton-line skeleton-line--short" />
+            </div>
+          ))}
+        </div>
+      ) : !props.dataFresh ? (
         <EmptyState reason="stale" />
       ) : sorted.length === 0 ? (
         <EmptyState reason="no-value" fixtureCount={props.fixtures.length} />
       ) : (
         <div className="landing-page__picks">
-          {sorted.map((opportunity) => (
-            <PickCard
-              key={opportunity.sampleId}
-              opportunity={opportunity}
-              logos={props.logos}
-              loadObservations={props.loadObservations}
-              onBet={props.onBet}
-            />
-          ))}
+          {sorted.map((opportunity) => {
+            const key = betRecordKey({
+              matchId: opportunity.matchId,
+              market: opportunity.market,
+              selection: opportunity.selection,
+              line: opportunity.line,
+            });
+            return (
+              <PickCard
+                key={opportunity.sampleId}
+                opportunity={opportunity}
+                logos={props.logos}
+                loadObservations={props.loadObservations}
+                onBet={props.onBet}
+                recorded={key !== null && props.recordedKeys?.has(key) === true}
+              />
+            );
+          })}
         </div>
       )}
 

@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { LayoutGrid, Calendar, Ticket, BarChart3, Zap, User } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { LayoutGrid, Calendar, Ticket, BarChart3, Zap, User, X } from "lucide-react";
 import packageJson from "../../package.json";
 import type { Page } from "../route";
 import type { FixturePick } from "../fixtureSearch";
@@ -21,6 +21,14 @@ export function AppShell(props: {
   children: ReactNode;
 }): React.ReactElement {
   const hasWarning = Boolean(props.dataWarning?.trim());
+  const [dismissedWarning, setDismissedWarning] = useState<string | null>(null);
+
+  // 警告內容變咗（新一波失敗）就要再彈出嚟
+  useEffect(() => {
+    setDismissedWarning(null);
+  }, [props.dataWarning]);
+
+  const showWarning = hasWarning && props.dataWarning !== dismissedWarning;
 
   return (
     <div className="application-shell">
@@ -83,9 +91,17 @@ export function AppShell(props: {
         </nav>
 
         <div className="application-shell__content">
-          {hasWarning ? (
+          {showWarning ? (
             <div className="app-shell__alert" role="alert">
-              {props.dataWarning}
+              <span>{props.dataWarning}</span>
+              <button
+                type="button"
+                className="app-shell__alert-dismiss"
+                aria-label="關閉警告"
+                onClick={() => setDismissedWarning(props.dataWarning ?? null)}
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
             </div>
           ) : null}
           <main id="main-content" tabIndex={-1}>

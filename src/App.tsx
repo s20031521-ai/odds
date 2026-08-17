@@ -24,6 +24,7 @@ import {
   normalizeCatalogResultRow,
   type FixturePick,
 } from "./fixtureSearch";
+import { betRecordKey } from "./betMetrics";
 import type { BetCreateRequest } from "./apiClient";
 import { startCurrentRecommendationsRefresh } from "./currentRecommendations";
 import { normalizeLiveOddsPayload } from "./liveOddsMapping";
@@ -129,7 +130,11 @@ function App() {
   const [recordedOpportunities, setRecordedOpportunities] = useState<BuyableOpportunity[]>([]);
   const [recommendationsGeneratedAt, setRecommendationsGeneratedAt] = useState<string | null>(null);
   const [recommendationsLoaded, setRecommendationsLoaded] = useState(false);
+  const [recommendationsSettled, setRecommendationsSettled] = useState(false);
   const [backtestLoaded, setBacktestLoaded] = useState(false);
+  const [backtestFailed, setBacktestFailed] = useState(false);
+  /** 已記注單嘅 matchId|market|selection|line keys — 推薦卡標「已記 ✓」用 */
+  const [recordedKeys, setRecordedKeys] = useState<Set<string>>(new Set());
   const [betPrefill, setBetPrefill] = useState<Partial<BetCreateRequest> | null>(null);
   const [betSaving, setBetSaving] = useState(false);
   const [betError, setBetError] = useState<string | null>(null);
@@ -241,6 +246,7 @@ function App() {
     return startCurrentRecommendationsRefresh({
       load: apiClient.currentRecommendations,
       onSuccess: (response) => {
+        setRecommendationsSettled(true);
         if (response.strategyVersion !== "unified-buyable-v1" || !Array.isArray(response.opportunities)) {
           setRecordedOpportunities([]);
           setRecommendationsGeneratedAt(null);
@@ -252,12 +258,38 @@ function App() {
         setRecommendationsLoaded(true);
       },
       onError: () => {
+        setRecommendationsSettled(true);
         setRecordedOpportunities([]);
         setRecommendationsGeneratedAt(null);
         setRecommendationsLoaded(false);
       },
     });
   }, [apiClient]);
+
+  // 推薦卡「已記 ✓」標記：開 app 時攞一次注單 keys
+  useEffect(() => {
+    void refreshRecordedKeys();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function refreshRecordedKeys() {
+    try {
+      const body = await apiClient.bets();
+      const keys = new Set<string>();
+      for (const bet of body?.bets ?? []) {
+        const key = betRecordKey({
+          matchId: bet.match_id,
+          market: bet.market,
+          selection: bet.selection,
+          line: bet.line,
+        });
+        if (key) keys.add(key);
+      }
+      setRecordedKeys(keys);
+    } catch {
+      // 標記唔到唔緊要，唔好阻住個 app
+    }
+  }
 
   useEffect(() => {
     if (!backtestAutoLoadStarted.current) {
@@ -290,13 +322,14 @@ function App() {
     if (backtestLoaded) return;
     try {
       const body = await apiClient.backtest();
-      if (!Array.isArray(body?.rows)) return;
+      if (!Array.isArray(body?.rows)) throw new Error("bad payload");
       setResultEntries((body.rows as unknown[]).filter(isResultEntry));
       setPendingEntries(Array.isArray(body.pending) ? body.pending : []);
       setReadiness(Array.isArray(body.readiness) ? body.readiness.filter(isModelReadiness) : []);
       setBacktestLoaded(true);
+      setBacktestFailed(false);
     } catch {
-      // silently ignore backtest failures
+      setBacktestFailed(true);
     }
   }
 
@@ -341,6 +374,7 @@ function App() {
     try {
       await apiClient.createBet(bet);
       setBetPrefill(null);
+      void refreshRecordedKeys();
       setToast({
         kind: "success",
         text: "已記低注單",
@@ -362,7 +396,15 @@ function App() {
       fixtures={betFixtures}
     >
       {page === "performance" ? (
-        <PerformancePage readiness={readiness} historyStats={historyStatsByMarket} results={resultEntries} pending={pendingEntries} dataFreshness={recommendationsGeneratedAt} />
+        <PerformancePage
+          readiness={readiness}
+          historyStats={historyStatsByMarket}
+          results={resultEntries}
+          pending={pendingEntries}
+          dataFreshness={recommendationsGeneratedAt}
+          loadFailed={backtestFailed && !backtestLoaded}
+          onRetry={loadBacktest}
+        />
       ) : page === "bets" ? (
         <BetsPage
           loadBets={() => apiClient.bets()}
@@ -390,6 +432,8 @@ function App() {
           quota={apiQuota}
           loadObservations={loadRecommendationObservations}
           onBet={setBetPrefill}
+          loading={!recommendationsSettled}
+          recordedKeys={recordedKeys}
         />
       )}
 

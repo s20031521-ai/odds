@@ -177,11 +177,14 @@ test("sampler records dc-shadow-v1 opportunities without surfacing them as curre
     assert.equal(await runUnifiedSampler({ sink, now: NOW }), "ran");
 
     const shadowSamples = await pool.query(
-      "SELECT market, prediction, model_version, raw FROM prediction_snapshots WHERE strategy_version = 'dc-shadow-v1'",
+      "SELECT strategy_version, market, prediction, model_version, raw FROM prediction_snapshots WHERE strategy_version <> 'unified-buyable-v1'",
     );
-    assert.ok(shadowSamples.rowCount > 0, "shadow opportunities are recorded under dc-shadow-v1");
-    assert.ok(shadowSamples.rows.every((row) => row.model_version === "dc-v1"));
-    const shadowOver = shadowSamples.rows.find((row) => row.market === "totals" && row.prediction === "over");
+    const strategies = new Set(shadowSamples.rows.map((row) => row.strategy_version));
+    assert.ok(strategies.has("dc-shadow-v1"), "pure-model shadow opportunities are recorded");
+    assert.ok(strategies.has("dc-blend-v1"), "model-market blend opportunities are recorded");
+    const dcShadow = shadowSamples.rows.filter((row) => row.strategy_version === "dc-shadow-v1");
+    assert.ok(dcShadow.every((row) => row.model_version === "dc-v1"));
+    const shadowOver = dcShadow.find((row) => row.market === "totals" && row.prediction === "over");
     assert.ok(shadowOver, "a priced shadow totals opportunity exists");
     assert.ok(shadowOver.raw.quotes.length > 0, "the generous over quote qualifies");
 

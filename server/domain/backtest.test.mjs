@@ -393,6 +393,39 @@ test("dc-shadow opportunities settle and report readiness under their own strate
   assert.deepEqual(pendingShadow.map((row) => [row.sampleId, row.status]), [[33, "upcoming"]]);
 });
 
+test("every shadow strategy family settles and reports readiness separately", () => {
+  const snapshots = [
+    shadowOpportunity({ sampleId: 41, fixtureId: "fixture-1", market: "totals", selection: "over", line: 2.5 }),
+    shadowOpportunity({
+      sampleId: 42, fixtureId: "fixture-1", market: "totals", selection: "over", line: 2.5,
+      strategyVersion: "market-sharp-v1", modelVersion: "totals-sharp-v1",
+    }),
+    shadowOpportunity({
+      sampleId: 43, fixtureId: "fixture-1", market: "totals", selection: "over", line: 2.5,
+      strategyVersion: "dc-blend-v1", modelVersion: "dc-v2",
+    }),
+    unifiedOpportunity({ sampleId: 1, fixtureId: "fixture-1", selection: "over", line: 2.5 }),
+  ];
+  const response = buildBacktest(snapshots, [
+    { fixtureId: "fixture-1", matchId: "provider-fixture-1", market: "totals", actual: "3 球" },
+  ], NOW);
+
+  for (const [strategyVersion, modelVersion] of [
+    ["dc-shadow-v1", "dc-v1"],
+    ["market-sharp-v1", "totals-sharp-v1"],
+    ["dc-blend-v1", "dc-v2"],
+  ]) {
+    const rows = response.rows.filter((row) => row.strategyVersion === strategyVersion);
+    assert.deepEqual(rows.map((row) => row.settlement), ["win"], `${strategyVersion} settles`);
+    const readiness = response.readiness.find(
+      (row) => row.strategyVersion === strategyVersion && row.market === "totals",
+    );
+    assert.equal(readiness?.modelVersion, modelVersion);
+    assert.equal(readiness?.settled, 1);
+  }
+  assert.equal(response.summary.finished, 1, "headline performance stays unified-only");
+});
+
 function unifiedOpportunity(overrides = {}) {
   return {
     sampleId: 1,

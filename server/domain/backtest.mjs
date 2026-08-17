@@ -5,7 +5,9 @@ const SETTLEMENT_GRACE_MS = 180 * 60_000;
 const UNSETTLEABLE_AFTER_MS = 7 * 24 * 60 * 60_000;
 const DATA_FRESH_MS = 45 * 60_000;
 const UNIFIED_STRATEGY_VERSION = "unified-buyable-v1";
-const DC_SHADOW_STRATEGY_VERSION = "dc-shadow-v1";
+// Shadow experiment strategies (ADR 0003): opportunity-shaped samples that
+// are muted on the Today page but settle and report readiness separately.
+const SHADOW_STRATEGY_VERSIONS = new Set(["dc-shadow-v1", "dc-blend-v1", "market-sharp-v1"]);
 const PERFORMANCE_SETTLEMENTS = new Set(["win", "half-win", "push", "half-loss", "loss"]);
 
 export function flattenLiveCache(cached) {
@@ -84,9 +86,16 @@ export function buildBacktest(snapshots, results, now = Date.now()) {
     ? allFinished.filter((row) => row.strategyVersion === UNIFIED_STRATEGY_VERSION)
     : allFinished;
   const legacyFinished = allFinished.filter((row) => row.strategyVersion !== UNIFIED_STRATEGY_VERSION);
+  const shadowStrategies = [...new Set(shadow.map((item) => item.strategyVersion))].sort();
   const pending = [
     ...buildOpportunityPendingRows(UNIFIED_STRATEGY_VERSION, unified, rows, resolvedResults, now),
-    ...buildOpportunityPendingRows(DC_SHADOW_STRATEGY_VERSION, shadow, rows, resolvedResults, now),
+    ...shadowStrategies.flatMap((strategy) => buildOpportunityPendingRows(
+      strategy,
+      shadow.filter((item) => item.strategyVersion === strategy),
+      rows,
+      resolvedResults,
+      now,
+    )),
     ...buildPendingRows(legacy, legacyFinished, resolvedResults, now),
   ].sort((left, right) => pendingTime(left.commenceTime) - pendingTime(right.commenceTime) || left.id.localeCompare(right.id));
   return {
@@ -96,7 +105,14 @@ export function buildBacktest(snapshots, results, now = Date.now()) {
     buckets: groupSummary(finished, (row) => bucket(row.chance)),
     readiness: [
       ...summarizeStrategyReadiness(UNIFIED_STRATEGY_VERSION, unified, rows, allFinished, resolvedResults, now),
-      ...summarizeStrategyReadiness(DC_SHADOW_STRATEGY_VERSION, shadow, rows, allFinished, resolvedResults, now),
+      ...shadowStrategies.flatMap((strategy) => summarizeStrategyReadiness(
+        strategy,
+        shadow.filter((item) => item.strategyVersion === strategy),
+        rows,
+        allFinished,
+        resolvedResults,
+        now,
+      )),
     ],
     pending,
     snapshotQuality,
@@ -567,7 +583,7 @@ function isUnifiedOpportunity(item) {
 }
 
 function isShadowOpportunity(item) {
-  return item?.strategyVersion === DC_SHADOW_STRATEGY_VERSION;
+  return SHADOW_STRATEGY_VERSIONS.has(item?.strategyVersion);
 }
 
 // Snapshots recorded through the opportunity pipeline (unified + dc-shadow)

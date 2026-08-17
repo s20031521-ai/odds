@@ -15,6 +15,7 @@
 // probability exactly.
 
 import { BUY_EDGE_THRESHOLD } from "../../shared/unified-recommendations.mjs";
+import { marketReferenceChance } from "./market-sharp.mjs";
 import {
   expectedGoals,
   fitDixonColes,
@@ -29,6 +30,13 @@ import {
 
 export const DC_SHADOW_STRATEGY_VERSION = "dc-shadow-v1";
 export const DC_MODEL_VERSION = "dc-v1";
+export const DC_BLEND_STRATEGY_VERSION = "dc-blend-v1";
+export const DC_BLEND_MODEL_VERSION = "dc-v2";
+// dc-v2 blend: 30% Dixon-Coles model, 70% sharp market consensus. The
+// offline backtest showed the pure model trails the closing market; the
+// literature consensus is that a market-anchored blend beats either side
+// alone. Shadow evidence will confirm or refute that at HKJC prices.
+export const DC_BLEND_MODEL_WEIGHT = 0.3;
 
 const SUPPORTED_MARKETS = new Set(["h2h", "totals", "handicap"]);
 const MARKET_SELECTIONS = {
@@ -238,34 +246,11 @@ function selectionDist(distributions, market, selection, line) {
  * existing samples observe the market drying up.
  */
 export function buildShadowOpportunities(inputs, fitsByLeague) {
-  const rows = (Array.isArray(inputs) ? inputs : []).filter((row) => row && SUPPORTED_MARKETS.has(row.market));
-  const byFixture = new Map();
-  for (const row of rows) {
-    byFixture.set(row.fixtureId, [...(byFixture.get(row.fixtureId) ?? []), row]);
-  }
-
   const opportunities = [];
-  for (const fixtureRows of byFixture.values()) {
-    const owner = fixtureRows.find((row) => row.provider === "hkjc") ?? fixtureRows[0];
-    const leagueCode = fixtureRows.reduce((code, row) => code ?? leagueCodeFromName(row.league), null);
-    if (!leagueCode) continue;
-    const fit = fitsByLeague?.get(leagueCode);
-    if (!fit) continue;
-    const homeTeam = resolveTeamName(owner.homeTeam, fit.teams);
-    const awayTeam = resolveTeamName(owner.awayTeam, fit.teams);
-    if (!homeTeam || !awayTeam) continue;
-
-    const distributions = fixtureDistributions(fit, homeTeam, awayTeam);
-    const groups = new Map();
-    for (const row of fixtureRows) {
-      const key = `${row.market}|${row.line ?? ""}`;
-      groups.set(key, [...(groups.get(key) ?? []), row]);
-    }
-
+  walkShadowFixtures(inputs, fitsByLeague, ({ owner, distributions, groups }) => {
     for (const groupRows of groups.values()) {
       const { market } = groupRows[0];
       const line = market === "h2h" ? undefined : groupRows[0].line;
-      if (market !== "h2h" && !Number.isFinite(line)) continue;
       for (const selection of MARKET_SELECTIONS[market]) {
         const dist = selectionDist(distributions, market, selection, line);
         const quotes = groupRows.flatMap((row) => {
@@ -281,35 +266,149 @@ export function buildShadowOpportunities(inputs, fitsByLeague) {
             minimumBuyOdds: evaluation.minimumBuyOdds,
             observedAt: row.observedAt,
           }];
-        }).sort((left, right) => right.odds - left.odds
-          || String(left.bookmaker ?? "").localeCompare(String(right.bookmaker ?? ""))
-          || String(left.provider ?? "").localeCompare(String(right.provider ?? "")));
-        opportunities.push({
-          fixtureId: owner.fixtureId,
-          ...(owner.matchId ? { matchId: owner.matchId } : {}),
-          homeTeam: owner.homeTeam,
-          awayTeam: owner.awayTeam,
-          ...(owner.homeTeamZh ? { homeTeamZh: owner.homeTeamZh } : {}),
-          ...(owner.awayTeamZh ? { awayTeamZh: owner.awayTeamZh } : {}),
-          commenceTime: owner.commenceTime,
-          ...(owner.league ? { league: owner.league } : {}),
-          ...(owner.leagueZh ? { leagueZh: owner.leagueZh } : {}),
-          strategyVersion: DC_SHADOW_STRATEGY_VERSION,
-          modelVersion: DC_MODEL_VERSION,
-          market,
-          selection,
-          ...(line === undefined ? {} : { line }),
-          quotes,
-        });
+        }).sort(compareQuotes);
+        opportunities.push(shadowShell(owner, DC_SHADOW_STRATEGY_VERSION, DC_MODEL_VERSION, market, selection, line, quotes));
       }
     }
+  });
+  return opportunities.sort(compareOpportunities);
+}
+
+// ---------- dc-v2: model-market blend ----------
+
+/**
+ * Prices one quote under the dc-v2 blend: (1−w) × market-consensus EV +
+ * w × model five-state EV. For h2h the market side is exact; for quarter /
+ * integer point lines the book's two-way no-vig price already absorbs push
+ * economics, so the market side uses the standard two-way approximation.
+ */
+export function blendQuoteEvaluation(dist, marketChance, odds, modelWeight = DC_BLEND_MODEL_WEIGHT) {
+  if (!Number.isFinite(odds) || odds <= 1 || !dist) return null;
+  if (!Number.isFinite(marketChance) || marketChance <= 0 || marketChance >= 1) return null;
+  const winComponent = (dist.win ?? 0) + (dist["half-win"] ?? 0) / 2;
+  if (winComponent <= 0) return null;
+  const lossComponent = (dist.loss ?? 0) + (dist["half-loss"] ?? 0) / 2;
+  const w = modelWeight;
+  const edge = (1 - w) * (marketChance * odds - 1) + w * settlementEV(dist, odds);
+  const chance = (1 + edge) / odds;
+  // Solve blended EV(o) = BUY_EDGE_THRESHOLD:
+  //   (1−w)(c·o − 1) + w(a(o−1) − b) = threshold
+  const breakeven = (BUY_EDGE_THRESHOLD + (1 - w) + w * (winComponent + lossComponent))
+    / ((1 - w) * marketChance + w * winComponent);
+  return {
+    edge,
+    chance,
+    minimumBuyOdds: Math.ceil(breakeven * 100 - 1e-6) / 100,
+  };
+}
+
+/**
+ * Builds dc-blend-v1 shadow opportunities: same fixtures and distributions
+ * as dc-shadow-v1, but each quote is priced against the model–market blend.
+ * Groups without a market reference (no complete book) emit empty shells.
+ */
+export function buildBlendOpportunities(inputs, fitsByLeague, { modelWeight = DC_BLEND_MODEL_WEIGHT } = {}) {
+  const opportunities = [];
+  walkShadowFixtures(inputs, fitsByLeague, ({ owner, distributions, groups }) => {
+    for (const groupRows of groups.values()) {
+      const { market } = groupRows[0];
+      const line = market === "h2h" ? undefined : groupRows[0].line;
+      for (const selection of MARKET_SELECTIONS[market]) {
+        const marketChance = marketReferenceChance(groupRows, market, selection);
+        const dist = selectionDist(distributions, market, selection, line);
+        const quotes = groupRows.flatMap((row) => {
+          if (row.selection !== selection) return [];
+          const evaluation = blendQuoteEvaluation(dist, marketChance, row.odds, modelWeight);
+          if (!evaluation || evaluation.edge < BUY_EDGE_THRESHOLD) return [];
+          return [{
+            bookmaker: row.bookmaker,
+            provider: row.provider,
+            odds: row.odds,
+            chance: evaluation.chance,
+            edge: evaluation.edge,
+            minimumBuyOdds: evaluation.minimumBuyOdds,
+            observedAt: row.observedAt,
+          }];
+        }).sort(compareQuotes);
+        opportunities.push(shadowShell(owner, DC_BLEND_STRATEGY_VERSION, DC_BLEND_MODEL_VERSION, market, selection, line, quotes));
+      }
+    }
+  });
+  return opportunities.sort(compareOpportunities);
+}
+
+// ---------- shared shadow internals ----------
+
+// Walks every (fixture, market, line) group that has a usable league fit and
+// resolved teams, computing the dc distributions once per fixture.
+function walkShadowFixtures(inputs, fitsByLeague, callback) {
+  const rows = (Array.isArray(inputs) ? inputs : []).filter((row) => row && SUPPORTED_MARKETS.has(row.market));
+  const byFixture = new Map();
+  for (const row of rows) {
+    byFixture.set(row.fixtureId, [...(byFixture.get(row.fixtureId) ?? []), row]);
   }
 
-  return opportunities.sort((left, right) => Date.parse(left.commenceTime) - Date.parse(right.commenceTime)
+  for (const fixtureRows of byFixture.values()) {
+    const owner = fixtureRows.find((row) => row.provider === "hkjc") ?? fixtureRows[0];
+    const leagueCode = fixtureRows.reduce((code, row) => code ?? leagueCodeFromName(row.league), null);
+    if (!leagueCode) continue;
+    const fit = fitsByLeague?.get(leagueCode);
+    if (!fit) continue;
+    const homeTeam = resolveTeamName(owner.homeTeam, fit.teams);
+    const awayTeam = resolveTeamName(owner.awayTeam, fit.teams);
+    if (!homeTeam || !awayTeam) continue;
+
+    const groups = new Map();
+    for (const row of fixtureRows) {
+      const key = `${row.market}|${row.line ?? ""}`;
+      groups.set(key, [...(groups.get(key) ?? []), row]);
+    }
+    // Point-market groups without a usable line cannot be priced.
+    for (const [key, groupRows] of [...groups]) {
+      if (groupRows[0].market !== "h2h" && !Number.isFinite(groupRows[0].line)) groups.delete(key);
+    }
+
+    callback({
+      owner,
+      fit,
+      distributions: fixtureDistributions(fit, homeTeam, awayTeam),
+      groups,
+    });
+  }
+}
+
+function shadowShell(owner, strategyVersion, modelVersion, market, selection, line, quotes) {
+  return {
+    fixtureId: owner.fixtureId,
+    ...(owner.matchId ? { matchId: owner.matchId } : {}),
+    homeTeam: owner.homeTeam,
+    awayTeam: owner.awayTeam,
+    ...(owner.homeTeamZh ? { homeTeamZh: owner.homeTeamZh } : {}),
+    ...(owner.awayTeamZh ? { awayTeamZh: owner.awayTeamZh } : {}),
+    commenceTime: owner.commenceTime,
+    ...(owner.league ? { league: owner.league } : {}),
+    ...(owner.leagueZh ? { leagueZh: owner.leagueZh } : {}),
+    strategyVersion,
+    modelVersion,
+    market,
+    selection,
+    ...(line === undefined ? {} : { line }),
+    quotes,
+  };
+}
+
+function compareQuotes(left, right) {
+  return right.odds - left.odds
+    || String(left.bookmaker ?? "").localeCompare(String(right.bookmaker ?? ""))
+    || String(left.provider ?? "").localeCompare(String(right.provider ?? ""));
+}
+
+function compareOpportunities(left, right) {
+  return Date.parse(left.commenceTime) - Date.parse(right.commenceTime)
     || String(left.fixtureId).localeCompare(String(right.fixtureId))
     || String(left.market).localeCompare(String(right.market))
     || (left.line ?? 0) - (right.line ?? 0)
-    || String(left.selection).localeCompare(String(right.selection)));
+    || String(left.selection).localeCompare(String(right.selection));
 }
 
 // ---------- fitting from team_match_history ----------

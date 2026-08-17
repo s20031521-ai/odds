@@ -474,7 +474,7 @@ export function PerformancePage(props: {
               );
 
               return (
-                <div className="performance-card" key={`shadow-${market}`}>
+                <div className="performance-card" key={`shadow-${market}-${modelVersion}`}>
                   <div className="performance-card__head">
                     <h2>{label}</h2>
                     <span className="performance-card__count mono">

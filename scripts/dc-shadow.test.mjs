@@ -13,8 +13,12 @@ import {
   totalsSettlementDist,
 } from "./lib/dixon-coles.mjs";
 import {
+  DC_BLEND_MODEL_VERSION,
+  DC_BLEND_STRATEGY_VERSION,
   DC_MODEL_VERSION,
   DC_SHADOW_STRATEGY_VERSION,
+  blendQuoteEvaluation,
+  buildBlendOpportunities,
   buildShadowOpportunities,
   canonicalTeamName,
   fitLeagues,
@@ -22,6 +26,7 @@ import {
   quoteEvaluation,
   resolveTeamName,
 } from "./lib/dc-shadow.mjs";
+import { marketReferenceChance } from "./lib/market-sharp.mjs";
 
 // ---------- league mapping ----------
 
@@ -393,4 +398,105 @@ test("fitLeagues fits only the requested leagues and tolerates thin data", () =>
   assert.ok(fits.get("E0")?.teams.includes("Alpha"));
   assert.equal(fits.has("SP1"), true); // two teams, one match — still fittable
   assert.equal(fits.has("D1"), false); // no history at all
+});
+
+// ---------- dc-v2 blend ----------
+
+test("blendQuoteEvaluation combines market and model EV exactly", () => {
+  const dist = { win: 0.5, "half-win": 0, push: 0, "half-loss": 0, loss: 0.5 };
+  const evaluation = blendQuoteEvaluation(dist, 0.48, 2.2, 0.3);
+  // edge = 0.7 * (0.48*2.2 - 1) + 0.3 * (0.5*1.2 - 0.5) = 0.7*0.056 + 0.3*0.1
+  assert.ok(Math.abs(evaluation.edge - 0.0692) < 1e-9);
+  assert.ok(Math.abs(evaluation.chance - (1 + 0.0692) / 2.2) < 1e-9);
+  // breakeven = (0.03 + 0.7 + 0.3) / (0.7*0.48 + 0.3*0.5) = 1.03 / 0.486
+  assert.equal(evaluation.minimumBuyOdds, 2.12);
+  const blendedAtMin = 0.7 * (0.48 * evaluation.minimumBuyOdds - 1)
+    + 0.3 * settlementEV(dist, evaluation.minimumBuyOdds);
+  assert.ok(blendedAtMin >= 0.03 - 1e-9);
+});
+
+test("blendQuoteEvaluation reduces to a probability blend for h2h", () => {
+  const dist = { win: 0.4, "half-win": 0, push: 0, "half-loss": 0, loss: 0.6 };
+  const evaluation = blendQuoteEvaluation(dist, 0.45, 2.5, 0.3);
+  assert.ok(Math.abs(evaluation.chance - (0.7 * 0.45 + 0.3 * 0.4)) < 1e-12);
+  assert.ok(Math.abs(evaluation.edge - (evaluation.chance * 2.5 - 1)) < 1e-12);
+});
+
+test("blendQuoteEvaluation rejects missing market reference or unwinnable sides", () => {
+  const dist = { win: 0.5, "half-win": 0, push: 0, "half-loss": 0, loss: 0.5 };
+  assert.equal(blendQuoteEvaluation(dist, null, 2), null);
+  assert.equal(blendQuoteEvaluation(dist, 0, 2), null);
+  assert.equal(blendQuoteEvaluation({ win: 0, "half-win": 0, push: 1, "half-loss": 0, loss: 0 }, 0.5, 2), null);
+  assert.equal(blendQuoteEvaluation(dist, 0.5, 1), null);
+});
+
+function blendBook(bookmaker, provider, homeOdds, drawOdds, awayOdds) {
+  return [
+    quoteRow({ bookmaker, provider, selection: "home", odds: homeOdds }),
+    quoteRow({ bookmaker, provider, selection: "draw", odds: drawOdds }),
+    quoteRow({ bookmaker, provider, selection: "away", odds: awayOdds }),
+  ];
+}
+
+test("buildBlendOpportunities prices h2h against the model-market blend", () => {
+  const rows = englishRows(
+    ...blendBook("Pinnacle", "hdc", 2.0, 3.5, 3.8),
+    ...blendBook("1xBet", "hdc", 2.6, 3.3, 2.8),
+  );
+  const opportunities = buildBlendOpportunities(rows, FITS);
+  const home = opportunities.find((item) => item.market === "h2h" && item.selection === "home");
+  assert.ok(home);
+  assert.equal(home.strategyVersion, DC_BLEND_STRATEGY_VERSION);
+  assert.equal(home.modelVersion, DC_BLEND_MODEL_VERSION);
+
+  const fit = FITS.get("E0");
+  const dists = shadowDists(fit, "Alpha United", "Beta City");
+  const marketChance = marketReferenceChance(rows, "h2h", "home");
+  const expectedChance = 0.7 * marketChance + 0.3 * dists.h2h.home;
+  const softQuote = home.quotes.find((quote) => quote.bookmaker === "1xBet");
+  assert.ok(softQuote, "the soft book's 2.6 overlay clears the blended gate");
+  assert.ok(Math.abs(softQuote.chance - expectedChance) < 1e-9);
+  assert.ok(Math.abs(softQuote.edge - (expectedChance * 2.6 - 1)) < 1e-9);
+  // The blend sits between the two components.
+  assert.ok(expectedChance > Math.min(marketChance, dists.h2h.home));
+  assert.ok(expectedChance < Math.max(marketChance, dists.h2h.home));
+});
+
+test("buildBlendOpportunities prices totals with the five-state model side", () => {
+  const rows = englishRows(
+    quoteRow({ market: "totals", selection: "over", line: 2.5, odds: 2.6, bookmaker: "Pinnacle" }),
+    quoteRow({ market: "totals", selection: "under", line: 2.5, odds: 1.55, bookmaker: "Pinnacle" }),
+    quoteRow({ market: "totals", selection: "over", line: 2.5, odds: 2.5, bookmaker: "Bet365" }),
+    quoteRow({ market: "totals", selection: "under", line: 2.5, odds: 1.6, bookmaker: "Bet365" }),
+  );
+  const opportunities = buildBlendOpportunities(rows, FITS);
+  const over = opportunities.find((item) => item.market === "totals" && item.selection === "over");
+  assert.ok(over);
+  const fit = FITS.get("E0");
+  const dists = shadowDists(fit, "Alpha United", "Beta City");
+  const overDist = totalsSettlementDist(dists.totals, 2.5, "over");
+  const marketChance = marketReferenceChance(rows, "totals", "over");
+  for (const quote of over.quotes) {
+    const expectedEdge = 0.7 * (marketChance * quote.odds - 1) + 0.3 * settlementEV(overDist, quote.odds);
+    assert.ok(Math.abs(quote.edge - expectedEdge) < 1e-9);
+    assert.ok(quote.edge >= 0.03);
+  }
+});
+
+test("buildBlendOpportunities emits empty shells when no complete book exists", () => {
+  const rows = englishRows(
+    quoteRow({ market: "totals", selection: "over", line: 2.5, odds: 9, bookmaker: "Lone Book" }),
+    // no under → no complete book → no market reference
+  );
+  const opportunities = buildBlendOpportunities(rows, FITS);
+  assert.equal(opportunities.length, 2); // over + under shells
+  assert.equal(opportunities.every((item) => item.quotes.length === 0), true);
+});
+
+test("buildBlendOpportunities skips unmappable fixtures like the pure shadow", () => {
+  const rows = [
+    quoteRow({ league: "Hong Kong Premier League" }),
+    quoteRow({ league: "EPL", homeTeam: "Elversberg", awayTeam: "Beta City", fixtureId: "fix-9" }),
+  ];
+  assert.deepEqual(buildBlendOpportunities(rows, FITS), []);
 });

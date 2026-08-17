@@ -12,7 +12,8 @@ import {
   observationFingerprint,
 } from "../shared/unified-recommendations.mjs";
 import { createPool } from "../server/db/pool.mjs";
-import { DC_SHADOW_STRATEGY_VERSION, buildShadowOpportunities, fitLeagues, leagueCodeFromName } from "./lib/dc-shadow.mjs";
+import { DC_BLEND_STRATEGY_VERSION, DC_SHADOW_STRATEGY_VERSION, buildBlendOpportunities, buildShadowOpportunities, fitLeagues, leagueCodeFromName } from "./lib/dc-shadow.mjs";
+import { SHARP_STRATEGY_VERSION, buildSharpOpportunities } from "./lib/market-sharp.mjs";
 import { createPostgresSink } from "./lib/postgres-sink.mjs";
 
 const LOCK_NAME = "unified-buyable-sampler";
@@ -80,10 +81,15 @@ export function createUnifiedEvaluation(liveRows, resolvedFixtures, now, options
     if (!byIdentity.has(evaluationIdentity(empty))) byIdentity.set(evaluationIdentity(empty), empty);
   }
   const shadowFits = options?.shadowFits;
+  const shadowBuilders = [buildSharpOpportunities(evaluated.inputs)];
   if (shadowFits instanceof Map && shadowFits.size > 0) {
-    for (const shadow of buildShadowOpportunities(evaluated.inputs, shadowFits)) {
-      if (!byIdentity.has(evaluationIdentity(shadow))) byIdentity.set(evaluationIdentity(shadow), shadow);
-    }
+    shadowBuilders.push(
+      buildShadowOpportunities(evaluated.inputs, shadowFits),
+      buildBlendOpportunities(evaluated.inputs, shadowFits),
+    );
+  }
+  for (const shadow of shadowBuilders.flat()) {
+    if (!byIdentity.has(evaluationIdentity(shadow))) byIdentity.set(evaluationIdentity(shadow), shadow);
   }
   return {
     evaluatedAt,
@@ -227,6 +233,24 @@ function selfTest() {
   assert.ok(shadowQuotes.every((quote) => quote.edge >= BUY_EDGE_THRESHOLD));
   assert.ok(shadowQuotes.every((quote) => quote.chance >= 0 && quote.chance <= 1));
   assert.ok(withShadow.opportunities.some((item) => item.strategyVersion === UNIFIED_STRATEGY_VERSION));
+
+  // market-sharp runs on inputs alone (no fit needed) — always present.
+  const sharpOpportunities = withShadow.opportunities.filter(
+    (item) => item.strategyVersion === SHARP_STRATEGY_VERSION,
+  );
+  assert.ok(sharpOpportunities.length > 0);
+  assert.ok(sharpOpportunities.every((item) => item.modelVersion === "totals-sharp-v1"));
+  // dc-blend needs both a fit and a market reference; both exist here.
+  const blendQuotes = withShadow.opportunities
+    .filter((item) => item.strategyVersion === DC_BLEND_STRATEGY_VERSION)
+    .flatMap((item) => item.quotes);
+  assert.ok(blendQuotes.length > 0, "the strong-scoring self-test fit qualifies blended quotes");
+  assert.ok(blendQuotes.every((quote) => quote.edge >= BUY_EDGE_THRESHOLD));
+  // Without fits, only the market-sharp shadow line is emitted.
+  const sharpOnly = first.opportunities.filter((item) => item.strategyVersion === SHARP_STRATEGY_VERSION);
+  assert.ok(sharpOnly.length > 0);
+  assert.equal(first.opportunities.some((item) => item.strategyVersion === DC_SHADOW_STRATEGY_VERSION
+    || item.strategyVersion === DC_BLEND_STRATEGY_VERSION), false);
   console.log("[unified-sampler] self-test passed");
 }
 

@@ -77,6 +77,12 @@ npm run backtest:dc
 Runs the dc-v1 (Dixon-Coles) walk-forward offline backtest over `data/historical/*.csv`: per-league Brier/log-loss/RPS against de-vigged Pinnacle closing, plus a flat-stake simulation through the production 3% edge gate. Read-only research tooling; nothing here affects live recommendations.
 
 ```powershell
+npm run tune:xi
+```
+
+Sweeps the dc-v1 time-decay parameter xi per league through the same walk-forward harness and reports h2h log-loss / Brier / RPS per value. Winners feed `XI_BY_LEAGUE` in `scripts/lib/dc-shadow.mjs` (used by the live shadow fits). Read-only; re-run when history is refreshed.
+
+```powershell
 npm run monitor:odds:once
 ```
 

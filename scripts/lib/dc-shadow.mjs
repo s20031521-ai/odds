@@ -38,6 +38,18 @@ export const DC_BLEND_MODEL_VERSION = "dc-v2";
 // alone. Shadow evidence will confirm or refute that at HKJC prices.
 export const DC_BLEND_MODEL_WEIGHT = 0.3;
 
+// Per-league time decay, tuned by scripts/dc-v1-tune-xi.mjs (walk-forward
+// h2h log-loss over the 2019–2026 history, grid {0.0005…0.005}). The curve
+// is shallow — these are second-order corrections on the default 0.0019.
+export const XI_BY_LEAGUE = {
+  E0: 0.003,
+  SP1: 0.001,
+  D1: 0.001,
+  I1: 0.003,
+  F1: 0.0019,
+};
+const DEFAULT_XI = 0.0019;
+
 const SUPPORTED_MARKETS = new Set(["h2h", "totals", "handicap"]);
 const MARKET_SELECTIONS = {
   h2h: ["home", "draw", "away"],
@@ -420,6 +432,7 @@ function compareOpportunities(left, right) {
  * mode must never take the unified sampler down.
  */
 export function fitLeagues(historyRows, leagueCodes, refDate, fitOptions = {}) {
+  const { xi, ...rest } = fitOptions;
   const wanted = new Set(leagueCodes ?? []);
   const byCode = new Map();
   for (const row of Array.isArray(historyRows) ? historyRows : []) {
@@ -438,7 +451,11 @@ export function fitLeagues(historyRows, leagueCodes, refDate, fitOptions = {}) {
   const fits = new Map();
   for (const [code, matches] of byCode) {
     try {
-      fits.set(code, fitDixonColes(matches, { refDate, ...fitOptions }));
+      fits.set(code, fitDixonColes(matches, {
+        refDate,
+        xi: xi ?? XI_BY_LEAGUE[code] ?? DEFAULT_XI,
+        ...rest,
+      }));
     } catch {
       // Too little history for a stable fit — skip this league for the run.
     }

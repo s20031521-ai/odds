@@ -169,7 +169,7 @@ function record(bucket, settlement, odds) {
 
 // ---------- CLI ----------
 
-async function loadLeagueMatches(leagues) {
+export async function loadLeagueMatches(leagues) {
   const files = (await readdir(DATA_DIR)).filter((name) => name.endsWith(".csv"));
   const byLeague = new Map(leagues.map((league) => [league, []]));
   for (const file of files) {

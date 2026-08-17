@@ -17,6 +17,7 @@ import {
   DC_BLEND_STRATEGY_VERSION,
   DC_MODEL_VERSION,
   DC_SHADOW_STRATEGY_VERSION,
+  XI_BY_LEAGUE,
   blendQuoteEvaluation,
   buildBlendOpportunities,
   buildShadowOpportunities,
@@ -398,6 +399,11 @@ test("fitLeagues fits only the requested leagues and tolerates thin data", () =>
   assert.ok(fits.get("E0")?.teams.includes("Alpha"));
   assert.equal(fits.has("SP1"), true); // two teams, one match — still fittable
   assert.equal(fits.has("D1"), false); // no history at all
+  assert.equal(fits.get("E0").xi, XI_BY_LEAGUE.E0, "tuned per-league xi is applied");
+  assert.equal(fits.get("SP1").xi, XI_BY_LEAGUE.SP1);
+
+  const overridden = fitLeagues(history, ["E0"], "2026-08-01T00:00:00.000Z", { xi: 0.0042 });
+  assert.equal(overridden.get("E0").xi, 0.0042, "an explicit xi option wins over the tuned table");
 });
 
 // ---------- dc-v2 blend ----------

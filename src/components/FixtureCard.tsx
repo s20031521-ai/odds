@@ -22,7 +22,7 @@ const OUTCOME_SELECTION: Record<OutcomeKey, string> = {
   away: "away",
 };
 
-function formatCountdown(commenceTime: string, now: number): string | null {
+export function formatCountdown(commenceTime: string, now: number): string | null {
   const kickoff = Date.parse(commenceTime);
   if (!Number.isFinite(kickoff) || kickoff <= now) return null;
   const totalSeconds = Math.floor((kickoff - now) / 1000);

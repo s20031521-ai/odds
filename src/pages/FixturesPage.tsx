@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarX2 } from "lucide-react";
 import { FixtureCard, type FixtureOdds } from "../components/FixtureCard";
+import { FreshnessBar } from "../components/FreshnessBar";
 import type { TeamLogoMap } from "../components/TeamLogo";
 import type { BetCreateRequest } from "../apiClient";
 
@@ -23,6 +24,20 @@ const DAY_TABS: Array<{ key: DayTab; label: string }> = [
   { key: "tomorrow", label: "明日" },
   { key: "upcoming", label: "即將到來" },
 ];
+
+const TAB_STORAGE_KEY = "fixtures.tab";
+const LEAGUE_STORAGE_KEY = "fixtures.league";
+
+function storedTab(): DayTab {
+  const value = window.sessionStorage.getItem(TAB_STORAGE_KEY);
+  return DAY_TABS.some((t) => t.key === value) ? (value as DayTab) : "today";
+}
+
+/** 全局搜尋跳過嚟嘅目標場次（#/fixtures?m=<matchId>） */
+function highlightFromHash(): string | null {
+  const match = window.location.hash.match(/[?&]m=([^&]+)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
 function localDayKey(value: string): string {
   const d = new Date(value);
@@ -63,10 +78,15 @@ export function FixturesPage(props: {
   logos: TeamLogoMap;
   oddsByMatch?: Map<string, FixtureOdds>;
   onBet?: (prefill: Partial<BetCreateRequest>) => void;
+  /** ISO timestamp of last successful odds sync（賠率新鮮度） */
+  syncedAt?: string | null;
 }): React.ReactElement {
   const now = useNow();
-  const [tab, setTab] = useState<DayTab>("today");
-  const [league, setLeague] = useState<string | null>(null);
+  const [highlight, setHighlight] = useState<string | null>(() => highlightFromHash());
+  const [tab, setTab] = useState<DayTab>(() => (highlightFromHash() ? "upcoming" : storedTab()));
+  const [league, setLeague] = useState<string | null>(() =>
+    highlightFromHash() ? null : window.sessionStorage.getItem(LEAGUE_STORAGE_KEY),
+  );
 
   const leagues = useMemo(() => {
     const seen = new Map<string, string>();
@@ -76,6 +96,18 @@ export function FixturesPage(props: {
     }
     return [...seen.values()];
   }, [props.fixtures]);
+
+  // 記住用戶揀過嘅 tab / 聯賽，返嚟唔使撳過
+  useEffect(() => {
+    window.sessionStorage.setItem(TAB_STORAGE_KEY, tab);
+  }, [tab]);
+  useEffect(() => {
+    if (league) window.sessionStorage.setItem(LEAGUE_STORAGE_KEY, league);
+    else window.sessionStorage.removeItem(LEAGUE_STORAGE_KEY);
+  }, [league]);
+
+  // 存低咗嘅聯賽而家冇嘅話，當冇篩選
+  const activeLeague = league && leagues.includes(league) ? league : null;
 
   const todayKey = localDayKey(new Date(now).toISOString());
   const tomorrowKey = localDayKey(new Date(now + 86_400_000).toISOString());
@@ -87,11 +119,39 @@ export function FixturesPage(props: {
   }, [props.fixtures, tab, todayKey, tomorrowKey]);
 
   const filtered = useMemo(
-    () => (league ? tabbed.filter((f) => (f.leagueZh ?? f.league) === league) : tabbed),
-    [tabbed, league],
+    () => (activeLeague ? tabbed.filter((f) => (f.leagueZh ?? f.league) === activeLeague) : tabbed),
+    [tabbed, activeLeague],
   );
 
   const groups = useMemo(() => groupFixturesByDate(filtered), [filtered]);
+
+  // 搜尋跳入：捲去嗰場、highlight 幾秒、清返個 hash 參數
+  useEffect(() => {
+    if (!highlight) return;
+    window.history.replaceState(null, "", "#/fixtures");
+    const el = document.getElementById(`fixture-${highlight}`);
+    if (!el) {
+      setHighlight(null);
+      return;
+    }
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timer = window.setTimeout(() => setHighlight(null), 3000);
+    return () => window.clearTimeout(timer);
+  }, [highlight, groups]);
+
+  // 人已喺賽程頁再搜另一場：hashchange 時更新 highlight 目標
+  useEffect(() => {
+    const onHashChange = () => {
+      const target = highlightFromHash();
+      if (target) {
+        setTab("upcoming");
+        setLeague(null);
+        setHighlight(target);
+      }
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   return (
     <section className="fixtures-page" aria-labelledby="fixtures-title">
@@ -115,10 +175,12 @@ export function FixturesPage(props: {
         </div>
       </div>
 
+      <FreshnessBar generatedAt={props.syncedAt ?? null} dataFresh={Boolean(props.syncedAt)} now={now} />
+
       {leagues.length > 1 ? (
         <div className="fixtures-page__chips" role="group" aria-label="聯賽篩選">
           <button
-            className={`filter-chip${league === null ? " active" : ""}`}
+            className={`filter-chip${activeLeague === null ? " active" : ""}`}
             onClick={() => setLeague(null)}
           >
             所有比賽
@@ -126,8 +188,8 @@ export function FixturesPage(props: {
           {leagues.map((name) => (
             <button
               key={name}
-              className={`filter-chip${league === name ? " active" : ""}`}
-              onClick={() => setLeague(league === name ? null : name)}
+              className={`filter-chip${activeLeague === name ? " active" : ""}`}
+              onClick={() => setLeague(activeLeague === name ? null : name)}
             >
               {name}
             </button>
@@ -155,6 +217,7 @@ export function FixturesPage(props: {
                   now={now}
                   odds={props.oddsByMatch?.get(fixture.matchId) ?? null}
                   onBet={props.onBet}
+                  highlighted={fixture.matchId === highlight}
                 />
               ))}
             </div>

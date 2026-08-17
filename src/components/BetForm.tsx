@@ -63,6 +63,12 @@ export function BetForm(props: {
     : [{ value: "home", label: "主" }, { value: "away", label: "客" }, { value: "draw", label: "和" }];
 
   const valid = market !== "" && selection !== "" && Number(odds) > 1 && Number(stake) > 0;
+  const oddsHint = odds.trim() !== "" && !(Number(odds) > 1)
+    ? "賠率要大于 1（例如 1.85）"
+    : null;
+  const stakeHint = stake.trim() !== "" && !(Number(stake) > 0)
+    ? "注碼要大于 0"
+    : null;
 
   function selectFixture(f: FixturePick) {
     setSelected(f);
@@ -216,12 +222,16 @@ export function BetForm(props: {
       <div className="bet-form__field">
         <label>賠率</label>
         <input type="number" step="0.01" min="1.01" value={odds}
+          aria-invalid={oddsHint ? "true" : undefined}
           onChange={(e) => setOdds(e.target.value)} placeholder="1.80" />
+        {oddsHint ? <p className="bet-form__hint">{oddsHint}</p> : null}
       </div>
       <div className="bet-form__field">
         <label>注碼</label>
         <input type="number" step="1" min="1" value={stake}
+          aria-invalid={stakeHint ? "true" : undefined}
           onChange={(e) => setStake(e.target.value)} placeholder="100" />
+        {stakeHint ? <p className="bet-form__hint">{stakeHint}</p> : null}
       </div>
       <div className="bet-form__actions">
         <button type="button" className="secondary-button" onClick={props.onCancel}>取消</button>

@@ -70,6 +70,7 @@ export function BetsPage(props: {
   const [showForm, setShowForm] = useState(false);
   const [editingBet, setEditingBet] = useState<BetResponse | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [confirmDeleteFor, setConfirmDeleteFor] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<BetStatusFilter>("all");
   const [dateFilter, setDateFilter] = useState<BetDateFilter>("all");
   const [pageIndex, setPageIndex] = useState(0);
@@ -89,6 +90,43 @@ export function BetsPage(props: {
   }
 
   useEffect(() => { load(); }, []);
+
+  // 「⋯」menu：撳出面或者 Esc 就收埋
+  useEffect(() => {
+    if (menuFor === null) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest(".row-menu")) {
+        setMenuFor(null);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMenuFor(null);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuFor]);
+
+  // menu 一閂就 reset 刪除確認
+  useEffect(() => {
+    setConfirmDeleteFor(null);
+  }, [menuFor]);
+
+  // 注單 form overlay：Esc 關閉（儲存緊唔俾閂）
+  useEffect(() => {
+    if (!showForm) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !saving) {
+        setShowForm(false);
+        setEditingBet(null);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [showForm, saving]);
 
   async function handleSave(bet: BetCreateRequest) {
     setSaving(true);
@@ -111,7 +149,6 @@ export function BetsPage(props: {
 
   async function handleDelete(bet: BetResponse) {
     if (!props.onDeleteBet) return;
-    if (!window.confirm(`刪除注單 ${formatBetRef(bet.id)}？`)) return;
     setMenuFor(null);
     setError(null);
     try {
@@ -251,11 +288,27 @@ export function BetsPage(props: {
         </div>
       ) : null}
 
-      {error ? <p className="notice error">{error}</p> : null}
+      {error ? (
+        <p className="notice error">
+          {error}
+          {data === null ? (
+            <>
+              {" "}
+              <button type="button" className="secondary-button compact" onClick={load}>
+                重試
+              </button>
+            </>
+          ) : null}
+        </p>
+      ) : null}
 
       {showForm ? (
-        <div className="bets-page__form-overlay">
-          <BetForm
+        <div
+          className="bet-modal-overlay"
+          onClick={() => { if (!saving) { setShowForm(false); setEditingBet(null); } }}
+        >
+          <div className="bet-modal" role="dialog" aria-modal="true" aria-label="注單表格" onClick={(e) => e.stopPropagation()}>
+            <BetForm
             prefill={editingBet ? {
               matchId: editingBet.match_id ?? undefined,
               homeTeam: editingBet.home_team ?? undefined,
@@ -272,6 +325,7 @@ export function BetsPage(props: {
             onCancel={() => { setShowForm(false); setEditingBet(null); }}
             saving={saving}
           />
+          </div>
         </div>
       ) : null}
 
@@ -290,8 +344,7 @@ export function BetsPage(props: {
                 <th>選項</th>
                 <th className="num">本金</th>
                 <th className="num">賠率</th>
-                <th className="num">ROI</th>
-                <th className="num">Yield</th>
+                <th className="num">回報</th>
                 <th>狀態</th>
                 <th aria-label="操作" />
               </tr>
@@ -319,7 +372,6 @@ export function BetsPage(props: {
                     <td className="num mono">${stake.toFixed(2)}</td>
                     <td className="num mono">{Number.isFinite(odds) ? odds.toFixed(2) : "—"}</td>
                     <td className={`num mono ${roi !== null && roi > 0 ? "positive" : ""}`}>{formatPercent(roi)}</td>
-                    <td className={`num mono ${roi !== null && roi > 0 ? "positive" : ""}`}>{formatPercent(roi)}</td>
                     <td>
                       <span className={`settlement settlement--${bet.settlement}`}>{settled.label}</span>
                     </td>
@@ -346,14 +398,25 @@ export function BetsPage(props: {
                                 </button>
                               ) : null}
                               {props.onDeleteBet ? (
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  className="row-menu__danger"
-                                  onClick={() => handleDelete(bet)}
-                                >
-                                  刪除
-                                </button>
+                                confirmDeleteFor === bet.id ? (
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    className="row-menu__danger"
+                                    onClick={() => handleDelete(bet)}
+                                  >
+                                    確認刪除 {formatBetRef(bet.id)}？
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    className="row-menu__danger"
+                                    onClick={() => setConfirmDeleteFor(bet.id)}
+                                  >
+                                    刪除
+                                  </button>
+                                )
                               ) : null}
                             </div>
                           ) : null}

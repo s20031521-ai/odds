@@ -57,9 +57,12 @@ export function FixtureCard(props: {
   now: number;
   odds?: FixtureOdds | null;
   onBet?: (prefill: Partial<BetCreateRequest>) => void;
+  /** 全局搜尋跳入時短暫 highlight */
+  highlighted?: boolean;
 }): React.ReactElement {
   const countdown = formatCountdown(props.commenceTime, props.now);
   const kickoff = new Date(props.commenceTime);
+  const started = !Number.isNaN(kickoff.getTime()) && kickoff.getTime() <= props.now;
   const pad = (n: number) => String(n).padStart(2, "0");
   const kickoffLabel = Number.isNaN(kickoff.getTime())
     ? props.commenceTime
@@ -82,12 +85,17 @@ export function FixtureCard(props: {
   }
 
   return (
-    <article className="fixture-card">
+    <article
+      className={`fixture-card${props.highlighted ? " fixture-card--highlighted" : ""}`}
+      id={`fixture-${props.matchId}`}
+    >
       <div className="fixture-card__accent" aria-hidden="true" />
       <header className="fixture-card__head">
         <span className="fixture-card__time mono">{kickoffLabel}</span>
         {countdown ? (
           <span className="fixture-card__countdown mono">倒數 {countdown}</span>
+        ) : started ? (
+          <span className="fixture-card__started">已開賽</span>
         ) : null}
         {props.leagueZh || props.league ? (
           <span className="fixture-card__league">{props.leagueZh ?? props.league}</span>
@@ -131,7 +139,8 @@ export function FixtureCard(props: {
                 type="button"
                 className="odds-button"
                 onClick={() => betOn(outcome)}
-                disabled={!props.onBet}
+                disabled={!props.onBet || started}
+                title={started ? "已開賽" : undefined}
               >
                 <span className="odds-button__label">{OUTCOME_LABELS[outcome]}</span>
                 <span className="odds-button__value mono">

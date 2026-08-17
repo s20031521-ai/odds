@@ -27,10 +27,12 @@ export function GlobalSearch(props: { fixtures: FixturePick[] }): React.ReactEle
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, []);
 
-  function goToFixtures() {
+  function goToFixtures(fixture?: FixturePick) {
     setOpen(false);
     setQuery("");
-    window.location.hash = "#/fixtures";
+    window.location.hash = fixture?.matchId
+      ? `#/fixtures?m=${encodeURIComponent(fixture.matchId)}`
+      : "#/fixtures";
   }
 
   return (
@@ -48,7 +50,7 @@ export function GlobalSearch(props: { fixtures: FixturePick[] }): React.ReactEle
         onFocus={() => setOpen(true)}
         onKeyDown={(event) => {
           if (event.key === "Escape") setOpen(false);
-          if (event.key === "Enter" && results.length > 0) goToFixtures();
+          if (event.key === "Enter" && results.length > 0) goToFixtures(results[0]);
         }}
       />
       {open && query.trim() ? (
@@ -61,7 +63,7 @@ export function GlobalSearch(props: { fixtures: FixturePick[] }): React.ReactEle
                 key={`${fixture.status ?? "upcoming"}-${fixture.matchId}`}
                 type="button"
                 className="global-search__result"
-                onClick={goToFixtures}
+                onClick={() => goToFixtures(fixture)}
               >
                 <span className="global-search__teams">{formatFixturePickLabel(fixture)}</span>
                 <span className="global-search__meta">

@@ -18,6 +18,7 @@ import { FixturesPage } from "./pages/FixturesPage";
 import { PerformancePage } from "./pages/PerformancePage";
 import { BetsPage } from "./pages/BetsPage";
 import { BetForm } from "./components/BetForm";
+import { Toast, type ToastMessage } from "./components/Toast";
 import {
   buildFinishedFixturePicks,
   normalizeCatalogResultRow,
@@ -132,6 +133,7 @@ function App() {
   const [betPrefill, setBetPrefill] = useState<Partial<BetCreateRequest> | null>(null);
   const [betSaving, setBetSaving] = useState(false);
   const [betError, setBetError] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   const [apiLatencyMs, setApiLatencyMs] = useState<number | null>(null);
   const [apiQuota, setApiQuota] = useState<{ used?: number | null; remaining?: number | null } | null>(null);
 
@@ -214,6 +216,21 @@ function App() {
     window.addEventListener("hashchange", syncPage);
     return () => window.removeEventListener("hashchange", syncPage);
   }, []);
+
+  // 換頁時捲返上頂，唔好留返上一頁嘅 scroll 位置
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [page]);
+
+  // 落注 modal：Esc 關閉（儲存緊唔俾閂）
+  useEffect(() => {
+    if (!betPrefill) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !betSaving) setBetPrefill(null);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [betPrefill, betSaving]);
 
   useEffect(() => {
     setEntries(filterLegacySampleEntries);
@@ -324,8 +341,15 @@ function App() {
     try {
       await apiClient.createBet(bet);
       setBetPrefill(null);
+      setToast({
+        kind: "success",
+        text: "已記低注單",
+        link: { href: "#/bets", label: "去注單管理睇" },
+      });
     } catch (error) {
-      setBetError(error instanceof Error ? error.message : "儲存失敗");
+      const message = error instanceof Error ? error.message : "儲存失敗";
+      setBetError(message);
+      setToast({ kind: "error", text: `記注單失敗：${message}` });
     } finally {
       setBetSaving(false);
     }
@@ -348,7 +372,13 @@ function App() {
           fixtures={betFixtures}
         />
       ) : page === "fixtures" ? (
-        <FixturesPage fixtures={dashboardFixtures} logos={teamLogos} oddsByMatch={fixtureOddsByMatch} onBet={setBetPrefill} />
+        <FixturesPage
+          fixtures={dashboardFixtures}
+          logos={teamLogos}
+          oddsByMatch={fixtureOddsByMatch}
+          onBet={setBetPrefill}
+          syncedAt={lastSuccessfulSync}
+        />
       ) : (
         <LandingPage
           opportunities={activeRecordedOpportunities}
@@ -365,7 +395,7 @@ function App() {
 
       {betPrefill ? (
         <div className="bet-modal-overlay" onClick={() => { if (!betSaving) setBetPrefill(null); }}>
-          <div className="bet-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="bet-modal" role="dialog" aria-modal="true" aria-label="記注單" onClick={(e) => e.stopPropagation()}>
             <BetForm
               prefill={betPrefill}
               fixtures={betFixtures}
@@ -377,6 +407,8 @@ function App() {
           </div>
         </div>
       ) : null}
+
+      <Toast toast={toast} onDismiss={() => setToast(null)} />
     </AppShell>
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import type { BetCreateRequest, BuyableOpportunity } from "../apiClient";
 import { BuyableOddsRange, type ObservationLoader } from "./BuyableOddsRange";
 import { TeamLogo, type TeamLogoMap } from "./TeamLogo";
@@ -52,6 +53,11 @@ export function PickCard(props: {
         <span className="pick-card__pick">
           {market} · {selection}{line}  {oddsDisplay}
         </span>
+        <ChevronDown
+          size={16}
+          className={`pick-card__chevron${expanded ? " pick-card__chevron--open" : ""}`}
+          aria-hidden="true"
+        />
       </button>
       {expanded ? (
         <div className="pick-card__details">

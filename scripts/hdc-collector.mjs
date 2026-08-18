@@ -21,6 +21,41 @@ const SCORE_DELAY_MS = 180 * 60_000;
 const SCORE_RETRY_MS = 12 * 60 * 60_000;
 const RATE_LIMIT_COOLDOWN_MS = 15 * 60_000;
 const LOCK_STALE_MS = 30 * 60_000;
+// Weekly key rotation: anchor is a Monday 00:00 local time. The active key is
+// ODDS_API_KEYS[weekNumber % keyCount]; a new week always resets any failover
+// offset and the cached quota figure (quota is per key).
+const KEY_ROTATION_ANCHOR = "2026-08-17T00:00:00";
+const KEY_ROTATE_THRESHOLD = 80;
+const WEEK_MS = 7 * 24 * 60 * 60_000;
+export function rotationWeek(now = new Date()) {
+  return Math.floor((now.getTime() - Date.parse(KEY_ROTATION_ANCHOR)) / WEEK_MS);
+}
+export function weeklyKeyIndex(keyCount, now = new Date()) {
+  if (!keyCount) return 0;
+  const week = Math.max(0, rotationWeek(now));
+  return ((week % keyCount) + keyCount) % keyCount;
+}
+// Rotates weekly (Monday 00:00 local) and fails over to the next key when the
+// current one reports quotaRemaining <= KEY_ROTATE_THRESHOLD. Switching keys
+// clears quotaRemaining so the fresh key is allowed to spend.
+export function resolveKeyIndex(keys, state, now = new Date()) {
+  if (!keys.length) return { index: 0, rotated: false, state };
+  const week = rotationWeek(now);
+  if (state.keyRotation?.week !== week) {
+    state.keyRotation = { week, offset: 0 };
+    state.quotaRemaining = null;
+  }
+  const base = weeklyKeyIndex(keys.length, now);
+  let offset = state.keyRotation.offset ?? 0;
+  let rotated = false;
+  if (keys.length > 1 && offset < keys.length - 1 && state.quotaRemaining != null && Number(state.quotaRemaining) <= KEY_ROTATE_THRESHOLD) {
+    offset += 1;
+    state.keyRotation.offset = offset;
+    state.quotaRemaining = null;
+    rotated = true;
+  }
+  return { index: (base + offset) % keys.length, rotated, state };
+}
 export function activeSoccerKeys(sports) {
   return (Array.isArray(sports) ? sports : [])
     .filter((sport) => sport?.active === true && sport?.group === "Soccer" && sport?.has_outrights !== true && !String(sport?.key ?? "").endsWith("_winner"))
@@ -69,13 +104,13 @@ async function acquireCollectorLock() {
 }
 
 export const shouldDiscover = (state, now) => elapsed(state.lastDiscoveryAt, now, DISCOVERY_MS);
-export const dueOddsSports = (state, now) => Object.entries(state.events ?? {}).flatMap(([sport, events]) => {
+export const dueOddsSports = (state, now, { nearPoll = false } = {}) => Object.entries(state.events ?? {}).flatMap(([sport, events]) => {
   const last = Date.parse(state.lastOddsAt?.[sport] ?? "");
   const due = events.some((event) => {
     const kickoff = eventTime(event);
     const delta = kickoff - now;
     if (delta > ODDS_NEAR_MS && delta <= ODDS_WINDOW_MS) return !Number.isFinite(last) || last < kickoff - ODDS_WINDOW_MS;
-    if (delta > 0 && delta <= ODDS_NEAR_MS) return !Number.isFinite(last) || last < kickoff - ODDS_NEAR_MS;
+    if (nearPoll && delta > 0 && delta <= ODDS_NEAR_MS) return !Number.isFinite(last) || last < kickoff - ODDS_NEAR_MS;
     return false;
   });
   return due ? [sport] : [];
@@ -112,7 +147,8 @@ function selfTest() {
   assert(dueOddsSports({ events: { epl: [{ id: "1", commence_time: new Date(now + 29 * 60_000).toISOString() }] }, lastOddsAt: {} }, now).length === 0, "does not poll before the 25m window");
   assert(dueOddsSports({ ...base, lastOddsAt: { epl: new Date(now - 1 * 60_000).toISOString() } }, now).length === 0, "does not repeat the early odds poll");
   const near = { events: { epl: [{ id: "1", commence_time: new Date(now + 4 * 60_000).toISOString() }] }, lastOddsAt: { epl: new Date(now - 16 * 60_000).toISOString() } };
-  assert(dueOddsSports(near, now)[0] === "epl", "allows one final odds poll inside 5m");
+  assert(dueOddsSports(near, now).length === 0, "skips the final 5m poll by default");
+  assert(dueOddsSports(near, now, { nearPoll: true })[0] === "epl", "opt-in final 5m poll via HDC_NEAR_POLL=1");
   const scoreState = { events: { epl: [{ id: "1", commence_time: new Date(now - 181 * 60_000).toISOString() }] }, completedIds: [], lastScoresAt: {} };
   assert(dueScoreSports(scoreState, now)[0] === "epl", "starts score checks after 180m");
   assert(dueScoreSports({ ...scoreState, lastScoresAt: { epl: new Date(now - 11 * 60 * 60_000).toISOString() } }, now).length === 0, "waits 12h before score retry");
@@ -137,6 +173,20 @@ function selfTest() {
   const flatLeague = flattenSportEntries({ h2hEntries: [{ id: "m1-bk", matchId: "m1", homeTeam: "H", awayTeam: "A", commenceTime: "2026-07-12T13:00:00Z", bookmaker: "Book", league: "Liga MX", odds: { home: 2, draw: 3, away: 4 } }] });
   assert(flatLeague.length === 3 && flatLeague.every((row) => row.league === "Liga MX"), "passes league through the sport flattening");
   assert(flattenSportEntries({ h2hEntries: [{ id: "m2-bk", matchId: "m2", homeTeam: "H", awayTeam: "A", commenceTime: "2026-07-12T13:00:00Z", bookmaker: "Book", odds: { home: 2, draw: 3, away: 4 } }] }).every((row) => !("league" in row)), "omits league from flattened rows without league data");
+  assert(weeklyKeyIndex(4, new Date("2026-08-16T23:59:59")) === 0, "before the anchor Monday still uses key 1");
+  assert(weeklyKeyIndex(4, new Date("2026-08-17T00:00:00")) === 0, "week 1 uses key 1");
+  assert(weeklyKeyIndex(4, new Date("2026-08-23T23:59:59")) === 0, "stays on key 1 all week");
+  assert(weeklyKeyIndex(4, new Date("2026-08-24T00:00:00")) === 1, "Monday 00:00 switches to key 2");
+  assert(weeklyKeyIndex(4, new Date("2026-09-14T12:00:00")) === 0, "four keys cycle back after four weeks");
+  assert(weeklyKeyIndex(1, new Date("2026-08-24T00:00:00")) === 0, "single key never rotates");
+  const failState = { keyRotation: { week: rotationWeek(new Date("2026-08-17T09:00:00")), offset: 0 }, quotaRemaining: 70 };
+  const fail = resolveKeyIndex(["a", "b"], failState, new Date("2026-08-17T09:00:00"));
+  assert(fail.index === 1 && fail.rotated && failState.quotaRemaining === null, "low quota fails over and clears cached quota");
+  const freshWeek = resolveKeyIndex(["a", "b"], { keyRotation: { week: 0, offset: 1 }, quotaRemaining: 30 }, new Date("2026-09-14T12:00:00"));
+  assert(freshWeek.index === 0 && !freshWeek.rotated && freshWeek.state.keyRotation.offset === 0, "a new week resets failover back to the scheduled key");
+  const corners = [{ id: "p", home_team: "Aberdeen", away_team: "X" }, { id: "q", home_team: "Y", away_team: "Z" }];
+  assert(priorityCornerEvents(corners, new Set(["aberdeen"])).map((event) => event.id).join() === "p", "corner calls gated to priority teams, case-insensitive");
+  assert(priorityCornerEvents(corners, new Set()).length === 2, "empty priority set keeps legacy all-corners behavior");
   console.log("[hdc-collector] self-test passed");
 }
 
@@ -145,14 +195,18 @@ function paidAllowed(state, now = Date.now()) {
   const cooldownEnded = !state.quotaBlockedUntil || now >= Date.parse(state.quotaBlockedUntil);
   return hasQuota && cooldownEnded;
 }
-async function readEnv() {
+async function readKeys() {
   let text = "";
   try { text = await fs.readFile(path.join(ROOT, ".env.local"), "utf8"); } catch {}
   const values = Object.fromEntries(text.split(/\r?\n/).flatMap((line) => {
     const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
     return match ? [[match[1], match[2].replace(/^['"]|['"]$/g, "")]] : [];
   }));
-  return process.env.ODDS_API_KEY || values.ODDS_API_KEY;
+  const keys = String(process.env.ODDS_API_KEYS || values.ODDS_API_KEYS || "")
+    .split(",").map((key) => key.trim()).filter(Boolean);
+  const single = process.env.ODDS_API_KEY || values.ODDS_API_KEY;
+  if (!keys.length && single) keys.push(single);
+  return keys;
 }
 async function readJson(file, fallback) { try { return JSON.parse(await fs.readFile(file, "utf8")); } catch { return fallback; } }
 async function readJsonl(file) { try { return (await fs.readFile(file, "utf8")).split(/\r?\n/).filter(Boolean).map(JSON.parse); } catch { return []; } }
@@ -227,8 +281,20 @@ function dueCornerEvents(payload, now) {
     return time >= now && time <= now + ODDS_WINDOW_MS;
   });
 }
+// Corner calls cost 1 credit per event per poll round, so they are gated by
+// the priority team list. An empty set means "no gating" (legacy behavior).
+const normalizeTeamName = (value) => String(value ?? "").trim().toLowerCase();
+export function priorityCornerEvents(events, priority) {
+  if (!priority || !priority.size) return Array.isArray(events) ? events : [];
+  return (Array.isArray(events) ? events : []).filter((event) =>
+    priority.has(normalizeTeamName(event?.home_team)) || priority.has(normalizeTeamName(event?.away_team)));
+}
+async function loadPriorityTeams() {
+  const list = await readJson(path.join(DATA, "priority-teams.json"), []);
+  return new Set((Array.isArray(list) ? list : []).map(normalizeTeamName).filter(Boolean));
+}
 
-async function collectOdds(sports, key, state, store, now) {
+async function collectOdds(sports, key, state, store, now, priority) {
   if (!sports.length || !paidAllowed(state, now)) return { entriesBySport: {} };
   const vite = await createViteServer({ root: ROOT, server: { middlewareMode: true }, appType: "custom", logLevel: "silent" });
   try {
@@ -246,7 +312,7 @@ async function collectOdds(sports, key, state, store, now) {
       const handicapEntries = parseOddsApiHandicaps(payload);
       const totalEntries = parseOddsApiTotals(payload);
       const cornerEntries = [];
-      for (const event of dueCornerEvents(payload, now)) {
+      for (const event of priorityCornerEvents(dueCornerEvents(payload, now), priority)) {
         if (!paidAllowed(state, now)) break;
         const cornerUrl = new URL(`${API}/sports/${sport}/events/${event.id}/odds`);
         cornerUrl.searchParams.set("regions", "eu"); cornerUrl.searchParams.set("markets", "alternate_totals_corners"); cornerUrl.searchParams.set("oddsFormat", "decimal");
@@ -376,21 +442,30 @@ export function flattenSportEntries(bundle) {
 
 async function main({ dryRun = false, store } = {}) {
   store ??= createFileStore();
-  const key = await readEnv();
-  if (!key) throw new Error("ODDS_API_KEY is missing");
+  const keys = await readKeys();
+  if (!keys.length) throw new Error("ODDS_API_KEY is missing");
   await fs.mkdir(DATA, { recursive: true });
   const state = await store.loadState();
   state.lastOddsAt ??= {}; state.lastScoresAt ??= {}; state.completedIds ??= [];
   const now = nowMs();
+  const selection = resolveKeyIndex(keys, state, new Date(now));
+  const key = keys[selection.index];
+  const keyLabel = `key ${selection.index + 1}/${keys.length}`;
+  if (selection.rotated) console.log(`[hdc-collector] quota low, failing over to ${keyLabel}`);
+  // Near-window (5-min) poll is off by default; set HDC_NEAR_POLL=1 to re-enable.
+  const nearPoll = process.env.HDC_NEAR_POLL === "1";
+  // Corner calls are gated by data/priority-teams.json; set HDC_CORNER_ALL=1 to
+  // call corners for every match (legacy behavior).
+  const priority = process.env.HDC_CORNER_ALL === "1" ? new Set() : await loadPriorityTeams();
   let tracked = Object.keys(state.events ?? {});
   if (dryRun || shouldDiscover(state, now)) tracked = await discover(key, state, store, now);
-  const oddsSports = dueOddsSports(state, now);
+  const oddsSports = dueOddsSports(state, now, { nearPoll });
   const scoreSports = dueScoreSports(state, now);
   if (dryRun) {
-    console.log(JSON.stringify({ tracked, oddsSports, scoreSports, quotaRemaining: state.quotaRemaining ?? null }));
+    console.log(JSON.stringify({ tracked, oddsSports, scoreSports, key: keyLabel, nearPoll, priorityTeams: priority.size, quotaRemaining: state.quotaRemaining ?? null }));
     return;
   }
-  const { entriesBySport } = await collectOdds(oddsSports, key, state, store, now);
+  const { entriesBySport } = await collectOdds(oddsSports, key, state, store, now, priority);
   const results = await collectScores(scoreSports, key, state, store, now);
   await store.saveResults(results);
   await store.saveLive(entriesBySport, now);

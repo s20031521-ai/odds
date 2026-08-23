@@ -1,7 +1,7 @@
 # Phase 0 研究報告:影子證據累積與營運基線
 
-**日期:** 2026-08-24(同日晚第二版,已實查驗證)
-**狀態:** 監察工具已落地;**部署未完成,等 owner 跑一次互動部署**
+**日期:** 2026-08-24(同日第三版:部署完成,VM 端驗證進行中)
+**狀態:** 監察工具已落地;`de1920e` 已部署(02:20 由 owner 執行 `deploy-now.ps1`);剩低 VM 端 sudo 驗證同埋第一次影子基線
 **前置文件:** `docs/MODEL-VALIDITY-IMPLEMENTATION-REPORT-2026-08-23.md`
 **目的:** 喺任何新 AI 上馬之前,先確保數據管道健康、今日嘅修復真係上咗線、影子證據持續累積。冇呢個基線,之後 Phase 1–3 嘅驗證全部唔可信。
 
@@ -22,13 +22,13 @@ Phase 0 唔開發新模型,只做三件事:部署、驗證、監察。
 | Quota 單一來源(`HDC_MIN_QUOTA=5`) | 代碼同 `deploy/compose.yaml` 已改 | 同上 |
 | Session auth 恢復 | 已實作,公開 `/api/v1/session` 回 200 `{"authenticated":false}` | commit `d64da57`;curl 實測 2026-08-24 |
 | `deploy-now.ps1` 明文憑證 | **已修復** — 腳本改用 `ssh -t` 互動問 sudo 密碼,無明文、無 askpass 殘留 | `1a91c06` diff 實查(原報告 §10 P0 已關閉) |
-| VM 代碼同步 | `/opt/odds-tool/build` 已喺 `1a91c06` | SSH 唯讀實查 2026-08-24 |
-| **部署狀態** | **未完成** — 線上前端 asset hash(`index-B58aoIxD.js` / `index-B9H1itJb.css`)同本地 22:07 舊 build **完全一致**,即 caddy image 未用 `1a91c06` 重建;`1a91c06` 改咗 `App.tsx` 190 行,hash 一定會變 | curl 線上 HTML 比對 `dist/index.html`,2026-08-24 |
-| Production API | 對外 `/api/v1/results` 回 401、`/internal/*` 回 404、HSTS 有(符合設計) | curl 實測 2026-08-24 |
+| VM 代碼同步 | `/opt/odds-tool/build` 喺 `de1920e` | SSH 唯讀實查 2026-08-24(部署後) |
+| **部署狀態** | **已部署** — owner 於 02:20 左右執行 `deploy-now.ps1`;線上 asset hash 同本地乾淨 `de1920e` build 输出完全一致 | curl 線上 HTML + 本地 `npm run build` 比對,2026-08-24 |
+| Production API | 對外 `/api/v1/results` 回 401、`/internal/*` 回 404、session 200、HSTS 有(符合設計) | curl 實測 2026-08-24(部署後覆查) |
 | 影子策略 | 四條影子線已喺 sampler 入面:`dc-shadow-v1`、`dc-blend-v1`、`dc-xg-shadow-v1`、`market-sharp-v1` | `scripts/unified-sampler.mjs`、`scripts/lib/dc-shadow.mjs`、`scripts/lib/market-sharp.mjs` |
 | Collector 循環 | 每 5 分鐘 HDC,每第 3 循環 HKJC,之後一次 sampler | `deploy/collector-entrypoint.sh` |
 
-> 第一版用「本地 `dist/` build 時間戳早過 commit」做未部署證據 — 方法唔啱(部署喺 VM 由 git 源碼 build,本地 dist 無關)。正確做法係**比對線上 asset hash**,已改用並確認。
+> 第一版用「本地 `dist/` build 時間戳早過 commit」做未部署證據 — 方法唔啱(部署喺 VM 由 git 源碼 build,本地 dist 無關)。第二版改用 asset hash 比對,判定「未部署」— 都係唔啱:部署後實測證明,22:07 嗰次本地 build 嘅 working tree 已包含後來 `1a91c06` 先 commit 嘅前端改動,所以新舊 build hash 一致係正常;**asset hash 比對只能證明「唔同」,唔能證明「舊」**。部署狀態嘅可靠信號係:VM commit、api log 嘅 build stamp、同埋 `suspensions` 行為。
 
 ### 2.1 已知數據覆蓋限制
 
@@ -39,9 +39,9 @@ Phase 0 唔開發新模型,只做三件事:部署、驗證、監察。
 
 ## 3. 工作項目
 
-### 3.1 部署 commit `1a91c06` 上 production(未完成,等 owner)
+### 3.1 部署 commit `de1920e` 上 production(✅ 已執行 2026-08-24 02:20)
 
-直接行 `deploy-now.ps1`(互動 — sudo 密碼由 `ssh -t` 即場問,腳本唔會儲)。2026-08-24 已對腳本做咗兩個修正:
+Owner 已執行 `deploy-now.ps1`(互動 — sudo 密碼由 `ssh -t` 即場問,腳本唔會儲)。2026-08-24 已對腳本做咗兩個修正:
 
 - **untracked 檔案唔再誤擋部署**:dirty 檢查改用 `git status --porcelain --untracked-files=no`。之前 working tree 入面嘅 `tmp-*`、`data/` dump、`股神/` 等 untracked 檔會令腳本拒絕執行,但佢哋根本唔會上 VM(遠端 `git reset --hard origin/master`)。
 - **smoke test 擴充到 runbook §2 全套公開檢查**:root 200、results 401、internal 404、session 200、HSTS header;任何一項 fail 即 exit 1。
@@ -51,11 +51,11 @@ Phase 0 唔開發新模型,只做三件事:部署、驗證、監察。
 - 今次有冇新 migration 要確認(006/007 應已上過;trust gate 同 alias registry 係純代碼)。
 - 部署前 `pg_dump` 備份(runbook §4):
   `sudo docker exec odds-tool-postgres-1 pg_dump -U postgres -d odds -Fc > /opt/odds-tool/backups/odds-$(date +%F).dump`
-- 部署後喺 VM log 確認 build stamp:`sudo docker logs odds-tool-api-1 2>&1 | grep "build commit"` 應見 `commit=1a91c06`(`server/entry.mjs:50`)。
+- 部署後喺 VM log 確認 build stamp:`sudo docker logs odds-tool-api-1 2>&1 | grep "build commit"` 應見 `commit=de1920e`(`server/entry.mjs:50`)。
 
 ### 3.2 部署後 smoke 驗證
 
-公開部分已由 `deploy-now.ps1` 自動做(見上)。其餘喺 VM / 已登入 session 做:
+公開部分已由 `deploy-now.ps1` 自動做,並已喺部署後覆查全綠(見上)。其餘喺 VM / 已登入 session 做:
 
 1. 容器全 healthy:`postgres`/`api`/`caddy`/`collector`/`cloudflared`。
 2. `GET /api/v1/recommendations/current`(已登入 session)回應內 `suspensions` 陣列列出角球 AI(`server/app.mjs:149`)— 證明 trust gate 上咗線。
@@ -63,7 +63,7 @@ Phase 0 唔開發新模型,只做三件事:部署、驗證、監察。
 4. `node scripts/check-data-integrity.mjs --database` 對 production 係 green(timestamp/identity 假陽性已修)。
 5. 三個已確認拆分個案(Daejeon/Gangwon、Machida/Urawa、Gwangju/Incheon)依家共用 `fixtureId`。
 6. Quota 433 / reserve 5 時唔再顯示 blocked。
-7. 前端真係新 build:線上 asset hash 唔再係 `index-B58aoIxD.js`(§2 嘅比對方法)。
+7. ~~前端 hash 檢查~~ — 已證明唔可靠(見 §2 附註),改用 build stamp log。
 
 ### 3.3 影子證據監察(已實作:`scripts/shadow-evidence-report.mjs`)
 
@@ -94,7 +94,7 @@ sudo docker exec odds-tool-api-1 sh -c \
 
 Phase 0 完成 = 以下全部成立:
 
-- [ ] `1a91c06` 部署上 production,api log 有 `build commit=1a91c06` stamp,線上 asset hash 更新
+- [ ] `de1920e` 部署上 production(02:20 已執行)— 待 VM 端確認 api log 有 `build commit=de1920e` stamp
 - [ ] API `suspensions` 可見,角球推薦唔再出現,觀察繼續寫入
 - [ ] Integrity checker green
 - [ ] Fixture 合併個案驗證通過
@@ -119,10 +119,14 @@ Phase 0 係 Phase 1–3 嘅前提:冇乾淨嘅數據流同持續嘅影子累積,
 
 | 檢查 | 方法 | 結果 |
 |---|---|---|
-| VM 代碼版本 | `ssh ... git rev-parse --short HEAD` @ `/opt/odds-tool/build` | `1a91c06` ✓(代碼已同步) |
-| 容器 / image 狀態 | `sudo -n docker ps` | ✗ 非互動 sudo 拒絕 — 需 owner 互動確認 |
-| 線上前端版本 | curl 線上 HTML asset hash 比對本地 22:07 `dist/` | **一致 → 前端未重建,部署未完成** |
-| 公開 smoke | curl root / results / internal / session / HSTS | 200 / 401 / 404 / 200 / 有 ✓ |
+| VM 代碼版本(部署前) | `ssh ... git rev-parse --short HEAD` @ `/opt/odds-tool/build` | `1a91c06`(代碼已同步,部署未跑) |
+| 容器 / image 狀態(部署前) | `sudo -n docker ps` | ✗ 非互動 sudo 拒絕 — 需 owner 互動確認 |
+| ~~線上前端版本判斷~~ | curl asset hash 比對本地 22:07 `dist/` | **誤判已撤回** — 見下方更正 |
+| 公開 smoke(部署前) | curl root / results / internal / session / HSTS | 200 / 401 / 404 / 200 / 有 ✓ |
 | `deploy-now.ps1` 憑證 | 讀腳本全文 | 無明文密碼,`ssh -t` 互動 ✓ |
 | 監察腳本測試 | `node --test scripts/shadow-evidence-report.test.mjs` | 8/8 通過 ✓ |
 | 回歸 | `node --test scripts/dc-shadow.test.mjs scripts/market-sharp.test.mjs` | 47/47 通過 ✓ |
+| **部署執行** | owner 跑 `.\deploy-now.ps1`(第一次喺 `system32` 目錄 NotFound,轉去 repo 目錄後成功) | ✅ 02:20 左右完成 |
+| VM 代碼版本(部署後) | 同上 SSH 唯讀 | `de1920e` ✓ |
+| 線上前端(部署後) | 本地乾淨 `de1920e` `npm run build`,hash 比對線上 | `index-B58aoIxD.js` / `index-B9H1itJb.css` **完全一致** ✓ — 同時證明 22:07 舊 build 已含 `1a91c06` 前端改動,之前嘅「未部署」判斷撤回 |
+| 公開 smoke(部署後覆查) | 同上 curl | 200 / 401 / 404 / 200 / 有 ✓ |

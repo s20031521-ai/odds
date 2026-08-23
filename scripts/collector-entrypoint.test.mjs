@@ -4,6 +4,9 @@ import path from "node:path";
 import test from "node:test";
 
 const entrypoint = path.resolve("deploy/collector-entrypoint.sh");
+const compose = path.resolve("deploy/compose.yaml");
+const apiDockerfile = path.resolve("deploy/api.Dockerfile");
+const dockerignore = path.resolve(".dockerignore");
 
 test("collector supervisor runs providers independently then exactly one unified sampler", async () => {
   const source = await readFile(entrypoint, "utf8");
@@ -25,4 +28,20 @@ test("collector supervisor keeps portable LF shell text and five-minute cadence"
   assert.equal(bytes.includes(13), false, "deploy shell must not contain CRLF bytes");
   assert.match(source, /^#!\/bin\/sh\n/);
   assert.match(source, /sleep 300/);
+});
+
+test("collector receives the rotating key pool and priority-team quota guard", async () => {
+  const [entrypointSource, composeSource, dockerfileSource, dockerignoreSource] = await Promise.all([
+    readFile(entrypoint, "utf8"),
+    readFile(compose, "utf8"),
+    readFile(apiDockerfile, "utf8"),
+    readFile(dockerignore, "utf8"),
+  ]);
+
+  assert.match(entrypointSource, /export ODDS_API_KEYS="\$\(cat \/run\/secrets\/odds_api_keys\)"/);
+  assert.match(composeSource, /odds_api_keys:\n\s+file: \.\/secrets\/odds_api_keys/);
+  assert.match(composeSource, /source: odds_api_keys/);
+  assert.match(dockerfileSource, /COPY data\/priority-teams\.json data\/priority-teams\.json/);
+  assert.match(dockerignoreSource, /^data\/\*$/m);
+  assert.match(dockerignoreSource, /^!data\/priority-teams\.json$/m);
 });

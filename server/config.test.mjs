@@ -20,6 +20,12 @@ test("loadServerConfig disables migrations only on exact 'false'", () => {
   assert.equal(loadServerConfig({ ...VALID_ENV, RUN_MIGRATIONS: "false" }).runMigrations, false);
 });
 
+test("loadServerConfig requires a strong session secret", () => {
+  assert.equal(loadServerConfig(VALID_ENV).sessionSecret, VALID_ENV.SESSION_SECRET);
+  assert.throws(() => loadServerConfig({ ...VALID_ENV, SESSION_SECRET: undefined }), /SESSION_SECRET/);
+  assert.throws(() => loadServerConfig({ ...VALID_ENV, SESSION_SECRET: "too-short" }), /SESSION_SECRET/);
+});
+
 test("loadServerConfig defaults trustedProxyCidrs to empty (trust nothing)", () => {
   assert.deepEqual(loadServerConfig(VALID_ENV).trustedProxyCidrs, []);
   assert.deepEqual(loadServerConfig({ ...VALID_ENV, TRUSTED_PROXY_CIDRS: "" }).trustedProxyCidrs, []);

@@ -14,7 +14,7 @@ set -eu
 PG_PW="$(cat /run/secrets/pg_app_password)"
 export DATABASE_URL="postgres://odds_app:${PG_PW}@postgres:5432/odds"
 unset PG_PW
-export ODDS_API_KEY="$(cat /run/secrets/odds_api_key)"
+export ODDS_API_KEYS="$(cat /run/secrets/odds_api_keys)"
 export API_FOOTBALL_KEY="$(cat /run/secrets/api_football_key)"
 export STORAGE_BACKEND=postgres NODE_ENV=production
 

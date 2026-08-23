@@ -4,7 +4,8 @@ node_modules
 .git
 .env
 .env.*
-data/
+data/*
+!data/priority-teams.json
 dist/
 test-results/
 playwright-report/

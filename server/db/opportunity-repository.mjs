@@ -168,10 +168,8 @@ export function createOpportunityRepository(db) {
                COALESCE(
                  jsonb_agg(
                    jsonb_build_object(
-                     'fingerprint', observation.fingerprint,
                      'firstEvaluatedAt', observation.first_evaluated_at,
                      'lastEvaluatedAt', observation.last_evaluated_at,
-                     'inputs', observation.inputs,
                      'buyableQuotes', observation.buyable_quotes
                    ) ORDER BY observation.first_evaluated_at, observation.id
                  ) FILTER (WHERE observation.id IS NOT NULL),

@@ -572,6 +572,24 @@ test("fixture resolution auto-links one normalized same-direction candidate with
   });
 });
 
+test("fixture resolution links equivalent HDC and HKJC league labels", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const repository = createFixtureRepository(pool);
+    const [hkjc] = (await repository.resolveBatch([fixtureRow({
+      provider: "hkjc",
+      matchId: "hkjc-brazil-a",
+      league: "Brazilian Division 1",
+    })])).fixtures;
+    const [hdc] = (await repository.resolveBatch([fixtureRow({
+      provider: "the-odds-api:soccer_brazil_campeonato",
+      matchId: "hdc-brazil-a",
+      league: "Brazil Série A",
+    })])).fixtures;
+
+    assert.equal(hdc.fixtureId, hkjc.fixtureId);
+  });
+});
+
 test("ambiguous fixture matches are audited and left unmatched", async (t) => {
   await withDatabase(t, async (pool) => {
     const repository = createFixtureRepository(pool);

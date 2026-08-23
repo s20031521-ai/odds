@@ -148,6 +148,20 @@ test("postgres sink exposes the unified live-read, fixture-resolution, and evalu
   });
 });
 
+test("postgres sink preserves a valid per-row source observation time", async (t) => {
+  await withDatabase(t, async (pool) => {
+    const sink = createPostgresSink({ pool });
+    const odds = createOddsRepository(pool);
+    const batchObservedAt = "2026-07-18T10:00:00.000Z";
+    const sourceObservedAt = "2026-07-18T09:41:00.000Z";
+
+    await sink.saveLiveOdds("hkjc", batchObservedAt, [liveEntry({ sourceObservedAt })]);
+
+    const [row] = await odds.listLive("2026-07-18T10:30:00.000Z");
+    assert.equal(row.observedAt, sourceObservedAt);
+  });
+});
+
 test("postgres sink source contains no JSON or JSONL file writes", () => {
   const source = readFileSync(path.join(PROJECT_ROOT, "scripts", "lib", "postgres-sink.mjs"), "utf8");
 

@@ -514,6 +514,7 @@ export function flattenHkjcLive(payload) {
       ...(entry.leagueZh ? { leagueZh: entry.leagueZh } : {}),
       ...(entry.homeTeamZh ? { homeTeamZh: entry.homeTeamZh } : {}),
       ...(entry.awayTeamZh ? { awayTeamZh: entry.awayTeamZh } : {}),
+      ...(entry.sourceObservedAt ? { sourceObservedAt: entry.sourceObservedAt } : {}),
       raw: entry,
     };
   };
@@ -561,6 +562,10 @@ async function runImport() {
     await mkdir(path.dirname(outPath), { recursive: true });
     const now = Date.now();
     const apiFootballState = rollApiFootballDay(await store.loadState(), now);
+    apiFootballState.cornerOdds = withCachedCornerObservationTimes(
+      apiFootballState.cornerOdds,
+      apiFootballState.oddsAttempts,
+    );
     const predictions = await store.loadSnapshots();
     const entries = parseMatches(payload.data?.matches ?? []);
     const totalEntries = parseHighLowMarkets(payload.data?.matches ?? [], "HIL", "hil");
@@ -778,6 +783,22 @@ function rollApiFootballDay(state, now) {
   return next;
 }
 
+export function withCachedCornerObservationTimes(rows, oddsAttempts = {}) {
+  return (Array.isArray(rows) ? rows : []).map((row) => {
+    const current = Date.parse(row?.sourceObservedAt ?? "");
+    if (Number.isFinite(current)) {
+      return { ...row, sourceObservedAt: new Date(current).toISOString() };
+    }
+    const attempted = Date.parse(oddsAttempts?.[row?.matchId] ?? "");
+    if (Number.isFinite(attempted)) {
+      return { ...row, sourceObservedAt: new Date(attempted).toISOString() };
+    }
+    if (!row || !("sourceObservedAt" in row)) return row;
+    const { sourceObservedAt: _invalid, ...rest } = row;
+    return rest;
+  });
+}
+
 function apiFootballAllowed(state) {
   return !state.quotaExhausted && Number(state.calls ?? 0) < API_FOOTBALL_DAILY_LIMIT;
 }
@@ -834,7 +855,11 @@ async function fetchApiFootballCornerOdds(matches, snapshots, state, now = Date.
       state.oddsAttempts[matchId] = new Date(now).toISOString();
       const fixtureId = state.fixtureIds[matchId];
       if (!fixtureId) continue;
-      rows.push(...parseApiFootballCornerOdds(await fetchApiFootball("odds", { fixture: fixtureId }, apiKey, state), match));
+      const sourceObservedAt = new Date(now).toISOString();
+      rows.push(...parseApiFootballCornerOdds(
+        await fetchApiFootball("odds", { fixture: fixtureId }, apiKey, state),
+        match,
+      ).map((row) => ({ ...row, sourceObservedAt })));
     }
     const byId = new Map((state.cornerOdds ?? []).map((row) => [row.id, row]));
     for (const row of rows) byId.set(row.id, row);

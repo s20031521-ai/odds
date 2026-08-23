@@ -140,7 +140,7 @@ sudo -A docker exec -i odds-tool-postgres-1 pg_restore -U postgres -d odds --cle
 | `pg_app_password` / `pg_migration_password` | `ALTER ROLE <role> PASSWORD '<new>'` via psql first, then write the new file (stdin, `sudo install -m 0400 -o root -g root /dev/stdin secrets/<name>`), `sudo -A docker compose up -d --force-recreate api collector` (app pw) |
 | `pg_postgres_password` | `ALTER ROLE postgres PASSWORD …`, new file, `up -d --force-recreate postgres` (volume keeps data; superuser pw comes from the file only at init — keep file and role in sync manually) |
 | `session_secret` | New file, `up -d --force-recreate api`. **Invalidates all sessions** (owners must log in again). |
-| `odds_api_key` / `api_football_key` | New file, `up -d --force-recreate collector` |
+| `odds_api_keys` / `api_football_key` | New file (`odds_api_keys` is the comma-separated `ODDS_API_KEYS` pool), `up -d --force-recreate collector` |
 | `cloudflared.env` | New `TUNNEL_TOKEN=…`, `up -d --force-recreate cloudflared` |
 
 Owner password: re-run `scripts/create-owner.mjs` in a one-shot container with `OWNER_USERNAME` + `OWNER_PASSWORD_FILE` (see task-4 report), then delete the password file.

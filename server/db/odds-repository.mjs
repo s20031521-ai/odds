@@ -48,7 +48,7 @@ export function createOddsRepository(pool) {
             entry.selection ?? null,
             entry.line ?? null,
             entry.odds ?? null,
-            observedAt,
+            sourceObservedAt(entry, observedAt),
             entry.expiresAt ?? null,
             raw,
           ]);
@@ -86,5 +86,13 @@ function validateEntries(entries) {
     if (!Number.isFinite(entry.odds) || entry.odds <= 0) {
       throw new TypeError("live odds must have positive finite odds");
     }
+    if (entry.sourceObservedAt !== undefined && !Number.isFinite(Date.parse(entry.sourceObservedAt))) {
+      throw new TypeError("live odds sourceObservedAt must be a valid timestamp when present");
+    }
   }
+}
+
+function sourceObservedAt(entry, fallback) {
+  if (entry.sourceObservedAt === undefined) return fallback;
+  return new Date(Date.parse(entry.sourceObservedAt)).toISOString();
 }

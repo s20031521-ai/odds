@@ -159,6 +159,20 @@
   font-size: 0.65rem;
 }
 
+.sidebar__logout {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: transparent;
+  color: var(--color-muted);
+  transition: color 200ms ease, border-color 200ms ease;
+}
+
+.sidebar__logout:hover { border-color: var(--color-primary); color: var(--color-primary); }
+
 /* ---------- Main column ---------- */
 
 .application-shell__main {
@@ -315,6 +329,21 @@
   opacity: 1;
 }
 
+.topbar__logout {
+  display: none;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: transparent;
+  color: var(--color-muted);
+  transition: color 200ms ease, border-color 200ms ease;
+}
+
+.topbar__logout:hover { border-color: var(--color-primary-border); color: var(--color-primary); }
+
 .app-loading {
   display: grid;
   min-height: 100vh;
@@ -328,6 +357,7 @@
 /* ---------- Responsive: mobile top bar + horizontal nav ---------- */
 
 @media (max-width: 900px) {
+  .topbar__logout { display: grid; }
   .sidebar {
     display: none;
   }

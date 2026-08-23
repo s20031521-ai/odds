@@ -10,7 +10,7 @@ Each secret is a single file under `/opt/odds-tool/secrets/` on the VM, mode `04
 | `pg_app_password` | `odds_app` role (api / collector runtime) | Task 1 |
 | `pg_migration_password` | `odds_migration` role (DDL) | Task 1 |
 | `session_secret` | api auth service | Task 2 |
-| `odds_api_key` | collector (paid provider) | Task 5/6 |
+| `odds_api_keys` | collector (comma-separated paid-provider key pool) | Task 5/6 |
 | `api_football_key` | collector/importer | Task 5/6 |
 | `owner_password` | owner bootstrap (deleted after use) | Task 4 |
 | `cloudflared.env` | cloudflared (`env_file` holding `TUNNEL_TOKEN=…`; cloudflared only accepts the token via env/CLI, so no Compose secret file) | Task 6 |
@@ -37,5 +37,5 @@ sudo chmod 0400 /opt/odds-tool/secrets/session_secret
 
 - Random values: `openssl rand -hex 24` (48 hex chars) — no need for humans to know them.
 - `owner_password` is human-chosen at bootstrap time and the file is deleted right after.
-- `odds_api_key` / `api_football_key` are copied from the operator's local `.env.local` at Task 5 via a one-shot `ssh` write (values never echoed).
+- `odds_api_keys` / `api_football_key` are copied from the operator's local `.env.local` at Task 5 via a one-shot `ssh` write (values never echoed). `odds_api_keys` contains the comma-separated `ODDS_API_KEYS` pool; the collector rotates weekly and fails over early when a key reaches its reserve.
 - Rotation: write the new value, `docker compose up -d --force-recreate <service>`, then update dependent roles/config if the secret is a database password (`ALTER ROLE ... PASSWORD` first, then the file).

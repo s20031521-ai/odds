@@ -9,7 +9,7 @@ import { createFixtureRepository } from "../server/db/fixture-repository.mjs";
 import { createOpportunityRepository } from "../server/db/opportunity-repository.mjs";
 import { createPostgresSink } from "./lib/postgres-sink.mjs";
 import { withDatabase } from "./lib/test-db.mjs";
-import { cornerResultMatchIds, createPostgresStore, flattenHkjcLive, parseResultRecords, resultDue, resultSourcePriority } from "./hkjc-import.mjs";
+import { cornerResultMatchIds, createPostgresStore, flattenHkjcLive, parseResultRecords, resultDue, resultSourcePriority, withCachedCornerObservationTimes } from "./hkjc-import.mjs";
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
 const DATA_FILES = [
@@ -171,6 +171,27 @@ test("flattenHkjcLive keeps spread sides on the same line and filters invalid od
   assert.equal(flat.every((row) => row.market !== "result"), true);
   assert.equal(flattenHkjcLive({}).length, 0);
   assert.equal(flattenHkjcLive(undefined).length, 0);
+});
+
+test("flattenHkjcLive preserves the source observation time of cached corner prices", () => {
+  const payload = livePayload();
+  const sourceObservedAt = "2026-07-18T09:41:00.000Z";
+  payload.cornerEntries[0].sourceObservedAt = sourceObservedAt;
+
+  const corners = flattenHkjcLive(payload).filter((row) => row.market === "corners");
+
+  assert.equal(corners.length, 2);
+  assert.equal(corners.every((row) => row.sourceObservedAt === sourceObservedAt), true);
+});
+
+test("legacy cached corner prices recover their original attempt time", () => {
+  const rows = [{ id: "cached", matchId: "hkjc-123" }];
+  const sourceObservedAt = "2026-07-18T09:41:00.000Z";
+
+  assert.deepEqual(
+    withCachedCornerObservationTimes(rows, { "hkjc-123": sourceObservedAt }),
+    [{ ...rows[0], sourceObservedAt }],
+  );
 });
 
 test("flattenHkjcLive falls back to generatedAt + 3h for unparseable commenceTime", () => {

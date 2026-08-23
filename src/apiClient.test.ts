@@ -13,6 +13,9 @@ describe("apiClient", () => {
       return jsonResponse({ ok: true });
     });
 
+    await client.session();
+    await client.login("owner", "correct horse battery staple");
+    await client.logout("csrf-token");
     await client.liveOdds();
     await client.results();
     await client.currentRecommendations();
@@ -21,13 +24,16 @@ describe("apiClient", () => {
     expectTypeOf(backtest).toEqualTypeOf<BacktestResponse>();
     expectTypeOf(backtest.rows).toEqualTypeOf<BacktestRow[]>();
     expectTypeOf(backtest.summary).toEqualTypeOf<BacktestSummary | undefined>();
-    await client.savePredictions([snapshot()]);
+    await client.savePredictions("csrf-token", [snapshot()]);
     await client.bets();
-    await client.createBet({ market: "h2h", selection: "home", odds: 2.1, stake: 100 });
-    await client.updateBet("bet-1", { market: "h2h", selection: "home", odds: 2.1, stake: 100 });
-    await client.deleteBet("bet-1");
+    await client.createBet("csrf-token", { market: "h2h", selection: "home", odds: 2.1, stake: 100 });
+    await client.updateBet("csrf-token", "bet-1", { market: "h2h", selection: "home", odds: 2.1, stake: 100 });
+    await client.deleteBet("csrf-token", "bet-1");
 
     expect(paths).toEqual([
+      "/api/v1/session",
+      "/api/v1/auth/login",
+      "/api/v1/auth/logout",
       "/api/v1/odds/live",
       "/api/v1/results",
       "/api/v1/recommendations/current",
@@ -43,7 +49,7 @@ describe("apiClient", () => {
     expect(calls.every((call) => call.credentials === "same-origin")).toBe(true);
   });
 
-  it("sends no auth headers on any request (login system removed)", async () => {
+  it("sends CSRF only on authenticated mutations and never sends bearer credentials", async () => {
     const calls: Array<{ input: string; init: RequestInit }> = [];
     const client = createApiClient(async (input, init) => {
       calls.push({ input: String(input), init: init ?? {} });
@@ -51,11 +57,14 @@ describe("apiClient", () => {
     });
 
     await client.liveOdds();
-    await client.savePredictions([snapshot()]);
-    await client.createBet({ market: "h2h", selection: "home", odds: 2.1, stake: 100 });
+    await client.savePredictions("csrf-token", [snapshot()]);
+    await client.createBet("csrf-token", { market: "h2h", selection: "home", odds: 2.1, stake: 100 });
 
+    expect(calls[0].init.headers ?? {}).not.toHaveProperty("x-csrf-token");
+    for (const call of calls.slice(1)) {
+      expect(call.init.headers ?? {}).toHaveProperty("x-csrf-token", "csrf-token");
+    }
     for (const call of calls) {
-      expect(call.init.headers ?? {}).not.toHaveProperty("x-csrf-token");
       expect(call.init.headers ?? {}).not.toHaveProperty("authorization");
     }
     expect(calls.map((c) => c.init.method)).toEqual(["GET", "POST", "POST"]);

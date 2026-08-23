@@ -17,9 +17,9 @@ describe("EmptyState", () => {
   });
 
   it("no-value: calendar icon + fixture count message", () => {
-    const markup = renderToStaticMarkup(<EmptyState reason="no-value" fixtureCount={7} />);
+    const markup = renderToStaticMarkup(<EmptyState reason="no-value" fixtureCount={7} comparableFixtureCount={2} />);
     expect(markup).toContain("lucide-calendar-x2");
-    expect(markup).toContain("今日 7 場波，但冇盤值博 — 慳返啖");
+    expect(markup).toContain("今日 7 場波｜2 場已有多莊家比較｜暫時 0 個達 3% 推薦門檻");
   });
 
   it("no-value defaults fixture count to 0", () => {

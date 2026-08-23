@@ -2,19 +2,23 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { mockApi } from "./helpers";
 
 test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-07-22T10:00:00.000Z"));
   await mockApi(page, "authenticated");
 });
 
 test("dashboard shows only fresh pre-match picks from same-origin API", async ({ page }) => {
+  const requestedPaths: string[] = [];
+  page.on("request", (request) => requestedPaths.push(`${request.method()} ${new URL(request.url()).pathname}`));
   await page.goto("/#/today");
 
   // server-recorded 盤喺今日頁 .landing-page__picks 嘅 PickCard。
   const cards = page.locator(".landing-page__picks .pick-card");
-  await expect(cards).toHaveCount(2);
+  await expect(cards).toHaveCount(2, { timeout: 15_000 });
   await expect(cards.filter({ hasText: "Value United" })).toHaveCount(1);
   await expect(cards.filter({ hasText: "Boundary FC" })).toHaveCount(1);
   await expect(page.locator(".landing-page__picks")).not.toContainText("Below United");
   await expect(page.locator(".landing-page__picks")).not.toContainText("Past High Edge");
+  expect(requestedPaths).not.toContain("GET /api/v1/backtest");
   await expectNoDocumentOverflow(page);
 });
 
@@ -25,6 +29,44 @@ test("renders dashboard when the API serves flat per-selection rows", async ({ p
   await expect(page.locator(".application-shell")).toBeVisible();
   await expect(page.locator("#root")).not.toBeEmpty();
   await expect(page.locator("main")).toContainText("Value United");
+});
+
+test("guest must log in before protected dashboard data loads", async ({ page }) => {
+  let loginBody = "";
+  await mockApi(page, "guest", {
+    onLogin: async (route) => {
+      loginBody = route.request().postData() ?? "";
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ authenticated: true, csrfToken: "csrf-after-login", session: { username: "hugo" } }),
+      });
+    },
+  });
+  await page.goto("/#/today");
+
+  await expect(page.locator(".login-panel")).toBeVisible();
+  await page.locator(".login-panel input").nth(0).fill("hugo");
+  await page.locator(".login-panel input").nth(1).fill("correct horse battery staple");
+  await page.getByRole("button", { name: /登入/ }).click();
+
+  await expect(page.locator(".landing-page__picks .pick-card")).toHaveCount(2);
+  expect(JSON.parse(loginBody)).toEqual({ username: "hugo", password: "correct horse battery staple" });
+});
+
+test("logout sends CSRF and returns to login", async ({ page }) => {
+  let csrf = "";
+  await mockApi(page, "authenticated", {
+    onLogout: async (route) => {
+      csrf = route.request().headers()["x-csrf-token"] ?? "";
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ authenticated: false }) });
+    },
+  });
+  await page.goto("/#/today");
+  await page.getByRole("button", { name: "登出" }).click();
+
+  expect(csrf).toBe("csrf-token");
+  await expect(page.locator(".login-panel")).toBeVisible();
 });
 
 test("responsive navigation, touch targets, fixtures, and performance pages work", async ({ page }, testInfo) => {
@@ -48,7 +90,7 @@ test("responsive navigation, touch targets, fixtures, and performance pages work
 
   await nav.getByRole("link", { name: "表現分析" }).click();
   await expect(page).toHaveURL(/#\/performance$/);
-  await expect(page.locator(".performance-card")).toHaveCount(4);
+  await expect(unifiedPerformanceCards(page)).toHaveCount(4);
   if (touchLayout) await expectMinimumHeight(page.getByRole("button"), 44, true);
 
   await nav.getByRole("link", { name: "今日概覽" }).click();
@@ -88,7 +130,7 @@ test("backtest failure on the performance page fails closed without exposing raw
   await page.goto("/#/performance");
 
   await expect(page.locator(".performance-page")).toBeVisible();
-  await expect(page.locator(".performance-card")).toHaveCount(4);
+  await expect(unifiedPerformanceCards(page)).toHaveCount(4);
   await expect(page.locator(".performance-page")).toContainText("尚未有數據");
   await expect(page.locator("body")).not.toContainText("Error:");
 });
@@ -129,16 +171,21 @@ test("performance page shows model readiness from the backtest feed", async ({ p
   // 搬咗去 #/performance 嘅逐模型卡,pending/settled 明細組無替代介面(已廢除)。
   await page.goto("/#/performance");
 
-  await expect(page.locator(".performance-card")).toHaveCount(4);
-  await expect(page.locator(".performance-card").filter({ hasText: "主客和" })).toContainText("12/30 場");
-  await expect(page.locator(".performance-card").filter({ hasText: "大細波" })).toContainText("30/30 場");
-  await expect(page.locator(".performance-card").filter({ hasText: "角球" })).toContainText("7/30 場");
-  await expect(page.locator(".performance-card").filter({ hasText: "讓球" })).toContainText("0/30 場");
+  const cards = unifiedPerformanceCards(page);
+  await expect(cards).toHaveCount(4);
+  await expect(cards.filter({ hasText: "主客和" })).toContainText("12/30 場");
+  await expect(cards.filter({ hasText: "大細波" })).toContainText("30/30 場");
+  await expect(cards.filter({ hasText: "角球" })).toContainText("7/30 場");
+  await expect(cards.filter({ hasText: "讓球" })).toContainText("0/30 場");
 });
 
 async function expectNoDocumentOverflow(page: Page) {
   const dimensions = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth }));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
+}
+
+function unifiedPerformanceCards(page: Page): Locator {
+  return page.locator(".performance-overview__main > .performance-grid").first().locator(".performance-card");
 }
 
 async function expectMinimumHeight(locator: Locator, minimum: number, soft = false) {

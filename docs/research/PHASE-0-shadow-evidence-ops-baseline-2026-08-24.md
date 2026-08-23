@@ -99,7 +99,7 @@ Phase 0 完成 = 以下全部成立:
 - [x] Integrity checker green(snapshots=510 results=8138,late/duplicate/future/post-kick 全 0;僅 1 條歷史 post-kickoff invalid 同 93 條 legacy 缺 commenceTime,屬已知)
 - [ ] Fixture 合併個案驗證 — **改寫**:三個 8-23 歷史個案(Daejeon/Gangwon、Machida/Urawa、Gwangju/Incheon)仍然拆分,因為 alias registry 唔做追溯合併(審計註明:merges require an approved forward-only migration)。Phase 0 嘅正確驗收係:**部署後嘅新賽事唔再拆分**;歷史合併另開 migration 處理
 - [x] 四條影子線持續累積 + 正式基線存档(`docs/research/shadow-baseline/2026-08-24.md`;dc 家族覆蓋 E0/F1/I1/SP1,E0 警告屬開季預期;之後每週一對比)
-- [ ] `HDC_MIN_QUOTA=5` 落實到 collector(state 要顯示 `quotaMinimum: 5`;第二輪部署時 collector 容器未重建,等一個 cycle 後覆查)
+- [x] `HDC_MIN_QUOTA=5` 落實到 collector(2026-08-24 02:49 覆查 `quotaMinimum=5, quotaRemaining=219`;compose 漂移問題收尾)
 - [x] `deploy-now.ps1` 明文憑證移除(`1a91c06` 已完成)
 - [x] 每週影子監察工具落地(`scripts/shadow-evidence-report.mjs`,2026-08-24;snake_case bug 已修)
 

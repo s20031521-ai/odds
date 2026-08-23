@@ -1,7 +1,7 @@
 # Phase 0 研究報告:影子證據累積與營運基線
 
-**日期:** 2026-08-24(同日第三版:部署完成,VM 端驗證進行中)
-**狀態:** 監察工具已落地;`de1920e` 已部署(02:20 由 owner 執行 `deploy-now.ps1`);剩低 VM 端 sudo 驗證同埋第一次影子基線
+**日期:** 2026-08-24(同日第四版:全部驗收通過)
+**狀態:** ✅ **完成** — 部署帶 build stamp、quota 單一來源落實、trust gate 上線、影子證據持續累積、基線存档、監察工具落地
 **前置文件:** `docs/MODEL-VALIDITY-IMPLEMENTATION-REPORT-2026-08-23.md`
 **目的:** 喺任何新 AI 上馬之前,先確保數據管道健康、今日嘅修復真係上咗線、影子證據持續累積。冇呢個基線,之後 Phase 1–3 嘅驗證全部唔可信。
 
@@ -95,7 +95,7 @@ sudo docker exec odds-tool-api-1 sh -c \
 Phase 0 完成 = 以下全部成立:
 
 - [x] 部署上 production 並帶 build stamp(02:20 首輪 `de1920e`;compose 漂移修復後第二輪,api log 確認 `build commit=4334e9d builtAt=2026-08-23T18:45:45Z`)
-- [ ] API `suspensions` 可見,角球推薦唔再出現,觀察繼續寫入(待瀏覽器登入驗)
+- [x] API `suspensions` 可見,角球推薦唔再出現(2026-08-24 02:50 owner 瀏覽器確認:今日頁顯示「已暫停 · 實際 ROI 顯著低於 0」,trust gate 上線)
 - [x] Integrity checker green(snapshots=510 results=8138,late/duplicate/future/post-kick 全 0;僅 1 條歷史 post-kickoff invalid 同 93 條 legacy 缺 commenceTime,屬已知)
 - [ ] Fixture 合併個案驗證 — **改寫**:三個 8-23 歷史個案(Daejeon/Gangwon、Machida/Urawa、Gwangju/Incheon)仍然拆分,因為 alias registry 唔做追溯合併(審計註明:merges require an approved forward-only migration)。Phase 0 嘅正確驗收係:**部署後嘅新賽事唔再拆分**;歷史合併另開 migration 處理
 - [x] 四條影子線持續累積 + 正式基線存档(`docs/research/shadow-baseline/2026-08-24.md`;dc 家族覆蓋 E0/F1/I1/SP1,E0 警告屬開季預期;之後每週一對比)

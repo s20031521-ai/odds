@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Radar, ArrowRight, ListChecks } from "lucide-react";
+import { Radar, ArrowRight, ListChecks, PauseCircle } from "lucide-react";
 import type { BuyableOpportunity } from "../apiClient";
-import type { BetCreateRequest } from "../apiClient";
+import type { BetCreateRequest, ModelSuspension } from "../apiClient";
 import { betRecordKey } from "../betMetrics";
 import type { ObservationLoader } from "../components/BuyableOddsRange";
 import { EmptyState } from "../components/EmptyState";
@@ -11,6 +11,12 @@ import { TeamLogo, type TeamLogoMap } from "../components/TeamLogo";
 import type { Fixture } from "../odds";
 
 const RADAR_FIXTURE_COUNT = 5;
+const HK_DAY_FORMATTER = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Hong_Kong",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
 
 export type QuotaInfo = {
   used?: number | null;
@@ -37,6 +43,8 @@ export function LandingPage(props: {
   quota?: QuotaInfo | null;
   loadObservations?: ObservationLoader;
   onBet?: (prefill: Partial<BetCreateRequest>) => void;
+  /** 被伺服器 trust gate 暫停嘅模型（區分「冇推薦」同「AI 被暫停」） */
+  suspensions?: ModelSuspension[];
   /** 首輪推薦仲 load 緊 → 顯示骨架屏 */
   loading?: boolean;
   /** 已記注單嘅 record keys（betRecordKey） */
@@ -44,7 +52,12 @@ export function LandingPage(props: {
 }): React.ReactElement {
   const now = props.now ?? Date.now();
   const clock = useHkClock();
-  const active = props.dataFresh ? props.opportunities : [];
+  const todayKey = hongKongDay(now);
+  const todayFixtures = props.fixtures.filter((fixture) => hongKongDay(fixture.commenceTime) === todayKey);
+  const comparableFixtureCount = todayFixtures.filter((fixture) => fixture.bookmakerCount >= 2).length;
+  const active = props.dataFresh
+    ? props.opportunities.filter((opportunity) => hongKongDay(opportunity.commenceTime) === todayKey)
+    : [];
   const sorted = [...[], ...active].sort(
     (a, b) => Date.parse(a.commenceTime) - Date.parse(b.commenceTime)
   );
@@ -78,11 +91,24 @@ export function LandingPage(props: {
             <Radar size={12} aria-hidden="true" /> 正在監控
           </span>
           <span className="stat-card__value">{props.fixtures.length.toLocaleString()}</span>
-          <span className="stat-card__meta"><span>場賽程</span></span>
+          <span className="stat-card__meta"><span>場未開波賽程</span></span>
         </div>
       </div>
 
       <FreshnessBar generatedAt={props.generatedAt} dataFresh={props.dataFresh} now={now} />
+
+      {props.suspensions && props.suspensions.length > 0 ? (
+        <div className="notice warning suspension-notice" role="status">
+          <PauseCircle size={16} aria-hidden="true" />
+          <div>
+            {props.suspensions.map((item) => (
+              <p key={`${item.market}-${item.modelVersion}`} className="suspension-notice__line">
+                {item.message ?? `${item.market} ${item.modelVersion} 已暫停`}
+              </p>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {props.loading ? (
         <div className="landing-page__picks" aria-label="載入中">
@@ -96,8 +122,14 @@ export function LandingPage(props: {
         </div>
       ) : !props.dataFresh ? (
         <EmptyState reason="stale" />
+      ) : todayFixtures.length === 0 ? (
+        <EmptyState reason="no-fixtures" />
       ) : sorted.length === 0 ? (
-        <EmptyState reason="no-value" fixtureCount={props.fixtures.length} />
+        <EmptyState
+          reason="no-value"
+          fixtureCount={todayFixtures.length}
+          comparableFixtureCount={comparableFixtureCount}
+        />
       ) : (
         <div className="landing-page__picks">
           {sorted.map((opportunity) => {
@@ -162,4 +194,9 @@ export function LandingPage(props: {
       </footer>
     </section>
   );
+}
+
+function hongKongDay(value: string | number): string | null {
+  const timestamp = typeof value === "number" ? value : Date.parse(value);
+  return Number.isFinite(timestamp) ? HK_DAY_FORMATTER.format(new Date(timestamp)) : null;
 }

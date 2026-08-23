@@ -107,6 +107,78 @@ test("unified integrity validates its required identity fields without legacy qu
   assert.equal(metrics.snapshotQuality.invalidReasons["missing-fixture-id"], 1);
 });
 
+test("Date-object timestamps with milliseconds are not false future inputs", () => {
+  // Production incident: Date.parse(Date) drops milliseconds via toString,
+  // so an input observed at the same .123Z instant as evaluation looked
+  // "future" once the evaluation time was truncated to .000Z.
+  const snapshot = validSnapshot({ sampleId: 77 });
+  const metrics = analyzeRows({
+    snapshots: [snapshot],
+    results: [],
+    observations: [{
+      snapshotId: 77,
+      fingerprint: "pg-row",
+      firstEvaluatedAt: new Date("2026-07-18T10:55:00.123Z"),
+      lastEvaluatedAt: new Date("2026-07-18T11:00:00.123Z"),
+      inputs: [{ observedAt: "2026-07-18T11:00:00.123Z" }, { observedAt: new Date("2026-07-18T10:59:59.999Z") }],
+    }],
+  });
+  assert.equal(metrics.futureObservationInputs, 0);
+  assert.equal(metrics.postKickObservations, 0);
+  assert.deepEqual(metrics.failures, []);
+});
+
+test("a true future observation input is still caught after normalization", () => {
+  const metrics = analyzeRows({
+    snapshots: [validSnapshot({ sampleId: 78 })],
+    results: [],
+    observations: [{
+      snapshotId: 78,
+      fingerprint: "real-future",
+      firstEvaluatedAt: new Date("2026-07-18T11:00:00.000Z"),
+      lastEvaluatedAt: new Date("2026-07-18T11:00:00.500Z"),
+      inputs: [{ observedAt: "2026-07-18T11:00:00.900Z" }],
+    }],
+  });
+  assert.equal(metrics.futureObservationInputs, 1);
+  assert.match(metrics.failures.join(","), /future observation inputs/);
+});
+
+test("personal bets are never flagged as post-kick recommendations", () => {
+  const personalBet = {
+    ...validSnapshot({ sampleId: 88 }),
+    strategyVersion: "personal-bet-v1",
+    // Manual backfill legitimately lands after kickoff.
+    savedAt: "2026-07-18T13:00:00.000Z",
+  };
+  const metrics = analyzeRows({
+    snapshots: [personalBet],
+    results: [],
+    observations: [{
+      snapshotId: 88,
+      fingerprint: "personal",
+      firstEvaluatedAt: "2026-07-18T13:05:00.000Z",
+      lastEvaluatedAt: "2026-07-18T13:10:00.000Z",
+      inputs: [],
+    }],
+  });
+  assert.equal(metrics.lateSnapshots, 0);
+  assert.equal(metrics.postKickObservations, 0);
+  assert.deepEqual(metrics.failures, []);
+});
+
+test("shadow opportunity snapshots use full opportunity identity", () => {
+  const over = validShadowSnapshot({ selection: "over" });
+  const under = validShadowSnapshot({ selection: "under" });
+  const clean = analyzeRows({ snapshots: [over, under], results: [], observations: [] });
+  assert.equal(clean.duplicateSnapshotKeys, 0, "over and under are distinct opportunities");
+  assert.equal(clean.snapshotQuality.validCurrent, 2);
+
+  const dupe = analyzeRows({ snapshots: [over, { ...over }], results: [], observations: [] });
+  assert.equal(dupe.duplicateSnapshotKeys, 1);
+  assert.match(dupe.failures.join(","), /duplicate prediction snapshot keys/);
+});
+
 test("formatMetrics preserves the legacy file-mode line format", () => {
   const lines = formatMetrics(analyzeRows({ snapshots: [validSnapshot()], results: [validResult()] }));
   assert.deepEqual(lines.map((line) => line.split("=")[0]), [
@@ -218,6 +290,21 @@ function validUnifiedSnapshot(overrides = {}) {
     line: -0.5,
     modelVersion: "hdc-loo-v2",
     strategyVersion: "unified-buyable-v1",
+    commenceTime: "2026-07-18T12:00:00.000Z",
+    firstQualifiedAt: "2026-07-18T10:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function validShadowSnapshot(overrides = {}) {
+  return {
+    fixtureId: "fixture-shadow-1",
+    matchId: "provider-shadow-1",
+    market: "totals",
+    selection: "over",
+    line: 2.5,
+    modelVersion: "dc-v1",
+    strategyVersion: "dc-shadow-v1",
     commenceTime: "2026-07-18T12:00:00.000Z",
     firstQualifiedAt: "2026-07-18T10:00:00.000Z",
     ...overrides,

@@ -1,5 +1,7 @@
 import { classifySnapshot, summarizeSnapshotQuality } from "../../shared/snapshot-policy.mjs";
 import { resultIdentity, snapshotIdentity } from "./identity.mjs";
+import { modelTrust } from "./model-trust.mjs";
+import { performanceForRows, readinessVerdict } from "./model-performance.mjs";
 
 const SETTLEMENT_GRACE_MS = 180 * 60_000;
 const UNSETTLEABLE_AFTER_MS = 7 * 24 * 60 * 60_000;
@@ -218,10 +220,19 @@ function summarizeStrategyReadiness(strategyVersion, snapshots, rows, finished, 
     const chances = quotes.map((quote) => quote.chance).filter(Number.isFinite);
     const directions = Object.fromEntries([...Map.groupBy(items, (item) => item.selection)].map(([direction, matches]) => [direction, matches.length]));
     const [dominantDirection, dominantCount] = Object.entries(directions).sort((a, b) => b[1] - a[1])[0] ?? ["", 0];
+    const trust = modelTrust({ strategyVersion, market, modelVersion });
+    const performance = performanceForRows(finished.filter((row) =>
+      row.strategyVersion === strategyVersion && row.market === market && row.modelVersion === modelVersion));
+    const verdict = readinessVerdict({ trustStatus: trust.status, settledMatches, performance });
     return {
       market,
       modelVersion,
       strategyVersion,
+      trust,
+      sampleReady: verdict === "sample-ready" || verdict === "performance-trusted",
+      performanceTrusted: verdict === "performance-trusted",
+      verdict,
+      performance,
       snapshots: items.length,
       settled: settledMatches,
       pending: matchItems.length - settledMatches,

@@ -12,7 +12,8 @@ import type { Page } from "./route";
 import { AppShell } from "./components/AppShell";
 import { TeamLogo, type TeamLogoMap } from "./components/TeamLogo";
 import { canShowActiveOpportunities, useConnectivityState } from "./pwa";
-import { createApiClient, type BacktestPendingRow, type BuyableOpportunity, type PredictionObservationsResponse } from "./apiClient";
+import { ApiError, createApiClient, type BacktestPendingRow, type BuyableOpportunity, type ModelSuspension, type PredictionObservationsResponse, type SessionState } from "./apiClient";
+import { LoginPage } from "./pages/LoginPage";
 import { LandingPage } from "./pages/TodayPage";
 import { FixturesPage } from "./pages/FixturesPage";
 import { PerformancePage } from "./pages/PerformancePage";
@@ -52,6 +53,7 @@ type ResultEntry = {
   hit: boolean | null;
   settlement?: "win" | "half-win" | "push" | "half-loss" | "loss";
   modelVersion?: string;
+  strategyVersion?: string;
   source?: string;
   odds?: number;
   chance?: number;
@@ -105,11 +107,16 @@ function isResultEntry(item: unknown): item is ResultEntry {
   );
 }
 
-// 單機模式:登入系統已移除,所有 API 直接可用,唔再需要 session/CSRF。
 function App() {
   const [lastSuccessfulSync, setLastSuccessfulSync] = useState<string | null>(null);
   const connectivity = useConnectivityState(lastSuccessfulSync);
   const apiClient = useMemo(() => createApiClient(), []);
+  const [auth, setAuth] = useState<SessionState>({ authenticated: false });
+  const [csrfToken, setCsrfToken] = useState("");
+  const [authLoading, setAuthLoading] = useState(true);
+  const [loginPending, setLoginPending] = useState(false);
+  const [loginError, setLoginError] = useState<"invalid" | "rate_limited" | "offline" | null>(null);
+  const [retryAfterSeconds, setRetryAfterSeconds] = useState<number | undefined>(undefined);
 
   const [entries, setEntries] = useState<ManualEntry[]>(initialEntries);
   const [resultEntries, setResultEntries] = useState<ResultEntry[]>([]);
@@ -128,6 +135,7 @@ function App() {
   const [readiness, setReadiness] = useState<ModelReadiness[]>([]);
   const [dataLoads, setDataLoads] = useState<DataLoadState>({ hkjc: null, hdc: null });
   const [recordedOpportunities, setRecordedOpportunities] = useState<BuyableOpportunity[]>([]);
+  const [recommendationsSuspensions, setRecommendationsSuspensions] = useState<ModelSuspension[]>([]);
   const [recommendationsGeneratedAt, setRecommendationsGeneratedAt] = useState<string | null>(null);
   const [recommendationsLoaded, setRecommendationsLoaded] = useState(false);
   const [recommendationsSettled, setRecommendationsSettled] = useState(false);
@@ -144,6 +152,7 @@ function App() {
 
   const hdcRefreshRunning = useRef(false);
   const backtestAutoLoadStarted = useRef(false);
+  const catalogAutoLoadStarted = useRef(false);
 
   const [page, setPage] = useState<Page>(() => pageFromHash(window.location.hash));
   const [teamLogos, setTeamLogos] = useState<TeamLogoMap>({});
@@ -158,6 +167,78 @@ function App() {
       .catch(() => {});
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    apiClient.session().then((state) => {
+      if (cancelled) return;
+      setAuth(state);
+      setCsrfToken(state.csrfToken ?? "");
+    }).catch(() => {
+      if (!cancelled) setAuth({ authenticated: false });
+    }).finally(() => {
+      if (!cancelled) setAuthLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [apiClient]);
+
+  async function handleLogin(username: string, password: string) {
+    setLoginPending(true);
+    setLoginError(null);
+    setRetryAfterSeconds(undefined);
+    try {
+      const state = await apiClient.login(username, password);
+      setAuth(state);
+      setCsrfToken(state.csrfToken ?? "");
+    } catch (error) {
+      setAuth({ authenticated: false });
+      if (error instanceof ApiError && error.status === 429) {
+        setLoginError("rate_limited");
+      } else if (error instanceof ApiError && error.status === 401) {
+        setLoginError("invalid");
+      } else {
+        setLoginError("offline");
+      }
+    } finally {
+      setLoginPending(false);
+    }
+  }
+
+  function clearAuthenticatedState() {
+    setAuth({ authenticated: false });
+    setCsrfToken("");
+    setEntries(initialEntries);
+    setResultEntries([]);
+    setCatalogResultRows([]);
+    setPendingEntries([]);
+    setReadiness([]);
+    setRecordedOpportunities([]);
+    setRecommendationsSuspensions([]);
+    setRecommendationsGeneratedAt(null);
+    setRecommendationsLoaded(false);
+    setRecommendationsSettled(false);
+    setBacktestLoaded(false);
+    setBacktestFailed(false);
+    setRecordedKeys(new Set());
+    backtestAutoLoadStarted.current = false;
+    catalogAutoLoadStarted.current = false;
+  }
+
+  function handleProtectedError(error: unknown, fallback: string): string {
+    if (error instanceof ApiError && error.status === 401) {
+      clearAuthenticatedState();
+      return "登入已過期，請重新登入";
+    }
+    return error instanceof Error ? error.message : fallback;
+  }
+
+  async function handleLogout() {
+    try {
+      if (csrfToken) await apiClient.logout(csrfToken);
+    } finally {
+      clearAuthenticatedState();
+    }
+  }
 
   // Kickoff order only — FixturesPage re-sorts by commenceTime; 即將開賽 is a strip, not edge ranking.
   const dashboardFixtures = useMemo(() => upcomingFixtures(entries), [entries]);
@@ -206,15 +287,22 @@ function App() {
   const historyStatsByMarket = useMemo(() => {
     const map = new Map<string, HistoryStats>();
     for (const model of READINESS_MODELS) {
+      // 只計現行可下注策略：legacy / 影子 / personal bet 行一律唔准混入。
       const rows = resultEntries.filter((r) =>
         r.market === model.market &&
         r.modelVersion === model.modelVersion &&
-        r.modelVersion !== "legacy-v0"
+        r.strategyVersion === "unified-buyable-v1"
       );
       map.set(model.market, summarizeHistoryRows(rows));
     }
     return map;
   }, [resultEntries]);
+
+  // 表現頁 overall / 詳情只接受現行可下注策略嘅行（Workstream C）。
+  const unifiedResultEntries = useMemo(
+    () => resultEntries.filter((r) => r.strategyVersion === "unified-buyable-v1"),
+    [resultEntries],
+  );
 
   useEffect(() => {
     const syncPage = () => setPage(pageFromHash(window.location.hash));
@@ -242,11 +330,19 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (!auth.authenticated) {
+      setRecordedOpportunities([]);
+      setRecommendationsSuspensions([]);
+      setRecommendationsGeneratedAt(null);
+      setRecommendationsLoaded(false);
+      return;
+    }
     setRecommendationsLoaded(false);
     return startCurrentRecommendationsRefresh({
       load: apiClient.currentRecommendations,
       onSuccess: (response) => {
         setRecommendationsSettled(true);
+        setRecommendationsSuspensions(Array.isArray(response.suspensions) ? response.suspensions : []);
         if (response.strategyVersion !== "unified-buyable-v1" || !Array.isArray(response.opportunities)) {
           setRecordedOpportunities([]);
           setRecommendationsGeneratedAt(null);
@@ -257,20 +353,22 @@ function App() {
         setRecommendationsGeneratedAt(response.generatedAt);
         setRecommendationsLoaded(true);
       },
-      onError: () => {
+      onError: (error) => {
         setRecommendationsSettled(true);
         setRecordedOpportunities([]);
         setRecommendationsGeneratedAt(null);
         setRecommendationsLoaded(false);
+        if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
       },
     });
-  }, [apiClient]);
+  }, [apiClient, auth.authenticated]);
 
   // 推薦卡「已記 ✓」標記：開 app 時攞一次注單 keys
   useEffect(() => {
+    if (!auth.authenticated) return;
     void refreshRecordedKeys();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [auth.authenticated]);
 
   async function refreshRecordedKeys() {
     try {
@@ -286,26 +384,37 @@ function App() {
         if (key) keys.add(key);
       }
       setRecordedKeys(keys);
-    } catch {
-      // 標記唔到唔緊要，唔好阻住個 app
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
     }
   }
 
   useEffect(() => {
+    if (!auth.authenticated || page !== "performance") return;
     if (!backtestAutoLoadStarted.current) {
       backtestAutoLoadStarted.current = true;
       void loadBacktest();
+    }
+    if (!catalogAutoLoadStarted.current) {
+      catalogAutoLoadStarted.current = true;
       void loadCatalogResults();
     }
-  }, []);
+  }, [auth.authenticated, page]);
 
   useEffect(() => {
+    if (!auth.authenticated || page !== "bets" || catalogAutoLoadStarted.current) return;
+    catalogAutoLoadStarted.current = true;
+    void loadCatalogResults();
+  }, [auth.authenticated, page]);
+
+  useEffect(() => {
+    if (!auth.authenticated) return;
     void refreshHdcOdds();
     const timer = window.setInterval(() => {
       void refreshHdcOdds();
     }, HDC_REFRESH_MS);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [auth.authenticated]);
 
   async function loadCatalogResults() {
     try {
@@ -313,8 +422,8 @@ function App() {
       const raw = Array.isArray(body?.resultEntries) ? body.resultEntries : [];
       const rows = raw.map(normalizeCatalogResultRow).filter((row): row is NonNullable<typeof row> => row !== null);
       setCatalogResultRows(rows);
-    } catch {
-      // results feed failure is non-fatal; picker just has fewer finished rows
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
     }
   }
 
@@ -328,13 +437,19 @@ function App() {
       setReadiness(Array.isArray(body.readiness) ? body.readiness.filter(isModelReadiness) : []);
       setBacktestLoaded(true);
       setBacktestFailed(false);
-    } catch {
+    } catch (error) {
       setBacktestFailed(true);
+      if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
     }
   }
 
   async function loadRecommendationObservations(sampleId: number): Promise<PredictionObservationsResponse> {
-    return apiClient.predictionObservations(sampleId);
+    try {
+      return await apiClient.predictionObservations(sampleId);
+    } catch (error) {
+      handleProtectedError(error, "載入推薦歷史失敗");
+      throw error;
+    }
   }
 
   async function refreshHdcOdds() {
@@ -352,7 +467,8 @@ function App() {
       // so one successful fetch freshens both tracked sources.
       setDataLoads((current) => dataLoadStateAfter(dataLoadStateAfter(current, "hkjc", true), "hdc", true));
       setLastSuccessfulSync(new Date().toISOString());
-    } catch {
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
       setDataLoads((current) => dataLoadStateAfter(dataLoadStateAfter(current, "hkjc", false), "hdc", false));
     } finally {
       hdcRefreshRunning.current = false;
@@ -360,19 +476,29 @@ function App() {
   }
 
   async function handleUpdateBet(id: string, bet: BetCreateRequest) {
-    await apiClient.updateBet(id, bet);
-    setBetPrefill(null);
+    try {
+      await apiClient.updateBet(csrfToken, id, bet);
+      setBetPrefill(null);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
+      throw error;
+    }
   }
 
   async function handleDeleteBet(id: string) {
-    await apiClient.deleteBet(id);
+    try {
+      await apiClient.deleteBet(csrfToken, id);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) clearAuthenticatedState();
+      throw error;
+    }
   }
 
   async function handleCreateBet(bet: BetCreateRequest) {
     setBetSaving(true);
     setBetError(null);
     try {
-      await apiClient.createBet(bet);
+      await apiClient.createBet(csrfToken, bet);
       setBetPrefill(null);
       void refreshRecordedKeys();
       setToast({
@@ -381,7 +507,7 @@ function App() {
         link: { href: "#/bets", label: "去注單管理睇" },
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "儲存失敗";
+      const message = handleProtectedError(error, "儲存失敗");
       setBetError(message);
       setToast({ kind: "error", text: `記注單失敗：${message}` });
     } finally {
@@ -389,17 +515,38 @@ function App() {
     }
   }
 
+  if (authLoading) {
+    return (
+      <div className="app-loading" role="status">
+        <p>載入中…</p>
+      </div>
+    );
+  }
+
+  if (!auth.authenticated) {
+    return (
+      <LoginPage
+        pending={loginPending}
+        error={loginError}
+        retryAfterSeconds={retryAfterSeconds}
+        onLogin={handleLogin}
+      />
+    );
+  }
+
   return (
     <AppShell
       route={page}
       dataWarning={dataWarning}
+      username={auth.session?.username}
       fixtures={betFixtures}
+      onLogout={handleLogout}
     >
       {page === "performance" ? (
         <PerformancePage
           readiness={readiness}
           historyStats={historyStatsByMarket}
-          results={resultEntries}
+          results={unifiedResultEntries}
           pending={pendingEntries}
           dataFreshness={recommendationsGeneratedAt}
           loadFailed={backtestFailed && !backtestLoaded}
@@ -430,6 +577,7 @@ function App() {
           logos={teamLogos}
           latencyMs={apiLatencyMs}
           quota={apiQuota}
+          suspensions={recommendationsSuspensions}
           loadObservations={loadRecommendationObservations}
           onBet={setBetPrefill}
           loading={!recommendationsSettled}

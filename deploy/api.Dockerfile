@@ -4,6 +4,12 @@
 FROM node:24-bookworm-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d
 
 ENV NODE_ENV=production
+# Reproducible-build stamp (Workstream D): commit SHA + build timestamp,
+# supplied at build time via --build-arg. Metadata only, never secrets.
+ARG APP_BUILD_COMMIT=unknown
+ARG APP_BUILD_TIMESTAMP=unknown
+ENV APP_BUILD_COMMIT=$APP_BUILD_COMMIT \
+    APP_BUILD_TIMESTAMP=$APP_BUILD_TIMESTAMP
 WORKDIR /app
 
 # Production dependencies only; lockfile-pinned.
@@ -19,6 +25,7 @@ COPY shared/ shared/
 COPY db/ db/
 COPY scripts/ scripts/
 COPY src/ src/
+COPY data/priority-teams.json data/priority-teams.json
 
 # Entrypoint composes DATABASE_URL / SESSION_SECRET from /run/secrets at
 # container start so no secret is ever baked into an image layer.

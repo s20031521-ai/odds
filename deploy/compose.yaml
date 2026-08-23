@@ -26,8 +26,8 @@ secrets:
     file: ./secrets/pg_migration_password
   session_secret:
     file: ./secrets/session_secret
-  odds_api_key:
-    file: ./secrets/odds_api_key
+  odds_api_keys:
+    file: ./secrets/odds_api_keys
   api_football_key:
     file: ./secrets/api_football_key
 
@@ -71,6 +71,11 @@ services:
     build:
       context: ..
       dockerfile: deploy/api.Dockerfile
+      args:
+        # Reproducible-build stamp; deploy scripts export these from the
+        # clean committed tree being built (never secrets).
+        APP_BUILD_COMMIT: ${APP_BUILD_COMMIT:-unknown}
+        APP_BUILD_TIMESTAMP: ${APP_BUILD_TIMESTAMP:-unknown}
     restart: unless-stopped
     networks:
       - app_net
@@ -178,7 +183,7 @@ services:
         uid: "1000"
         gid: "1000"
         mode: 0400
-      - source: odds_api_key
+      - source: odds_api_keys
         uid: "1000"
         gid: "1000"
         mode: 0400
@@ -187,6 +192,10 @@ services:
         gid: "1000"
         mode: 0400
     entrypoint: ["/usr/local/bin/collector-entrypoint.sh"]
+    environment:
+      # Workstream D: HDC_MIN_QUOTA is the single quota-reserve source of
+      # truth (the in-code default remains 50 for unspecified deployments).
+      HDC_MIN_QUOTA: "5"
     depends_on:
       postgres:
         condition: service_healthy

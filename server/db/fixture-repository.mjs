@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import { withTransaction } from "./pool.mjs";
+import { canonicalLeagueKey, canonicalTeamKey, leaguesCompatible } from "../domain/fixture-aliases.mjs";
 
 const MATCH_WINDOW_MS = 10 * 60_000;
 
@@ -151,20 +152,18 @@ function fixtureMetadata(row) {
   return {
     homeTeam: homeTeam.trim(),
     awayTeam: awayTeam.trim(),
-    normalizedHomeTeam: normalizeFixtureText(homeTeam),
-    normalizedAwayTeam: normalizeFixtureText(awayTeam),
+    normalizedHomeTeam: canonicalTeamKey(homeTeam),
+    normalizedAwayTeam: canonicalTeamKey(awayTeam),
     commenceTime: new Date(commenceMs).toISOString(),
     league: nonEmpty(row.league)?.trim() ?? null,
   };
 }
 
-function leaguesCompatible(left, right) {
-  return !left || !right || normalizeFixtureText(left) === normalizeFixtureText(right);
-}
+// Re-exported for existing callers/tests; the canonical registry now lives
+// in server/domain/fixture-aliases.mjs (Workstream B).
+export { leaguesCompatible } from "../domain/fixture-aliases.mjs";
 
-function normalizeFixtureText(value) {
-  return value.normalize("NFKC").trim().toLocaleLowerCase("en").replace(/[\p{P}\p{S}\s]+/gu, "");
-}
+// (removed) normalizeFixtureText — superseded by fixture-aliases registry
 
 function nonEmpty(value) {
   return typeof value === "string" && value.trim().length > 0 ? value : null;

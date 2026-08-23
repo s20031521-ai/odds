@@ -17,6 +17,16 @@ export type PredictionSnapshot = {
   bookmaker?: string;
 };
 
+export type SessionState = {
+  authenticated: boolean;
+  csrfToken?: string;
+  session?: {
+    username: string;
+    idleExpiresAt?: string;
+    absoluteExpiresAt?: string;
+  };
+};
+
 export type LiveOddsResponse = {
   entries?: unknown[];
   h2hEntries?: unknown[];
@@ -67,6 +77,21 @@ export type CurrentRecommendationsResponse = {
   generatedAt: string;
   strategyVersion: "unified-buyable-v1";
   opportunities: BuyableOpportunity[];
+  /** Server-side trust gate: models suspended after failing real-performance
+   *  checks. Their opportunities never surface; this list lets the UI say
+   *  "AI 被暫停" instead of implying "冇推薦". Additive — old clients ignore. */
+  suspensions?: ModelSuspension[];
+};
+
+export type ModelTrustStatus = "active" | "shadow" | "suspended";
+
+export type ModelSuspension = {
+  strategyVersion: string;
+  market: string;
+  modelVersion: string;
+  status: ModelTrustStatus;
+  reason: string | null;
+  message: string | null;
 };
 
 export type RecommendationObservation = {
@@ -155,10 +180,39 @@ export type BacktestSummary = {
   yieldRange?: BacktestRange;
 };
 
+export type ModelPerformance = {
+  /** 推薦單位數（一場可以有多個推薦） */
+  recommendations: number;
+  /** 已結算獨立賽程數（真正嘅統計分母） */
+  independentMatches: number;
+  hitRate: number | null;
+  /** 平均損益平衡命中率（1/odds 平均） */
+  breakevenRate: number | null;
+  /** 每注平均 ROI；冇價格時係 null（顯示 N/A，唔係 0%） */
+  roi: number | null;
+  /** 以賽程為 cluster 嘅 bootstrap 95% ROI 區間 */
+  roiBootstrap: { resamples: number; clusters: number; lower: number; upper: number } | null;
+  calibration: { predicted: number | null; actual: number | null; bias: number | null };
+  edgeBuckets: { bucket: string; recommendations: number; hitRate: number | null; roi: number | null }[];
+  /** true = edge 越大回報越好；false = 反向；null = 資料不足 */
+  edgeMonotonic: boolean | null;
+};
+
+export type ReadinessVerdict = "suspended" | "collecting" | "sample-ready" | "performance-trusted";
+
 export type BacktestReadiness = {
   market: string;
   modelVersion: string;
-  strategyVersion: "unified-buyable-v1";
+  strategyVersion: string;
+  trust?: {
+    status: ModelTrustStatus;
+    reason: string | null;
+    message: string | null;
+  };
+  sampleReady?: boolean;
+  performanceTrusted?: boolean;
+  verdict?: ReadinessVerdict;
+  performance?: ModelPerformance;
   snapshots: number;
   settled: number;
   pending: number;
@@ -299,26 +353,39 @@ export class ApiError extends Error {
 
 export function createApiClient(fetchImpl: FetchLike = fetch) {
   return Object.freeze({
+    session: () => request<SessionState>(fetchImpl, "/api/v1/session"),
+    login: (username: string, password: string) => request<SessionState>(fetchImpl, "/api/v1/auth/login", {
+      method: "POST",
+      body: { username, password },
+    }),
+    logout: (csrfToken: string) => request<SessionState>(fetchImpl, "/api/v1/auth/logout", {
+      method: "POST",
+      csrfToken,
+    }),
     liveOdds: () => request<LiveOddsResponse>(fetchImpl, "/api/v1/odds/live"),
     results: () => request<ResultsResponse>(fetchImpl, "/api/v1/results"),
     currentRecommendations: () => request<CurrentRecommendationsResponse>(fetchImpl, "/api/v1/recommendations/current"),
     predictionObservations: (sampleId: number) => request<PredictionObservationsResponse>(fetchImpl, `/api/v1/predictions/observations?sampleId=${encodeURIComponent(String(sampleId))}`),
     backtest: () => request<BacktestResponse>(fetchImpl, "/api/v1/backtest"),
-    savePredictions: (snapshots: PredictionSnapshot[]) => request<PredictionSaveResponse>(fetchImpl, "/api/v1/predictions", {
+    savePredictions: (csrfToken: string, snapshots: PredictionSnapshot[]) => request<PredictionSaveResponse>(fetchImpl, "/api/v1/predictions", {
       method: "POST",
+      csrfToken,
       body: snapshots,
     }),
     bets: () => request<BetsListResponse>(fetchImpl, "/api/v1/bets"),
-    createBet: (bet: BetCreateRequest) => request<{ bet: BetResponse }>(fetchImpl, "/api/v1/bets", {
+    createBet: (csrfToken: string, bet: BetCreateRequest) => request<{ bet: BetResponse }>(fetchImpl, "/api/v1/bets", {
       method: "POST",
+      csrfToken,
       body: bet,
     }),
-    updateBet: (id: string, bet: BetCreateRequest) => request<{ bet: BetResponse }>(fetchImpl, `/api/v1/bets/${encodeURIComponent(id)}`, {
+    updateBet: (csrfToken: string, id: string, bet: BetCreateRequest) => request<{ bet: BetResponse }>(fetchImpl, `/api/v1/bets/${encodeURIComponent(id)}`, {
       method: "PATCH",
+      csrfToken,
       body: bet,
     }),
-    deleteBet: (id: string) => request<void>(fetchImpl, `/api/v1/bets/${encodeURIComponent(id)}`, {
+    deleteBet: (csrfToken: string, id: string) => request<void>(fetchImpl, `/api/v1/bets/${encodeURIComponent(id)}`, {
       method: "DELETE",
+      csrfToken,
     }),
   });
 }
@@ -326,7 +393,7 @@ export function createApiClient(fetchImpl: FetchLike = fetch) {
 async function request<T>(
   fetchImpl: FetchLike,
   path: string,
-  options: { method?: string; body?: unknown } = {},
+  options: { method?: string; csrfToken?: string; body?: unknown } = {},
 ): Promise<T> {
   const headers: Record<string, string> = {};
   let body: string | undefined;
@@ -334,6 +401,7 @@ async function request<T>(
     headers["content-type"] = "application/json";
     body = JSON.stringify(options.body);
   }
+  if (options.csrfToken) headers["x-csrf-token"] = options.csrfToken;
 
   const response = await fetchImpl(path, {
     method: options.method ?? "GET",

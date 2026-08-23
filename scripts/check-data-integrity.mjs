@@ -23,7 +23,7 @@ function readJsonl(file) {
 }
 
 function snapshotKey(item) {
-  if (item.strategyVersion === "unified-buyable-v1") {
+  if (isOpportunityShaped(item)) {
     return [
       item.fixtureId ?? "",
       item.market ?? "",
@@ -36,16 +36,53 @@ function snapshotKey(item) {
   return `${item.matchId ?? ""}|${item.market ?? ""}|${Number.isFinite(item.line) ? item.line : ""}|${item.modelVersion ?? "legacy-v0"}`;
 }
 
+// Opportunity-shaped strategies (unified + every shadow family, ADR 0003)
+// share the fixtureId/selection identity; personal bets are manual records,
+// not AI recommendations, so post-kick invariants never apply to them.
+const OPPORTUNITY_STRATEGY_VERSIONS = new Set([
+  "unified-buyable-v1",
+  "dc-shadow-v1",
+  "dc-blend-v1",
+  "market-sharp-v1",
+  "dc-xg-shadow-v1",
+]);
+const PERSONAL_BET_STRATEGY_VERSION = "personal-bet-v1";
+
+function isOpportunityShaped(item) {
+  return OPPORTUNITY_STRATEGY_VERSIONS.has(item?.strategyVersion);
+}
+
+function isPersonalBet(item) {
+  return item?.strategyVersion === PERSONAL_BET_STRATEGY_VERSION;
+}
+
+// PostgreSQL rows arrive as Date instances; Date.parse(Date) silently drops
+// milliseconds via toString and produced 18,835 false "future input" rows in
+// production. Normalize every timestamp through this helper first.
+function timeMs(value) {
+  if (value instanceof Date) {
+    const time = value.getTime();
+    return Number.isFinite(time) ? time : null;
+  }
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
 function resultKey(item) {
   return `${item.matchId ?? ""}|${item.market ?? ""}`;
 }
 
 function isLateSnapshot(item) {
-  const savedAt = Date.parse(item.strategyVersion === "unified-buyable-v1"
+  if (isPersonalBet(item)) return false;
+  const savedAt = timeMs(isOpportunityShaped(item)
     ? item.firstQualifiedAt ?? ""
     : item.savedAt ?? "");
-  const commenceTime = Date.parse(item.commenceTime ?? "");
-  return Number.isFinite(savedAt) && Number.isFinite(commenceTime) && savedAt >= commenceTime;
+  const commenceTime = timeMs(item.commenceTime ?? "");
+  return savedAt !== null && commenceTime !== null && savedAt >= commenceTime;
 }
 
 function hasProviderNegativeScore(item) {
@@ -79,19 +116,23 @@ export function analyzeRows({ snapshots, results, observations = [] }) {
   );
   const snapshotKickoffs = new Map(snapshots.flatMap((item) => {
     const id = item.sampleId ?? item.id;
-    return id == null ? [] : [[String(id), Date.parse(item.commenceTime ?? "")]];
+    return id == null ? [] : [[String(id), {
+      kickoff: timeMs(item.commenceTime ?? ""),
+      personal: isPersonalBet(item),
+    }]];
   }));
   const futureObservationInputs = observations.flatMap((observation) => {
-    const evaluatedAt = Date.parse(observation.lastEvaluatedAt ?? observation.firstEvaluatedAt ?? "");
+    const evaluatedAt = timeMs(observation.lastEvaluatedAt ?? observation.firstEvaluatedAt ?? "");
     return (Array.isArray(observation.inputs) ? observation.inputs : []).filter((input) => {
-      const observedAt = Date.parse(input?.observedAt ?? "");
-      return Number.isFinite(observedAt) && Number.isFinite(evaluatedAt) && observedAt > evaluatedAt;
+      const observedAt = timeMs(input?.observedAt ?? "");
+      return observedAt !== null && evaluatedAt !== null && observedAt > evaluatedAt;
     });
   });
   const postKickObservations = observations.filter((observation) => {
-    const kickoff = snapshotKickoffs.get(String(observation.snapshotId ?? observation.sampleId ?? ""));
-    const evaluatedAt = Date.parse(observation.lastEvaluatedAt ?? observation.firstEvaluatedAt ?? "");
-    return Number.isFinite(kickoff) && Number.isFinite(evaluatedAt) && evaluatedAt >= kickoff;
+    const snapshot = snapshotKickoffs.get(String(observation.snapshotId ?? observation.sampleId ?? ""));
+    const evaluatedAt = timeMs(observation.lastEvaluatedAt ?? observation.firstEvaluatedAt ?? "");
+    return snapshot && !snapshot.personal && snapshot.kickoff !== null
+      && evaluatedAt !== null && evaluatedAt >= snapshot.kickoff;
   });
 
   const failures = [];
@@ -123,8 +164,8 @@ export function analyzeRows({ snapshots, results, observations = [] }) {
 function summarizeIntegritySnapshotQuality(snapshots) {
   const summary = { raw: snapshots.length, validCurrent: 0, legacy: 0, invalid: 0, invalidReasons: {} };
   for (const snapshot of snapshots) {
-    const classification = snapshot?.strategyVersion === "unified-buyable-v1"
-      ? classifyUnifiedSnapshot(snapshot)
+    const classification = isOpportunityShaped(snapshot)
+      ? classifyOpportunitySnapshot(snapshot)
       : classifySnapshot(snapshot);
     if (classification.status === "valid-current") summary.validCurrent += 1;
     else if (classification.status === "legacy") summary.legacy += 1;
@@ -137,12 +178,12 @@ function summarizeIntegritySnapshotQuality(snapshots) {
   return summary;
 }
 
-function classifyUnifiedSnapshot(snapshot) {
+function classifyOpportunitySnapshot(snapshot) {
   if (!nonEmpty(snapshot.fixtureId)) return invalid("missing-fixture-id");
   if (!nonEmpty(snapshot.market)) return invalid("missing-market");
   if (!nonEmpty(snapshot.selection)) return invalid("missing-selection");
   if (!nonEmpty(snapshot.modelVersion)) return invalid("missing-model-version");
-  if (snapshot.strategyVersion !== "unified-buyable-v1") return invalid("invalid-strategy-version");
+  if (!isOpportunityShaped(snapshot)) return invalid("invalid-strategy-version");
   if (["handicap", "totals", "corners"].includes(snapshot.market) && !Number.isFinite(snapshot.line)) return invalid("missing-line");
   if (snapshot.line != null && !Number.isFinite(snapshot.line)) return invalid("invalid-line");
   if (!validTimestamp(snapshot.commenceTime)) return invalid("invalid-commence-time");

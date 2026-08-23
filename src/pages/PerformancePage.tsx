@@ -3,6 +3,7 @@ import { TrendingUp, Radar, BrainCircuit } from "lucide-react";
 import { formatKickoff } from "../components/PickCard";
 import { RadarChart } from "../components/RadarChart";
 import { READINESS_MODELS, SHADOW_READINESS_MODELS } from "../readinessModels";
+import type { ModelPerformance } from "../apiClient";
 import {
   computeDailyHitRates,
   computeOverallAccuracy,
@@ -34,12 +35,43 @@ function formatPendingStatus(status: string): { label: string } {
 
 const READINESS_TARGET = 30;
 
+type ReadinessVerdict = "suspended" | "collecting" | "sample-ready" | "performance-trusted";
+
 type ModelReadiness = {
   market: string;
   modelVersion: string;
   settledMatches: number;
   pendingMatches: number;
+  trust?: {
+    status: "active" | "shadow" | "suspended";
+    reason: string | null;
+    message: string | null;
+  };
+  sampleReady?: boolean;
+  performanceTrusted?: boolean;
+  verdict?: ReadinessVerdict;
+  performance?: ModelPerformance;
 };
+
+function verdictBadge(verdict: ReadinessVerdict | undefined): { label: string; tone: "bad" | "warn" | "good" | "muted" } | null {
+  switch (verdict) {
+    case "suspended": return { label: "已暫停 · 實際 ROI 顯著低於 0", tone: "bad" };
+    case "performance-trusted": return { label: "已驗證可信", tone: "good" };
+    case "sample-ready": return { label: "樣本達標 · 表現未證明", tone: "warn" };
+    case "collecting": return { label: "收集緊樣本", tone: "muted" };
+    default: return null;
+  }
+}
+
+function formatPercent(value: number | null | undefined, digits = 1): string {
+  return value === null || value === undefined || !Number.isFinite(value) ? "N/A" : `${(value * 100).toFixed(digits)}%`;
+}
+
+function formatSignedPercent(value: number | null | undefined, digits = 1): string {
+  return value === null || value === undefined || !Number.isFinite(value)
+    ? "N/A"
+    : `${value > 0 ? "+" : ""}${(value * 100).toFixed(digits)}%`;
+}
 
 type HistoryStats = {
   win: number;
@@ -280,6 +312,11 @@ export function PerformancePage(props: {
             <span className="performance-detail__count">
               {settled}/{READINESS_TARGET} 場
             </span>
+            {verdictBadge(readiness?.verdict) ? (
+              <span className={`performance-badge performance-badge--${verdictBadge(readiness?.verdict)!.tone}`}>
+                {verdictBadge(readiness?.verdict)!.label}
+              </span>
+            ) : null}
             {hasStats ? (
               <span className="performance-detail__accuracy">
                 <span className="positive">
@@ -300,6 +337,76 @@ export function PerformancePage(props: {
             )}
           </div>
         </header>
+
+        {readiness?.performance ? (
+          <div className="validity-panel" aria-label="模型有效度">
+            <div className="validity-panel__grid">
+              <div className="validity-metric">
+                <span className="validity-metric__label">獨立賽程</span>
+                <span className="validity-metric__value mono">{readiness.performance.independentMatches}</span>
+              </div>
+              <div className="validity-metric">
+                <span className="validity-metric__label">推薦單位</span>
+                <span className="validity-metric__value mono">{readiness.performance.recommendations}</span>
+              </div>
+              <div className="validity-metric">
+                <span className="validity-metric__label">實際命中率</span>
+                <span className="validity-metric__value mono">{formatPercent(readiness.performance.hitRate)}</span>
+              </div>
+              <div className="validity-metric">
+                <span className="validity-metric__label">損益平衡命中率</span>
+                <span className="validity-metric__value mono">{formatPercent(readiness.performance.breakevenRate)}</span>
+              </div>
+              <div className="validity-metric">
+                <span className="validity-metric__label">ROI（每注）</span>
+                <span className={`validity-metric__value mono ${readiness.performance.roi !== null && readiness.performance.roi < 0 ? "negative" : "positive"}`}>
+                  {formatSignedPercent(readiness.performance.roi)}
+                </span>
+              </div>
+              <div className="validity-metric">
+                <span className="validity-metric__label">ROI 95% 區間（賽程 cluster）</span>
+                <span className="validity-metric__value mono">
+                  {readiness.performance.roiBootstrap
+                    ? `${formatSignedPercent(readiness.performance.roiBootstrap.lower)} ~ ${formatSignedPercent(readiness.performance.roiBootstrap.upper)}`
+                    : "N/A"}
+                </span>
+              </div>
+              <div className="validity-metric">
+                <span className="validity-metric__label">校準（預測 vs 實際）</span>
+                <span className="validity-metric__value mono">
+                  {formatPercent(readiness.performance.calibration.predicted)} vs {formatPercent(readiness.performance.calibration.actual)}
+                </span>
+              </div>
+              <div className="validity-metric">
+                <span className="validity-metric__label">Edge 排序能力</span>
+                <span className="validity-metric__value mono">
+                  {readiness.performance.edgeMonotonic === null
+                    ? "N/A"
+                    : readiness.performance.edgeMonotonic ? "單調遞增 ✓" : "反向 ✗"}
+                </span>
+              </div>
+            </div>
+            {readiness.performance.edgeBuckets.some((bucket) => bucket.recommendations > 0) ? (
+              <table className="validity-edge-table">
+                <thead>
+                  <tr><th>Edge 分組</th><th>推薦數</th><th>命中率</th><th>ROI</th></tr>
+                </thead>
+                <tbody>
+                  {readiness.performance.edgeBuckets.map((bucket) => (
+                    <tr key={bucket.bucket}>
+                      <td>{bucket.bucket}</td>
+                      <td className="mono">{bucket.recommendations}</td>
+                      <td className="mono">{formatPercent(bucket.hitRate)}</td>
+                      <td className={`mono ${bucket.roi !== null && bucket.roi < 0 ? "negative" : "positive"}`}>
+                        {formatSignedPercent(bucket.roi)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
+          </div>
+        ) : null}
 
         <nav className="performance-detail__tabs">
           <button
@@ -510,6 +617,14 @@ export function PerformancePage(props: {
                       n={settled.toLocaleString()}
                     </span>
                   </div>
+                  {(() => {
+                    const badge = verdictBadge(readiness?.verdict);
+                    return badge ? (
+                      <p className={`performance-badge performance-badge--${badge.tone}`}>
+                        {badge.label}
+                      </p>
+                    ) : null;
+                  })()}
                   {hasStats ? (
                     <p className="performance-card__hitrate">
                       <span className="performance-card__hitrate-value">

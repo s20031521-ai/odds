@@ -13,10 +13,51 @@ const LOCK_PATH = path.join(DATA, "hdc-collector.lock");
 const RESULT_PATH = path.join(DATA, "background-result-archive.jsonl");
 const LIVE_PATH = path.join(DATA, "background-hdc-odds.json");
 const API = "https://api.the-odds-api.com/v4";
-const MIN_QUOTA = 50;
+// Quota reserve policy: HDC_MIN_QUOTA is the ONLY source (Workstream D).
+// The code default stays 50 so an unspecified deployment preserves the old
+// policy; production explicitly sets HDC_MIN_QUOTA=5 in deploy/compose.yaml.
+const DEFAULT_MIN_QUOTA = 50;
+export function loadHdcConfig(env = {}) {
+  if (!("HDC_MIN_QUOTA" in env) || env.HDC_MIN_QUOTA == null || env.HDC_MIN_QUOTA === "") {
+    return { minimumQuota: DEFAULT_MIN_QUOTA };
+  }
+  const raw = String(env.HDC_MIN_QUOTA);
+  if (!/^\d+$/.test(raw)) throw new TypeError("HDC_MIN_QUOTA must be a non-negative integer");
+  return { minimumQuota: Number(raw) };
+}
+// Single source of truth for the paid-call gate. Every state save recomputes
+// the blocked flag from this so persisted state can never drift from runtime
+// policy (the 433-remaining-but-blocked incident).
+export function paidCollectionStatus(state, now = Date.now(), minimumQuota = DEFAULT_MIN_QUOTA) {
+  if (state.quotaRemaining != null && Number(state.quotaRemaining) <= minimumQuota) {
+    return { allowed: false, reason: "quota-reserve" };
+  }
+  const blockedUntil = typeof state.quotaBlockedUntil === "number"
+    ? state.quotaBlockedUntil
+    : Date.parse(state.quotaBlockedUntil ?? "");
+  if (Number.isFinite(blockedUntil) && now < blockedUntil) {
+    return { allowed: false, reason: "provider-cooldown" };
+  }
+  return { allowed: true, reason: null };
+}
+// Recomputes and overwrites the persisted blocked fields on every save.
+export function applyPaidCollectionStatus(state, now = Date.now(), minimumQuota = DEFAULT_MIN_QUOTA) {
+  const status = paidCollectionStatus(state, now, minimumQuota);
+  state.quotaMinimum = minimumQuota;
+  state.paidCollectionBlocked = !status.allowed;
+  state.paidCollectionBlockedReason = status.reason;
+  return state;
+}
 const DISCOVERY_MS = 15 * 60_000;
 const ODDS_WINDOW_MS = 25 * 60_000;
 const ODDS_NEAR_MS = 5 * 60_000;
+export const BIG_FIVE_SPORT_KEYS = new Set([
+  "soccer_epl",
+  "soccer_spain_la_liga",
+  "soccer_italy_serie_a",
+  "soccer_germany_bundesliga",
+  "soccer_france_ligue_one",
+]);
 const SCORE_DELAY_MS = 180 * 60_000;
 const SCORE_RETRY_MS = 12 * 60 * 60_000;
 const RATE_LIMIT_COOLDOWN_MS = 15 * 60_000;
@@ -110,7 +151,7 @@ export const dueOddsSports = (state, now, { nearPoll = false } = {}) => Object.e
     const kickoff = eventTime(event);
     const delta = kickoff - now;
     if (delta > ODDS_NEAR_MS && delta <= ODDS_WINDOW_MS) return !Number.isFinite(last) || last < kickoff - ODDS_WINDOW_MS;
-    if (nearPoll && delta > 0 && delta <= ODDS_NEAR_MS) return !Number.isFinite(last) || last < kickoff - ODDS_NEAR_MS;
+    if ((nearPoll || BIG_FIVE_SPORT_KEYS.has(sport)) && delta > 0 && delta <= ODDS_NEAR_MS) return !Number.isFinite(last) || last < kickoff - ODDS_NEAR_MS;
     return false;
   });
   return due ? [sport] : [];
@@ -142,20 +183,35 @@ function selfTest() {
   const now = Date.parse("2026-07-11T12:00:00Z");
   assert(shouldDiscover({}, now), "initial discovery");
   assert(!shouldDiscover({ lastDiscoveryAt: new Date(now - 14 * 60_000).toISOString() }, now), "15m discovery cooldown");
-  const base = { events: { epl: [{ id: "1", commence_time: new Date(now + 24 * 60_000).toISOString() }] }, lastOddsAt: {} };
-  assert(dueOddsSports(base, now)[0] === "epl", "first odds poll inside the 25m window");
-  assert(dueOddsSports({ events: { epl: [{ id: "1", commence_time: new Date(now + 29 * 60_000).toISOString() }] }, lastOddsAt: {} }, now).length === 0, "does not poll before the 25m window");
-  assert(dueOddsSports({ ...base, lastOddsAt: { epl: new Date(now - 1 * 60_000).toISOString() } }, now).length === 0, "does not repeat the early odds poll");
-  const near = { events: { epl: [{ id: "1", commence_time: new Date(now + 4 * 60_000).toISOString() }] }, lastOddsAt: { epl: new Date(now - 16 * 60_000).toISOString() } };
-  assert(dueOddsSports(near, now).length === 0, "skips the final 5m poll by default");
-  assert(dueOddsSports(near, now, { nearPoll: true })[0] === "epl", "opt-in final 5m poll via HDC_NEAR_POLL=1");
+  const base = { events: { soccer_epl: [{ id: "1", commence_time: new Date(now + 24 * 60_000).toISOString() }] }, lastOddsAt: {} };
+  assert(dueOddsSports(base, now)[0] === "soccer_epl", "first odds poll inside the 25m window");
+  assert(dueOddsSports({ events: { soccer_epl: [{ id: "1", commence_time: new Date(now + 29 * 60_000).toISOString() }] }, lastOddsAt: {} }, now).length === 0, "does not poll before the 25m window");
+  assert(dueOddsSports({ ...base, lastOddsAt: { soccer_epl: new Date(now - 1 * 60_000).toISOString() } }, now).length === 0, "does not repeat the early odds poll");
+  const nearBigFive = { events: { soccer_epl: [{ id: "1", commence_time: new Date(now + 4 * 60_000).toISOString() }] }, lastOddsAt: { soccer_epl: new Date(now - 16 * 60_000).toISOString() } };
+  assert(dueOddsSports(nearBigFive, now)[0] === "soccer_epl", "automatically takes the final 5m poll for the Big Five");
+  const nearOther = { events: { soccer_usa_mls: [{ id: "2", commence_time: new Date(now + 4 * 60_000).toISOString() }] }, lastOddsAt: { soccer_usa_mls: new Date(now - 16 * 60_000).toISOString() } };
+  assert(dueOddsSports(nearOther, now).length === 0, "skips the final 5m poll for other leagues by default");
+  assert(dueOddsSports(nearOther, now, { nearPoll: true })[0] === "soccer_usa_mls", "HDC_NEAR_POLL=1 remains an all-league override");
   const scoreState = { events: { epl: [{ id: "1", commence_time: new Date(now - 181 * 60_000).toISOString() }] }, completedIds: [], lastScoresAt: {} };
   assert(dueScoreSports(scoreState, now)[0] === "epl", "starts score checks after 180m");
   assert(dueScoreSports({ ...scoreState, lastScoresAt: { epl: new Date(now - 11 * 60 * 60_000).toISOString() } }, now).length === 0, "waits 12h before score retry");
   assert(!paidAllowed({ quotaRemaining: 50 }, now), "keeps fifty credits in reserve");
+  assert(paidAllowed({ quotaRemaining: 49 }, now, 5), "production override can use remaining credits above five");
   assert(!paidAllowed({ quotaRemaining: 257, quotaBlockedUntil: now + 60_000 }, now), "honors provider cooldown");
   assert(scoreRows([{ id: "1", completed: true, commence_time: "x", home_team: "A", away_team: "B", scores: [{ name: "A", score: "2" }, { name: "B", score: "1" }] }], "epl").map((row) => row.market).join(",") === "h2h,亞洲讓球,大細波", "one score settles H2H, HDC and totals");
-  assert(!paidAllowed({ quotaRemaining: MIN_QUOTA }), "quota stop");
+  assert(!paidAllowed({ quotaRemaining: DEFAULT_MIN_QUOTA }), "quota stop");
+  assert(loadHdcConfig({}).minimumQuota === 50, "code default keeps the fifty-credit reserve");
+  assert(loadHdcConfig({ HDC_MIN_QUOTA: "5" }).minimumQuota === 5, "HDC_MIN_QUOTA override");
+  assert(loadHdcConfig({ HDC_MIN_QUOTA: "0" }).minimumQuota === 0, "zero reserve is expressible");
+  for (const bad of ["-1", "abc", "5.5"]) {
+    let threw = false;
+    try { loadHdcConfig({ HDC_MIN_QUOTA: bad }); } catch { threw = true; }
+    assert(threw, `rejects HDC_MIN_QUOTA=${bad}`);
+  }
+  const drifted = applyPaidCollectionStatus({ quotaRemaining: 433, quotaMinimum: 5, paidCollectionBlocked: true, paidCollectionBlockedReason: "quota-reserve" }, now, 5);
+  assert(drifted.paidCollectionBlocked === false && drifted.paidCollectionBlockedReason === null, "state save clears a stale quota-reserve block");
+  const blocked = applyPaidCollectionStatus({ quotaRemaining: 4 }, now, 5);
+  assert(blocked.paidCollectionBlocked === true && blocked.paidCollectionBlockedReason === "quota-reserve", "state save records a real quota-reserve block");
   assert(activeSoccerKeys([
     { key: "soccer_brazil_campeonato", group: "Soccer", active: true, has_outrights: false },
     { key: "soccer_fifa_world_cup_winner", group: "Soccer", active: true, has_outrights: true },
@@ -190,10 +246,8 @@ function selfTest() {
   console.log("[hdc-collector] self-test passed");
 }
 
-function paidAllowed(state, now = Date.now()) {
-  const hasQuota = state.quotaRemaining == null || Number(state.quotaRemaining) > MIN_QUOTA;
-  const cooldownEnded = !state.quotaBlockedUntil || now >= Date.parse(state.quotaBlockedUntil);
-  return hasQuota && cooldownEnded;
+function paidAllowed(state, now = Date.now(), minimumQuota = DEFAULT_MIN_QUOTA) {
+  return paidCollectionStatus(state, now, minimumQuota).allowed;
 }
 async function readKeys() {
   let text = "";
@@ -281,10 +335,12 @@ function dueCornerEvents(payload, now) {
     return time >= now && time <= now + ODDS_WINDOW_MS;
   });
 }
-// Corner calls cost 1 credit per event per poll round, so they are gated by
-// the priority team list. An empty set means "no gating" (legacy behavior).
+// Corner calls cost 1 credit per event per poll round. Big Five events always
+// keep their two scheduled samples; other leagues use the priority-team gate.
+// An empty set means "no gating" (legacy behavior).
 const normalizeTeamName = (value) => String(value ?? "").trim().toLowerCase();
-export function priorityCornerEvents(events, priority) {
+export function priorityCornerEvents(events, priority, { sport } = {}) {
+  if (BIG_FIVE_SPORT_KEYS.has(sport)) return Array.isArray(events) ? events : [];
   if (!priority || !priority.size) return Array.isArray(events) ? events : [];
   return (Array.isArray(events) ? events : []).filter((event) =>
     priority.has(normalizeTeamName(event?.home_team)) || priority.has(normalizeTeamName(event?.away_team)));
@@ -294,14 +350,14 @@ async function loadPriorityTeams() {
   return new Set((Array.isArray(list) ? list : []).map(normalizeTeamName).filter(Boolean));
 }
 
-async function collectOdds(sports, key, state, store, now, priority) {
-  if (!sports.length || !paidAllowed(state, now)) return { entriesBySport: {} };
+async function collectOdds(sports, key, state, store, now, priority, minimumQuota) {
+  if (!sports.length || !paidAllowed(state, now, minimumQuota)) return { entriesBySport: {} };
   const vite = await createViteServer({ root: ROOT, server: { middlewareMode: true }, appType: "custom", logLevel: "silent" });
   try {
     const { parseOddsApiCorners, parseOddsApiEvents, parseOddsApiHandicaps, parseOddsApiTotals } = await vite.ssrLoadModule("/src/oddsApi.ts");
     const entriesBySport = {};
     for (const sport of sports) {
-      if (!paidAllowed(state, now)) break;
+      if (!paidAllowed(state, now, minimumQuota)) break;
       const url = new URL(`${API}/sports/${sport}/odds`);
       url.searchParams.set("regions", "us"); url.searchParams.set("markets", "h2h,spreads,totals"); url.searchParams.set("oddsFormat", "decimal");
       url.searchParams.set("commenceTimeFrom", formatApiTime(now));
@@ -312,8 +368,8 @@ async function collectOdds(sports, key, state, store, now, priority) {
       const handicapEntries = parseOddsApiHandicaps(payload);
       const totalEntries = parseOddsApiTotals(payload);
       const cornerEntries = [];
-      for (const event of priorityCornerEvents(dueCornerEvents(payload, now), priority)) {
-        if (!paidAllowed(state, now)) break;
+      for (const event of priorityCornerEvents(dueCornerEvents(payload, now), priority, { sport })) {
+        if (!paidAllowed(state, now, minimumQuota)) break;
         const cornerUrl = new URL(`${API}/sports/${sport}/events/${event.id}/odds`);
         cornerUrl.searchParams.set("regions", "eu"); cornerUrl.searchParams.set("markets", "alternate_totals_corners"); cornerUrl.searchParams.set("oddsFormat", "decimal");
         cornerEntries.push(...parseOddsApiCorners(await fetchJson(cornerUrl, key, state, store)));
@@ -329,10 +385,10 @@ async function collectOdds(sports, key, state, store, now, priority) {
     return { entriesBySport };
   } finally { await vite.close(); }
 }
-async function collectScores(sports, key, state, store, now) {
+async function collectScores(sports, key, state, store, now, minimumQuota) {
   const rows = [];
   for (const sport of sports) {
-    if (!paidAllowed(state, now)) break;
+    if (!paidAllowed(state, now, minimumQuota)) break;
     const payload = await fetchJson(`${API}/sports/${sport}/scores?daysFrom=3`, key, state, store);
     state.lastScoresAt[sport] = new Date(now).toISOString();
     const converted = scoreRows(payload, sport);
@@ -443,7 +499,8 @@ export function flattenSportEntries(bundle) {
 async function main({ dryRun = false, store } = {}) {
   store ??= createFileStore();
   const keys = await readKeys();
-  if (!keys.length) throw new Error("ODDS_API_KEY is missing");
+  if (!keys.length) throw new Error("ODDS_API_KEYS/ODDS_API_KEY is missing");
+  const { minimumQuota } = loadHdcConfig(process.env);
   await fs.mkdir(DATA, { recursive: true });
   const state = await store.loadState();
   state.lastOddsAt ??= {}; state.lastScoresAt ??= {}; state.completedIds ??= [];
@@ -452,7 +509,8 @@ async function main({ dryRun = false, store } = {}) {
   const key = keys[selection.index];
   const keyLabel = `key ${selection.index + 1}/${keys.length}`;
   if (selection.rotated) console.log(`[hdc-collector] quota low, failing over to ${keyLabel}`);
-  // Near-window (5-min) poll is off by default; set HDC_NEAR_POLL=1 to re-enable.
+  // Big Five leagues get the final 5-minute poll automatically. Set
+  // HDC_NEAR_POLL=1 only when an all-league near-window override is intended.
   const nearPoll = process.env.HDC_NEAR_POLL === "1";
   // Corner calls are gated by data/priority-teams.json; set HDC_CORNER_ALL=1 to
   // call corners for every match (legacy behavior).
@@ -462,13 +520,16 @@ async function main({ dryRun = false, store } = {}) {
   const oddsSports = dueOddsSports(state, now, { nearPoll });
   const scoreSports = dueScoreSports(state, now);
   if (dryRun) {
-    console.log(JSON.stringify({ tracked, oddsSports, scoreSports, key: keyLabel, nearPoll, priorityTeams: priority.size, quotaRemaining: state.quotaRemaining ?? null }));
+    console.log(JSON.stringify({ tracked, oddsSports, scoreSports, key: keyLabel, nearPoll, priorityTeams: priority.size, quotaRemaining: state.quotaRemaining ?? null, minimumQuota }));
     return;
   }
-  const { entriesBySport } = await collectOdds(oddsSports, key, state, store, now, priority);
-  const results = await collectScores(scoreSports, key, state, store, now);
+  const { entriesBySport } = await collectOdds(oddsSports, key, state, store, now, priority, minimumQuota);
+  const results = await collectScores(scoreSports, key, state, store, now, minimumQuota);
   await store.saveResults(results);
   await store.saveLive(entriesBySport, now);
+  // Every state save re-derives the blocked flag from the live policy so the
+  // persisted state can never drift from runtime behavior.
+  applyPaidCollectionStatus(state, nowMs(), minimumQuota);
   await store.saveState(state);
 }
 

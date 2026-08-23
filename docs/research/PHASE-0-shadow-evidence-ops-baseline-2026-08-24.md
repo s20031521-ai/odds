@@ -94,11 +94,11 @@ sudo docker exec odds-tool-api-1 sh -c \
 
 Phase 0 完成 = 以下全部成立:
 
-- [ ] `de1920e` 部署上 production(02:20 已執行)— 待 VM 端確認 api log 有 `build commit=de1920e` stamp
-- [ ] API `suspensions` 可見,角球推薦唔再出現,觀察繼續寫入
-- [ ] Integrity checker green
-- [ ] Fixture 合併個案驗證通過
-- [ ] 四條影子線每週有新觀察(有波踢嘅日子)— 用 `report:shadow` 驗
+- [x] `de1920e` 部署上 production(2026-08-24 02:20 執行;容器健康、公開 smoke 全綠)— **但 build stamp 係 `unknown`,因 stack compose 漂移(見 §8 問題一),補救後要見到 `commit=` stamp**
+- [ ] API `suspensions` 可見,角球推薦唔再出現,觀察繼續寫入(待瀏覽器登入驗)
+- [x] Integrity checker green(snapshots=510 results=8138,late/duplicate/future/post-kick 全 0;僅 1 條歷史 post-kickoff invalid 同 93 條 legacy 缺 commenceTime,屬已知)
+- [ ] Fixture 合併個案驗證 — **改寫**:三個 8-23 歷史個案(Daejeon/Gangwon、Machida/Urawa、Gwangju/Incheon)仍然拆分,因為 alias registry 唔做追溯合併(審計註明:merges require an approved forward-only migration)。Phase 0 嘅正確驗收係:**部署後嘅新賽事唔再拆分**;歷史合併另開 migration 處理
+- [ ] 四條影子線每週有新觀察(有波踢嘅日子)— 用 `report:shadow` 驗;**目前五條線全部 0 記錄,見 §8 問題二**
 - [x] `deploy-now.ps1` 明文憑證移除(`1a91c06` 已完成)
 - [x] 每週影子監察工具落地(`scripts/shadow-evidence-report.mjs`,2026-08-24)
 
@@ -110,6 +110,8 @@ Phase 0 完成 = 以下全部成立:
 | 影子觀察集中喺開波前 25 分鐘 | 驗證結論只適用於臨開波市場 | 記錄喺報告;如要全日覆蓋需擴大 HDC 收集窗(使費,需 owner 批准) |
 | 部署中途出錯 | production 停頓 | runbook 有 rollback(image tag + pg_dump);`deploy-now.ps1` 每次 build 前自動 tag `:rollback` |
 | `collector_state` 無歷史 | quota 消耗速率睇唔到趨勢 | 每週存档 `report:shadow --json` 輸出(建議存入 `docs/research/shadow-baseline/`)對比 |
+| **stack compose 漂移**(2026-08-24 實際發生) | `/opt/odds-tool/compose.yaml` 係手維護副本,repo 改咗唔會自動跟 — 今次漏咗 build stamp args 同 `HDC_MIN_QUOTA=5` | `deploy-now.ps1` 而家會 hard-fail;runbook §1 step 0b 有 re-sync 步驟 |
+| VM 資源(2026-08-24 觀察) | 磁碟 89.7%、swap 97% | 非緊急但要留意;搵時間清 Docker 舊 image / log |
 
 ## 6. 同其他 Phase 嘅關係
 
@@ -130,3 +132,25 @@ Phase 0 係 Phase 1–3 嘅前提:冇乾淨嘅數據流同持續嘅影子累積,
 | VM 代碼版本(部署後) | 同上 SSH 唯讀 | `de1920e` ✓ |
 | 線上前端(部署後) | 本地乾淨 `de1920e` `npm run build`,hash 比對線上 | `index-B58aoIxD.js` / `index-B9H1itJb.css` **完全一致** ✓ — 同時證明 22:07 舊 build 已含 `1a91c06` 前端改動,之前嘅「未部署」判斷撤回 |
 | 公開 smoke(部署後覆查) | 同上 curl | 200 / 401 / 404 / 200 / 有 ✓ |
+
+## 8. 部署後驗證發現嘅兩個真問題(2026-08-24 02:30,owner 提供嘅 VM 输出)
+
+### 問題一:stack compose 漂移 → build stamp `unknown` + quota reserve 冇落實
+
+- 部署用嘅 compose 檔**唔係 repo 入面嗰份**:`/opt/odds-tool/build/` 冇 compose 檔,Docker Compose 向上搵到 `/opt/odds-tool/compose.yaml` — 一份 root-owned 手維護副本(2026-08-23 05:42,早過 `1a91c06`)。
+- diff 證實佢漏咗 `1a91c06` 嘅三樣嘢:build stamp args、`HDC_MIN_QUOTA: "5"`、同埋 context 路徑改寫。
+- 後果實測:api log 顯示 `build commit=unknown builtAt=unknown`;`collector_state` 顯示 `quotaMinimum: 50`(代碼預設值)而唔係預期嘅 5。`paidCollectionBlocked: false`、`quotaRemaining: 242` 係好消息。
+- 補救:修正版(`context: ./build` 改寫)已上傳到 VM `/home/hugo/compose.yaml.new`;`deploy-now.ps1` 已加 hard-fail 檢查;runbook §1 step 0b 已補 re-sync 步驟。
+
+### 問題二:sampler 從未喺 Postgres 寫過 unified / shadow 記錄
+
+- 第一次 `report:shadow` 基線:**五條線(unified + 四條影子)snapshots/observations 全部係 0**,7 日窗口內 0 場五大聯賽 fixture 被評估。
+- 但 8-22/23 明明有英超、意甲、法甲賽事(審計输出見到 Man City/Bournemouth、Frosinone/Juventus、Rennes/PSG 等 fixtures),HDC quota 有消耗(`quotaUsed: 258`),即數據收集有行、**sampler 冇行到或者寫唔入**。
+- integrity checker 嘅 510 snapshots / 43,993 observations 全部唔屬於五條受追蹤策略(應係舊 `legacy-v0` / 其他來源)。
+- 呢個正正係 Phase 0 要擋嘅嘢:**影子證據冇累積緊**,唔修嘅話 Phase 1–3 永遠冇 data 可驗證。
+- 下一步診斷(需 sudo,命令已交畀 owner):`prediction_snapshots` 按 `strategy_version` 分佈 + collector 最近 log。
+
+### 問題三(觀察,非阻塞)
+
+- 歷史 fixture 拆分個案 65 組仍在(審計係 read-only;合併要 approved forward-only migration)。
+- VM 磁碟 89.7%、swap 97% — 要排期清理。

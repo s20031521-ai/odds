@@ -32,6 +32,14 @@ cd /opt/odds-tool
 
 # 0. Sync code: scp changed files into /opt/odds-tool/build/ (tarball or
 #    per-file scp; the build context is ./build on the VM).
+# 0b. Stack compose drift: the file actually used is /opt/odds-tool/compose.yaml
+#     (build/ has none — compose finds the stack-root file via parent-dir
+#     search). It is a copy of deploy/compose.yaml with both build contexts
+#     rewritten to `context: ./build`. Whenever deploy/compose.yaml changes
+#     (build args, env, services), re-sync it:
+#       sed 's|context: \.\.|context: ./build|g' deploy/compose.yaml > /tmp/compose.yaml.new
+#       sudo install -m 0644 -o root -g root /tmp/compose.yaml.new /opt/odds-tool/compose.yaml
+#     deploy-now.ps1 hard-fails when the stack compose lacks the build-stamp args.
 
 # 1. Validate
 sudo -A docker compose config --quiet && echo CONFIG-OK

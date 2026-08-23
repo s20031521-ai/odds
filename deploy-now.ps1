@@ -30,6 +30,18 @@ if ($Synced -ne $Commit) {
 }
 Write-Host "SYNCED: $Synced" -ForegroundColor Green
 
+# Stack compose lives at /opt/odds-tool/compose.yaml (found via parent-dir
+# search — build/ has no compose file). If it predates the build-stamp args,
+# images build WITHOUT the commit stamp and the collector misses
+# HDC_MIN_QUOTA. Fail loudly instead of deploying an unverifiable build.
+$StampSupport = (ssh -i $Key -p $Port $User@$VM "grep -c APP_BUILD_COMMIT /opt/odds-tool/compose.yaml").Trim()
+if ($StampSupport -eq "0") {
+    Write-Host "ERROR: /opt/odds-tool/compose.yaml is stale (no APP_BUILD_COMMIT build args)." -ForegroundColor Red
+    Write-Host "Fix: scp deploy/compose.yaml with 'context: ./build' to the VM, then:" -ForegroundColor Yellow
+    Write-Host "  sudo install -m 0644 -o root -g root ~/compose.yaml.new /opt/odds-tool/compose.yaml" -ForegroundColor Yellow
+    exit 1
+}
+
 Write-Host "`n=== Building Docker images (sudo may ask for the VM password) ===" -ForegroundColor Cyan
 ssh -t -i $Key -p $Port $User@$VM "cd /opt/odds-tool/build && sudo docker tag odds-tool-api:latest odds-tool-api:rollback 2>/dev/null; sudo docker tag odds-tool-caddy:latest odds-tool-caddy:rollback 2>/dev/null; sudo env APP_BUILD_COMMIT=$Commit APP_BUILD_TIMESTAMP='$BuildTs' docker compose build api caddy && echo BUILD-OK"
 if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: build failed" -ForegroundColor Red; exit 1 }

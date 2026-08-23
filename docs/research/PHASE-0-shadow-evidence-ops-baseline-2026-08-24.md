@@ -94,13 +94,14 @@ sudo docker exec odds-tool-api-1 sh -c \
 
 Phase 0 完成 = 以下全部成立:
 
-- [x] `de1920e` 部署上 production(2026-08-24 02:20 執行;容器健康、公開 smoke 全綠)— **但 build stamp 係 `unknown`,因 stack compose 漂移(見 §8 問題一),補救後要見到 `commit=` stamp**
+- [x] 部署上 production 並帶 build stamp(02:20 首輪 `de1920e`;compose 漂移修復後第二輪,api log 確認 `build commit=4334e9d builtAt=2026-08-23T18:45:45Z`)
 - [ ] API `suspensions` 可見,角球推薦唔再出現,觀察繼續寫入(待瀏覽器登入驗)
 - [x] Integrity checker green(snapshots=510 results=8138,late/duplicate/future/post-kick 全 0;僅 1 條歷史 post-kickoff invalid 同 93 條 legacy 缺 commenceTime,屬已知)
 - [ ] Fixture 合併個案驗證 — **改寫**:三個 8-23 歷史個案(Daejeon/Gangwon、Machida/Urawa、Gwangju/Incheon)仍然拆分,因為 alias registry 唔做追溯合併(審計註明:merges require an approved forward-only migration)。Phase 0 嘅正確驗收係:**部署後嘅新賽事唔再拆分**;歷史合併另開 migration 處理
-- [ ] 四條影子線每週有新觀察(有波踢嘅日子)— 用 `report:shadow` 驗;**分佈查詢證實有累積(§8 問題二),待重跑修正版報告攞正式基線**
+- [x] 四條影子線持續累積 + 正式基線存档(`docs/research/shadow-baseline/2026-08-24.md`;dc 家族覆蓋 E0/F1/I1/SP1,E0 警告屬開季預期;之後每週一對比)
+- [ ] `HDC_MIN_QUOTA=5` 落實到 collector(state 要顯示 `quotaMinimum: 5`;第二輪部署時 collector 容器未重建,等一個 cycle 後覆查)
 - [x] `deploy-now.ps1` 明文憑證移除(`1a91c06` 已完成)
-- [x] 每週影子監察工具落地(`scripts/shadow-evidence-report.mjs`,2026-08-24)
+- [x] 每週影子監察工具落地(`scripts/shadow-evidence-report.mjs`,2026-08-24;snake_case bug 已修)
 
 ## 5. 風險
 

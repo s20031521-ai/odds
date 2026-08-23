@@ -10,9 +10,11 @@ $Key = "$PSScriptRoot\.ssh-key"
 
 # Reproducible-build stamp (Workstream D): taken from the LOCAL clean commit
 # being deployed. Deploy only from a clean, committed working tree.
-$dirty = git status --porcelain
+# Untracked scratch files (tmp-*, data dumps) never reach the VM — the remote
+# build resets --hard to origin/master — so only tracked modifications block.
+$dirty = git status --porcelain --untracked-files=no
 if ($dirty) {
-    Write-Host "ERROR: working tree is dirty — commit or stash before deploying" -ForegroundColor Red
+    Write-Host "ERROR: tracked files are modified — commit or stash before deploying" -ForegroundColor Red
     exit 1
 }
 $Commit = (git rev-parse --short HEAD).Trim()
@@ -37,9 +39,32 @@ ssh -t -i $Key -p $Port $User@$VM "cd /opt/odds-tool/build && sudo docker compos
 if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: deploy failed" -ForegroundColor Red; exit 1 }
 
 Write-Host "`n=== Smoke test ===" -ForegroundColor Cyan
-$result = Invoke-WebRequest -Uri "https://odds.ballballchu.com.hk/" -UseBasicParsing -TimeoutSec 10
-Write-Host "Public: $($result.StatusCode)" -ForegroundColor Green
+# Full public smoke per docs/runbooks/production-deployment.md §2.
+function Test-Status($Url, $Expected, $Label) {
+    try {
+        $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 10
+        $code = [int]$response.StatusCode
+    } catch {
+        $code = [int]$_.Exception.Response.StatusCode
+    }
+    if ($code -eq $Expected) {
+        Write-Host "PASS $Label -> $code" -ForegroundColor Green
+    } else {
+        Write-Host "FAIL $Label -> $code (expected $Expected)" -ForegroundColor Red
+        $script:SmokeFailed = $true
+    }
+}
+$SmokeFailed = $false
+$Base = "https://odds.ballballchu.com.hk"
+Test-Status "$Base/" 200 "public root"
+Test-Status "$Base/api/v1/results" 401 "results requires session"
+Test-Status "$Base/internal/health/ready" 404 "internal not exposed"
+Test-Status "$Base/api/v1/session" 200 "session endpoint"
+$hsts = (Invoke-WebRequest -Uri "$Base/" -UseBasicParsing -TimeoutSec 10).Headers["Strict-Transport-Security"]
+if ($hsts) { Write-Host "PASS HSTS header present" -ForegroundColor Green } else { Write-Host "FAIL HSTS header missing" -ForegroundColor Red; $SmokeFailed = $true }
+if ($SmokeFailed) { Write-Host "`nSMOKE FAILED — investigate before handing over (runbook §2/§6)" -ForegroundColor Red; exit 1 }
 
 Write-Host "`n=== Deploy complete! ===" -ForegroundColor Green
 Write-Host "https://odds.ballballchu.com.hk"
+Write-Host "Next: runbook §2 readiness checks on the VM (container health, trust-gate suspensions, integrity checker, fixture merges)." -ForegroundColor DarkGray
 Read-Host "Press Enter to close"

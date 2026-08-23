@@ -135,11 +135,13 @@ test("analyzeShadowEvidence reports quota, blocks, rotation, and stale collector
 });
 
 test("analyzeShadowEvidence accepts PostgreSQL-style snake_case rows and Date timestamps", () => {
+  // Regression: production pg rows carry strategy_version (snake_case), not
+  // strategyVersion — a camelCase-only read silently dropped every row and
+  // reported all-zero totals against a healthy database (2026-08-24).
   const snapshots = [{
     id: 1,
     identity_key: "k1",
-    strategy_version: undefined, // not selected by the DB query — use camelCase contract
-    strategyVersion: "unified-buyable-v1",
+    strategy_version: "unified-buyable-v1",
     fixture_id: "f1",
     league: "英格蘭超級聯賽",
     first_qualified_at: new Date(Date.parse(NOW) - DAY),

@@ -98,7 +98,7 @@ Phase 0 完成 = 以下全部成立:
 - [ ] API `suspensions` 可見,角球推薦唔再出現,觀察繼續寫入(待瀏覽器登入驗)
 - [x] Integrity checker green(snapshots=510 results=8138,late/duplicate/future/post-kick 全 0;僅 1 條歷史 post-kickoff invalid 同 93 條 legacy 缺 commenceTime,屬已知)
 - [ ] Fixture 合併個案驗證 — **改寫**:三個 8-23 歷史個案(Daejeon/Gangwon、Machida/Urawa、Gwangju/Incheon)仍然拆分,因為 alias registry 唔做追溯合併(審計註明:merges require an approved forward-only migration)。Phase 0 嘅正確驗收係:**部署後嘅新賽事唔再拆分**;歷史合併另開 migration 處理
-- [ ] 四條影子線每週有新觀察(有波踢嘅日子)— 用 `report:shadow` 驗;**目前五條線全部 0 記錄,見 §8 問題二**
+- [ ] 四條影子線每週有新觀察(有波踢嘅日子)— 用 `report:shadow` 驗;**分佈查詢證實有累積(§8 問題二),待重跑修正版報告攞正式基線**
 - [x] `deploy-now.ps1` 明文憑證移除(`1a91c06` 已完成)
 - [x] 每週影子監察工具落地(`scripts/shadow-evidence-report.mjs`,2026-08-24)
 
@@ -142,13 +142,12 @@ Phase 0 係 Phase 1–3 嘅前提:冇乾淨嘅數據流同持續嘅影子累積,
 - 後果實測:api log 顯示 `build commit=unknown builtAt=unknown`;`collector_state` 顯示 `quotaMinimum: 50`(代碼預設值)而唔係預期嘅 5。`paidCollectionBlocked: false`、`quotaRemaining: 242` 係好消息。
 - 補救:修正版(`context: ./build` 改寫)已上傳到 VM `/home/hugo/compose.yaml.new`;`deploy-now.ps1` 已加 hard-fail 檢查;runbook §1 step 0b 已補 re-sync 步驟。
 
-### 問題二:sampler 從未喺 Postgres 寫過 unified / shadow 記錄
+### 問題二:~~sampler 從未喺 Postgres 寫過 unified / shadow 記錄~~ → 撤回,係報告腳本嘅 bug
 
-- 第一次 `report:shadow` 基線:**五條線(unified + 四條影子)snapshots/observations 全部係 0**,7 日窗口內 0 場五大聯賽 fixture 被評估。
-- 但 8-22/23 明明有英超、意甲、法甲賽事(審計输出見到 Man City/Bournemouth、Frosinone/Juventus、Rennes/PSG 等 fixtures),HDC quota 有消耗(`quotaUsed: 258`),即數據收集有行、**sampler 冇行到或者寫唔入**。
-- integrity checker 嘅 510 snapshots / 43,993 observations 全部唔屬於五條受追蹤策略(應係舊 `legacy-v0` / 其他來源)。
-- 呢個正正係 Phase 0 要擋嘅嘢:**影子證據冇累積緊**,唔修嘅話 Phase 1–3 永遠冇 data 可驗證。
-- 下一步診斷(需 sudo,命令已交畀 owner):`prediction_snapshots` 按 `strategy_version` 分佈 + collector 最近 log。
+- 第一次 `report:shadow` 基線顯示五條線全 0 — 初判「sampler 冇寫入」。
+- 覆查查詢(`prediction_snapshots` 按 `strategy_version` 分佈)推翻咗:`unified-buyable-v1` 221 條、`dc-xg-shadow-v1` 68、`dc-shadow-v1` 55、`market-sharp-v1` 52、`dc-blend-v1` 16;dc 家族最新記錄 2026-08-23 18:20:57 UTC = 部署後第一個 collector cycle,**影子證據有正常累積**。
+- 真正嘅 bug 喺報告腳本:pg 落嚟嘅 row 用 snake_case(`strategy_version`),分析函數齋讀 camelCase(`strategyVersion`),靜靜雞 drop 咗所有 row;當時嘅 snake_case 測試亦寫漏呢個欄位所以捉唔到。已修(兩種 casing 都接受)+ 補咗真正純 snake_case 嘅回歸測試(8/8 通過)。
+- 教訓寫低:對住 production 讀數嘅新工具,第一次输出一定要同獨立查詢(如直接 psql)交叉驗證先好信。
 
 ### 問題三(觀察,非阻塞)
 

@@ -82,7 +82,9 @@ export function analyzeShadowEvidence({ snapshots, observations, collectorStates
   const newObservationCountBySnapshot = new Map();
 
   for (const raw of snapshots ?? []) {
-    const bucket = buckets.get(raw.strategyVersion);
+    // pg returns snake_case column names; accept both casings.
+    const strategyVersion = raw.strategyVersion ?? raw.strategy_version;
+    const bucket = buckets.get(strategyVersion);
     if (!bucket) continue;
     const snapshot = {
       id: raw.id,
@@ -91,7 +93,7 @@ export function analyzeShadowEvidence({ snapshots, observations, collectorStates
       league: raw.league ?? null,
       firstQualifiedMs: timeMs(raw.firstQualifiedAt ?? raw.first_qualified_at),
     };
-    snapshotById.set(snapshot.id, { ...snapshot, strategyVersion: raw.strategyVersion });
+    snapshotById.set(snapshot.id, { ...snapshot, strategyVersion });
     bucket.snapshotsTotal += 1;
     if (snapshot.firstQualifiedMs !== null && snapshot.firstQualifiedMs >= windowStartMs) {
       bucket.snapshotsNew += 1;

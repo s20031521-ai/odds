@@ -137,3 +137,35 @@ node scripts/dc-blend-backtest.mjs --include-holdout \
 ```
 
 12,644 場 records(含 xG join 12,440 場;1 場 join 比分不符,已記 warning)。Walk-forward 規則同 dc-v1-backtest 完全一致:首季 burn-in、每 10 日 warm-start 重估、per-league xi(E0/I1 0.003,SP1/D1 0.001,F1 0.0019)。
+
+## 10. 引擎 level-drift 修補後重跑(2026-08-24 下午,owner 拍板)
+
+**背景:** Phase 2 發現 dc 引擎 level-drift bug(詳見 `PHASE-2-corner-results-2026-08-24.md` §3)— 當時淨係修咗 corners 路徑,goals/xg 保持凍結。Owner 其後拍板修埋 goals/xg;本節記錄修補後嘅量化影響。**判定不變。**
+
+**改動:** `scripts/lib/dixon-coles.mjs` 嘅 level-preserving centring 由 corners-only 推展到全部 response;新回歸測試守住 goals 路徑嘅 in-sample level 無偏(`dixon-coles.test.mjs`,17/17)。**Holdout(25/26)冇重開** — 以下全部係 tune/validation 數字;`blend-results-with-holdout.json` 保留修補前嘅一次性開封紀錄唔郁。
+
+### 10.1 dc-v1-backtest 重跑(10,951 場,pre-closing 錨,同 §3.2 validity 報告口徑)
+
+| 指標 | 修補前 | 修補後 |
+|---|---:|---:|
+| dc-v1 主客和 Brier | 0.5942 | **0.5932**(微改善;Pinnacle 0.5777 不變) |
+| 主客和 ROI(3% 閘) | -9.66% | -9.68% |
+| 大細 ROI | -2.07% | -3.66% |
+| 讓球 ROI | -4.02% | -3.66% |
+
+修補將 λ 水平拉返落嚟 ~9–13%,Brier 微改善,但模擬 ROI 全部仍然為負 — 水平偏差唔係「輸畀市場」嘅原因,只係令輸嘅形狀唔同。
+
+### 10.2 Blend harness 重跑(tune + validation)
+
+- **概率分數排序完全唔變:** 全部 scope、兩個錨、兩個模型都係 **w=0 嚴格最優、單調轉差**。純模型 w=1 嘅 Brier 微改善(validation open:goals 0.5882→0.5872,xg→0.5822),但仍然大幅落後 w=0(0.5726)。
+- **校準疑慮解除:** Phase 2 §3.3 擔心「高咗 13% 嘅入球率模型唔可能校準良好」— 修補後實測主客和中間桶 |gap| ≤ 0.03、大細中間桶 |gap| ≤ 0.012,校準依然良好(校準好係因為混合以市場錨為主,bug 影響嘅係模型嗰 30–50% 權重嘅水平)。
+- **Edge 分桶:** 全部玩法、全部 scope 仍然 `monotone=false` — 核心死因唔變。
+- **ROI:** 主客和 w≥0.2 繼續雙位數負(validation goals w=0.3:-19.51%,CI[-32.61%, -6.03%])。大細 goals w=0.2 出現 +29.94%(CI[+1.93%, +57.65%])— 但 **n=54**,係 72 個配置入面嘅單點,同概率分數排序矛盾,按預先登記嘅多重比較原則當噪音處理,唔構成反轉。
+
+### 10.3 對生產影子線嘅影響(部署後生效)
+
+下次部署起,`dc-shadow-v1` / `dc-blend-v1` / `dc-xg-shadow-v1` 嘅 λ 水平會降 ~9–13%:
+
+- **修補前後嘅影子證據喺大細盤上唔直接可比**(水平平移);主客和/讓球受影響較細(比率主導)。
+- strategyVersion 唔變 — 比較影子 ROI 時以部署日做分界解讀;`-gated` 雙生線反正係部署後先開始儲,冇歷史包袱。
+- 修補前嘅 frozen 行為可喺 git history(`95340c4` 之前)重現。

@@ -15,6 +15,7 @@ Users/
 .worktrees/
 
 # 本地研究材料同臨時檔(2026-08-24 整理)
+.diagnostic-tmp/
 tmp-*
 test-pg.sh
 vm-compose-*.yaml

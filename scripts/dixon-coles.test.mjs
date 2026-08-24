@@ -318,6 +318,42 @@ test("corners fit is level-unbiased in-sample (level-preserving centring)", () =
   assert.ok(Math.abs(pred / act - 1) < 0.01, `in-sample level bias ${(pred / act - 1).toFixed(4)}`);
 });
 
+test("goals fit is level-unbiased in-sample (level-preserving centring, all responses)", () => {
+  // Same score-equation argument as the corners test: at the Poisson MLE the
+  // mean predicted rate over the training set must equal the empirical mean.
+  // Guards the 2026-08-24 extension of the level-drift fix from the corners
+  // path to the goals/xg paths (owner-approved; see PHASE-1 results §10).
+  const rng = createRng(32);
+  const teams = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"];
+  const rate = { Alpha: 2.1, Bravo: 1.8, Charlie: 1.5, Delta: 1.2, Echo: 1.0, Foxtrot: 0.8 };
+  const matches = [];
+  let day = 0;
+  for (let round = 0; round < 12; round += 1) {
+    for (const home of teams) {
+      for (const away of teams) {
+        if (home === away) continue;
+        matches.push({
+          matchDate: new Date(Date.UTC(2024, 7, 1) + day * 86_400_000).toISOString().slice(0, 10),
+          homeTeam: home,
+          awayTeam: away,
+          homeGoals: samplePoisson(rng, rate[home]),
+          awayGoals: samplePoisson(rng, rate[away]),
+        });
+        day += 1;
+      }
+    }
+  }
+  const fit = fitDixonColes(matches, { xi: 0, response: "goals" });
+  let pred = 0;
+  let act = 0;
+  for (const m of matches) {
+    const r = expectedGoals(fit, m.homeTeam, m.awayTeam);
+    pred += r.lambda + r.mu;
+    act += m.homeGoals + m.awayGoals;
+  }
+  assert.ok(Math.abs(pred / act - 1) < 0.01, `in-sample level bias ${(pred / act - 1).toFixed(4)}`);
+});
+
 test("poissonTotalDistribution matches analytic Poisson(lambda + mu)", () => {
   const lambda = 6.2;
   const mu = 4.8;

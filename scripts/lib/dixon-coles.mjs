@@ -190,21 +190,20 @@ export function fitDixonColes(matches, { xi = 0.0019, refDate, maxOuter = 10, sw
         params.homeAdv += homeStep;
         maxStep = Math.max(maxStep, Math.abs(interceptStep), Math.abs(homeStep));
       }
-      if (useCorners) {
-        // Level-preserving centring (corners path only): shifting attack and
-        // defence by their means changes every log-rate by
-        // (meanAttack - meanDefence); absorb that shift into the intercept so
-        // the sweep's balanced likelihood survives centre(). Without this the
-        // iteration settles into a stable cycle ~9-13% above the MLE level
-        // (found 2026-08-24 during Phase 2; documented in
-        // docs/research/PHASE-2-corner-results-2026-08-24.md). The legacy
-        // goals/xg paths intentionally keep the historical behaviour —
-        // changing them would silently alter the frozen dc-v1/dc-xg-v1 model
-        // math (ADR 0003) and invalidate prior backtest reproducibility.
-        const meanAttack = teams.reduce((sum, t) => sum + params.attack[t], 0) / teams.length;
-        const meanDefence = teams.reduce((sum, t) => sum + params.defence[t], 0) / teams.length;
-        params.intercept += meanAttack - meanDefence;
-      }
+      // Level-preserving centring (all responses): shifting attack and
+      // defence by their means changes every log-rate by
+      // (meanAttack - meanDefence); absorb that shift into the intercept so
+      // the sweep's balanced likelihood survives centre(). Without this the
+      // iteration settles into a stable cycle ~9-13% above the MLE level
+      // (found 2026-08-24 during Phase 2; documented in
+      // docs/research/PHASE-2-corner-results-2026-08-24.md).
+      // Initially applied to the corners path only; extended to goals/xg on
+      // 2026-08-24 with owner approval (impact quantified by re-running
+      // dc-v1-backtest and dc-blend-backtest, see PHASE-1 results §10).
+      // Prior frozen-model outputs remain reproducible from git history.
+      const meanAttack = teams.reduce((sum, t) => sum + params.attack[t], 0) / teams.length;
+      const meanDefence = teams.reduce((sum, t) => sum + params.defence[t], 0) / teams.length;
+      params.intercept += meanAttack - meanDefence;
       centre(params.attack, teams);
       centre(params.defence, teams);
     }

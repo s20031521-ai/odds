@@ -71,6 +71,7 @@ RPS 同型(validation:dc 0.04747 vs leagueMean 0.04759,差 0.3%)。大細 Brier 
 - **範圍控制(ADR 0003):** 修補**只套用喺新嘅 `response:"corners"` 路徑**。goals/xg 路徑保持逐 byte 不變 — dc-v1、dc-xg-v1、dc-v2、dc-blend-v1 嘅數學同所有歷史回測結果維持可重現。
 - **但要知道:** 生產 shadow(dc-shadow.mjs)同一個引擎 — **dc-v2 影子線嘅 λ 很可能一直偏高 ~10% 量级**,佢嘅影子證據同 Phase 1 嘅離線數字都帶住呢個偏差。Phase 1「blend 唔贏市場」嘅結論方向大概率唔變(市場錨冇 bug,模型偏差只會令模型更差),但「模型校準良好」呢點要重新檢查 — 一個高咗 13% 嘅入球率模型喺大細盤上唔可能校準良好。
 - **待 owner 決定:** 係咪修 goals/xg 路徑(會改變 frozen 模型輸出,要重跑 Phase 1 harness、重估 dc-v2 影子嘅解讀)。呢個決定唔喺 Phase 2 範圍,報告如實記錄。
+  - **後續(2026-08-24 下午):owner 已拍板修。** level-preserving centring 已推展到全部 response,dc-v1-backtest 同 blend harness 已重跑(tune/validation;holdout 唔重開),影響同影子線處理見 `PHASE-1-results-2026-08-24.md` §10 — 判定不變。
 
 ## 4. 交付物狀態
 
@@ -93,7 +94,7 @@ RPS 同型(validation:dc 0.04747 vs leagueMean 0.04759,差 0.3%)。大細 Brier 
 
 1. **Phase 3(報價質素閘門)成為唯一剩低嘅新開發主線** — 佢唔依賴任何模型成功,直接對治 corner-loo-v1 嘅真死因(錯價當價值),replay 驗證可以即刻做。
 2. **corner-loo-v1 維持 suspended**,觀察數據繼續收集(研究用途),唔重啟。
-3. **引擎 level-drift bug 嘅 goals/xg 路徑修唔修,等 owner 拍板**(見 §3.3)。如果修,建議順序:先重跑 dc-v1-backtest 同 blend harness 量化影響 → 更新 Phase 1 報告措辭 → 決定 dc-v2 影子線點處理。
+3. ~~引擎 level-drift bug 嘅 goals/xg 路徑修唔修,等 owner 拍板~~(見 §3.3)— **已結案 2026-08-24 下午**:owner 拍板修,已實作並重跑 harness,判定不變(見 `PHASE-1-results-2026-08-24.md` §10)。
 4. 角球方向如果將來要翻身,缺口唔喺模型結構而喺**特徵**:臨場數據(陣容、天氣、比賽狀態)先係角球嘅真正驅動;純歷史賽前數據已證明到頂。
 
 ## 7. 可重現性

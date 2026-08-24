@@ -11,6 +11,9 @@ import {
   settleTotals,
   settleHandicap,
   settlementProfit,
+  calibrationSummary,
+  edgeBucketSummary,
+  bootstrapRoiCi,
 } from "./lib/backtest-metrics.mjs";
 
 test("brier3 is zero for a perfect confident prediction and two for the worst", () => {
@@ -68,4 +71,72 @@ test("settlementProfit mirrors server/domain/backtest.mjs", () => {
   assert.equal(settlementProfit("push", 2.0), 0);
   assert.equal(settlementProfit("half-loss", 2.0), -0.5);
   assert.equal(settlementProfit("loss", 2.0), -1);
+});
+
+test("calibrationSummary bins predictions and reports the overconfidence gap", () => {
+  const pairs = [
+    { prob: 0.05, hit: 0 },
+    { prob: 0.09, hit: 0 },
+    { prob: 0.55, hit: 1 },
+    { prob: 0.55, hit: 0 },
+  ];
+  const bins = calibrationSummary(pairs, 10);
+  assert.equal(bins.length, 2);
+  const low = bins.find((b) => b.min === 0);
+  assert.equal(low.n, 2);
+  assert.ok(Math.abs(low.meanProb - 0.07) < 1e-12);
+  assert.ok(Math.abs(low.hitRate - 0) < 1e-12);
+  const mid = bins.find((b) => b.min === 0.5);
+  assert.ok(Math.abs(mid.hitRate - 0.5) < 1e-12);
+  assert.ok(Math.abs(mid.gap - 0.05) < 1e-12);
+});
+
+test("calibrationSummary skips malformed pairs and empty bins", () => {
+  assert.deepEqual(calibrationSummary([], 10), []);
+  const bins = calibrationSummary([{ prob: Number.NaN, hit: 1 }, { prob: 0.5, hit: 2 }, { prob: 0.99, hit: 1 }], 10);
+  assert.equal(bins.length, 1);
+  assert.equal(bins[0].n, 1);
+});
+
+test("edgeBucketSummary buckets by edge and flags monotonicity", () => {
+  const bets = [
+    { edge: 0.04, profit: -1 },
+    { edge: 0.06, profit: 0.5 },
+    { edge: 0.09, profit: 1.0 },
+  ];
+  const { buckets, monotone } = edgeBucketSummary(bets);
+  assert.equal(buckets.length, 4);
+  assert.equal(buckets[0].n, 1);
+  assert.equal(buckets[0].roi, -1);
+  assert.equal(buckets[1].roi, 0.5);
+  assert.equal(buckets[2].roi, 1.0);
+  assert.equal(monotone, true);
+  const reversed = edgeBucketSummary([
+    { edge: 0.04, profit: 1 },
+    { edge: 0.06, profit: -1 },
+  ]);
+  assert.equal(reversed.monotone, false);
+});
+
+test("edgeBucketSummary ignores bets below the first edge or malformed", () => {
+  const { buckets } = edgeBucketSummary([{ edge: 0.01, profit: 5 }, { edge: Number.NaN, profit: 5 }]);
+  assert.equal(buckets.every((b) => b.n === 0), true);
+});
+
+test("bootstrapRoiCi brackets the point estimate and is seeded-deterministic", () => {
+  const profits = [1, -1, 1, -1, 1, 1, -1, 1, -1, 1];
+  const a = bootstrapRoiCi(profits, { reps: 500, seed: 7 });
+  const b = bootstrapRoiCi(profits, { reps: 500, seed: 7 });
+  assert.deepEqual(a, b);
+  assert.ok(Math.abs(a.roi - 0.2) < 1e-12);
+  assert.ok(a.lower <= a.roi && a.roi <= a.upper);
+});
+
+test("bootstrapRoiCi resamples clusters as whole units", () => {
+  const profits = [1, 1, -1, -1];
+  const clusters = ["m1", "m1", "m2", "m2"];
+  const result = bootstrapRoiCi(profits, { reps: 500, seed: 11, clusters });
+  // Each draw is a whole match (+2 or -2), so the CI must be symmetric around 0.
+  assert.ok(Math.abs(result.lower + result.upper) < 0.6);
+  assert.equal(bootstrapRoiCi([], {}).roi, null);
 });

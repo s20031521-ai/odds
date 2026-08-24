@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 // Phase 3 replay harness (docs/research/PHASE-3-quote-quality-gate-
 // 2026-08-24.md §4.1). Read-only: replays the settled unified-buyable-v1
-// recommendation population (the 164 corner picks with known outcomes, plus
-// the other markets) through quote-gate parameter grids and answers:
+// recommendation population through quote-gate parameter grids and answers:
 //
 //   「閘門擋咗幾多 % 嘅虧損 vs 擋咗幾多 % 嘅盈利?」
 //
@@ -51,7 +50,7 @@ export function* parameterGrid() {
           config: {
             ...QUOTE_GATE_CONFIG,
             maxOdds: { ...QUOTE_GATE_CONFIG.maxOdds, corners: cornersCap ?? Number.POSITIVE_INFINITY },
-            maxEdge: maxEdge ?? Number.POSITIVE_INFINITY,
+            maxEdge: { ...QUOTE_GATE_CONFIG.maxEdge, corners: maxEdge ?? Number.POSITIVE_INFINITY },
             maxSharpEdge: maxSharpEdge ?? Number.POSITIVE_INFINITY,
           },
         };
@@ -156,6 +155,15 @@ function profitRange(unit, quotes) {
   return { lower: Math.min(...profits), upper: Math.max(...profits) };
 }
 
+function grossProfit(unit, quotes) {
+  return quotes.reduce((totals, quote) => {
+    const profit = settlementProfit(unit.settlement, quote.odds);
+    if (profit < 0) totals.loss += profit;
+    else if (profit > 0) totals.gain += profit;
+    return totals;
+  }, { loss: 0, gain: 0 });
+}
+
 export function replayConfig(units, config) {
   let kept = 0;
   let blocked = 0;
@@ -165,6 +173,10 @@ export function replayConfig(units, config) {
   let keptUpper = 0;
   let blockedLower = 0;
   let blockedUpper = 0;
+  let quoteLoss = 0;
+  let quoteGain = 0;
+  let blockedQuoteLoss = 0;
+  let blockedQuoteGain = 0;
   const reasonCounts = {};
   const blockedDetail = [];
 
@@ -183,6 +195,12 @@ export function replayConfig(units, config) {
     );
     keptQuotes += quotes.length;
     blockedQuotes += rejected.length;
+    const allGross = grossProfit(unit, unit.quotes);
+    quoteLoss += allGross.loss;
+    quoteGain += allGross.gain;
+    const rejectedGross = grossProfit(unit, rejected.map(({ quote }) => quote));
+    blockedQuoteLoss += rejectedGross.loss;
+    blockedQuoteGain += rejectedGross.gain;
     for (const { reasons } of rejected) {
       for (const reason of reasons) reasonCounts[reason] = (reasonCounts[reason] ?? 0) + 1;
     }
@@ -200,13 +218,30 @@ export function replayConfig(units, config) {
     }
   }
 
-  return { kept, blocked, keptQuotes, blockedQuotes, keptLower, keptUpper, blockedLower, blockedUpper, reasonCounts, blockedDetail };
+  return {
+    kept,
+    blocked,
+    keptQuotes,
+    blockedQuotes,
+    keptLower,
+    keptUpper,
+    blockedLower,
+    blockedUpper,
+    quoteLoss,
+    quoteGain,
+    blockedQuoteLoss,
+    blockedQuoteGain,
+    reasonCounts,
+    blockedDetail,
+  };
 }
 
 export function replayGrid(units) {
   const baseline = replayConfig(units, nullConfig());
-  const totalLoss = Math.min(baseline.keptLower, 0);
-  const totalGain = Math.max(baseline.keptUpper, 0);
+  // Gross quote-level loss/gain: winners never mask losers, and rejecting one
+  // quote is attributed even when another quote keeps the recommendation alive.
+  const totalLoss = baseline.quoteLoss;
+  const totalGain = baseline.quoteGain;
 
   const rows = [...parameterGrid()].map(({ label, config }) => {
     const outcome = replayConfig(units, config);
@@ -219,8 +254,8 @@ export function replayGrid(units) {
       blockedProfitLower: outcome.blockedLower,
       blockedProfitUpper: outcome.blockedUpper,
       // 理想閘門:大比例擋虧損、細比例誤擋盈利。
-      lossBlockedPct: totalLoss < 0 ? Math.max(0, -outcome.blockedUpper) / -totalLoss : null,
-      gainBlockedPct: totalGain > 0 ? Math.max(0, outcome.blockedLower) / totalGain : null,
+      lossBlockedPct: totalLoss < 0 ? -outcome.blockedQuoteLoss / -totalLoss : null,
+      gainBlockedPct: totalGain > 0 ? outcome.blockedQuoteGain / totalGain : null,
     };
   }).sort((a, b) =>
     (b.lossBlockedPct ?? 0) - (a.lossBlockedPct ?? 0)
@@ -254,10 +289,11 @@ export function formatReplay(report, units) {
   lines.push(`Quote-gate replay — ${units.length} settled recommendations (${corners.length} corners)`);
   lines.push("");
   lines.push(`無閘門基線: kept=${report.baseline.kept} profit=[${report.baseline.keptLower.toFixed(2)}, ${report.baseline.keptUpper.toFixed(2)}] roi=[${(report.baseline.keptLower / report.baseline.kept * 100).toFixed(1)}%, ${(report.baseline.keptUpper / report.baseline.kept * 100).toFixed(1)}%]`);
-  lines.push(`總虧損(下限口徑)= ${report.totalLoss.toFixed(2)}u · 總盈利(上限口徑)= +${report.totalGain.toFixed(2)}u`);
+  lines.push(`全部賠率 gross 虧損= ${report.totalLoss.toFixed(2)}u · gross 盈利= +${report.totalGain.toFixed(2)}u`);
   lines.push("");
-  lines.push(`現行配置 ${report.shippedVersion}: 擋 ${report.shipped.blocked}/${units.length} 個推薦、${report.shipped.blockedQuotes} 個報價`);
+  lines.push(`影子配置 ${report.shippedVersion}: 擋 ${report.shipped.blocked}/${units.length} 個推薦、${report.shipped.blockedQuotes} 個報價`);
   lines.push(`  被擋推薦嘅虧損區間: [${report.shipped.blockedLower.toFixed(2)}, ${report.shipped.blockedUpper.toFixed(2)}]u`);
+  lines.push(`  被擋賠率 gross: 虧損 ${report.shipped.blockedQuoteLoss.toFixed(2)}u · 盈利 +${report.shipped.blockedQuoteGain.toFixed(2)}u`);
   lines.push(`  保留推薦嘅 ROI 區間: [${(report.shipped.keptLower / Math.max(report.shipped.kept, 1) * 100).toFixed(1)}%, ${(report.shipped.keptUpper / Math.max(report.shipped.kept, 1) * 100).toFixed(1)}%] (n=${report.shipped.kept})`);
   const reasons = Object.entries(report.shipped.reasonCounts).sort((a, b) => b[1] - a[1]);
   if (reasons.length > 0) lines.push(`  擋截原因: ${reasons.map(([reason, count]) => `${reason}×${count}`).join("  ")}`);
@@ -328,12 +364,18 @@ function selfTest() {
   const units = buildReplayUnits(rows, results);
   if (units.length !== 2) throw new Error(`expected 2 replay units, got ${units.length}`);
   const report = replayGrid(units);
-  // 現行配置必須擋到 12 倍陷阱,保留 2.05 合理報價。
+  // 預先登記影子配置必須擋到 12 倍陷阱,保留 2.05 合理報價。
   if (report.shipped.blocked !== 1 || report.shipped.kept !== 1) {
     throw new Error(`shipped config expected blocked=1 kept=1, got ${JSON.stringify({ blocked: report.shipped.blocked, kept: report.shipped.kept })}`);
   }
-  // 無閘門基線 ROI 係負(陷阱 -1 + 合理 +1.05 → 淨 +0.05/2…實際贏咗,改用
-  // lossBlockedPct 檢查):被擋嘅係輸錢嗰注。
+  // 淨 P&L 係 +0.05，但 gross 分母仍須保留 -1 虧損同 +1.05 盈利。
+  if (report.totalLoss !== -1 || Math.abs(report.totalGain - 1.05) > 1e-9) {
+    throw new Error(`gross loss/gain must not net winners against losers: ${JSON.stringify({ loss: report.totalLoss, gain: report.totalGain })}`);
+  }
+  const shippedRow = report.rows.find((row) => row.label.startsWith("corners≤6 edge≤0.15 sharp≤0.15"));
+  if (!shippedRow || shippedRow.lossBlockedPct !== 1 || shippedRow.gainBlockedPct !== 0) {
+    throw new Error("grid must attribute the blocked losing quote without masking it against the winner");
+  }
   if (report.shipped.blockedUpper >= 0) throw new Error("the blocked sample must be the losing trap");
   console.log("[replay-quote-gate] self-test passed");
 }

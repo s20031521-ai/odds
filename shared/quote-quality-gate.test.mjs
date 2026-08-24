@@ -106,7 +106,7 @@ test("edge above the symmetric cap is rejected with edge-cap-exceeded", () => {
 });
 
 test("edge at exactly the cap survives", () => {
-  // v2: corners edge cap is 0.10 (replay-tightened from the global 0.15).
+  // The pre-registered shadow cap is shared across markets.
   const { quotes } = gateOpportunityQuotes(
     cornersOpportunity([quote("Superbet", 2.1, 0.10)]),
     balancedRows(),
@@ -114,15 +114,14 @@ test("edge at exactly the cap survives", () => {
   assert.equal(quotes.length, 1);
 });
 
-test("edge caps are per-market: corners 0.12 blocked, h2h 0.12 survives", () => {
-  // v2 replay evidence is corners-only, so only corners was tightened to 0.10;
-  // other markets keep 0.15 pending forward A/B evidence.
+test("pre-registered shadow edge cap treats 0.12 consistently across markets", () => {
+  // Retrospective replay does not tighten the corners cap independently.
   const corners = gateOpportunityQuotes(
     cornersOpportunity([quote("Superbet", 2.1, 0.12)]),
     balancedRows(),
   );
-  assert.equal(corners.quotes.length, 0);
-  assert.ok(corners.rejected[0].reasons.includes(GATE_REASONS.edgeCap));
+  assert.equal(corners.quotes.length, 1);
+  assert.equal(corners.rejected.length, 0);
 
   const h2h = gateOpportunityQuotes(
     { fixtureId: "fx-1", market: "h2h", selection: "home", quotes: [quote("Superbet", 2.1, 0.12)] },
@@ -331,18 +330,19 @@ test("buildGatedOpportunity suffixes the strategy and audits rejections", () => 
 
 test("empty shells stay empty through the gated twin", () => {
   const gated = buildGatedOpportunity(
-    { fixtureId: "fx-1", market: "corners", selection: "over", line: 9.5, quotes: [], strategyVersion: "dc-blend-v1" },
+    { fixtureId: "fx-1", market: "corners", selection: "over", line: 9.5, quotes: [], strategyVersion: "dc-blend-v2" },
     balancedRows(),
   );
-  assert.equal(gated.strategyVersion, "dc-blend-v1-gated");
+  assert.equal(gated.strategyVersion, "dc-blend-v2-gated");
+  assert.equal(gated.quoteGate.version, "quote-gate-v1-shadow");
   assert.deepEqual(gated.quotes, []);
   assert.equal(gated.quoteGate.rejectedQuotes, 0);
 });
 
 test("gatedStrategyVersion helpers round-trip", () => {
-  assert.equal(gatedStrategyVersion("dc-blend-v1"), "dc-blend-v1-gated");
-  assert.ok(isGatedStrategyVersion("dc-blend-v1-gated"));
-  assert.equal(isGatedStrategyVersion("dc-blend-v1"), false);
+  assert.equal(gatedStrategyVersion("dc-blend-v2"), "dc-blend-v2-gated");
+  assert.ok(isGatedStrategyVersion("dc-blend-v2-gated"));
+  assert.equal(isGatedStrategyVersion("dc-blend-v2"), false);
 });
 
 // ---------- config sanity ----------
@@ -351,6 +351,6 @@ test("config keeps the frozen 3% floor untouched and caps symmetric-ish", () => 
   for (const [market, cap] of Object.entries(QUOTE_GATE_CONFIG.maxEdge)) {
     assert.ok(cap > 0.03, `gate ceiling (${market}) must sit above the 3% buy floor`);
   }
-  assert.equal(QUOTE_GATE_CONFIG.maxOdds.corners, 4.0);
+  assert.equal(QUOTE_GATE_CONFIG.maxOdds.corners, 6.0);
   assert.equal(QUOTE_GATE_CONFIG.maxOdds.h2h, 8.0);
 });

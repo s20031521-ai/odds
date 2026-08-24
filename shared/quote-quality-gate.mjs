@@ -1,8 +1,9 @@
 // Phase 3 quote quality gate (docs/research/PHASE-3-quote-quality-gate-
 // 2026-08-24.md). Model-independent filter that runs AFTER a strategy has
-// produced candidate quotes and BEFORE any recommendation can surface.
+// produced candidate quotes. It currently runs only on gated shadow twins;
+// live buyable recommendations are unchanged until forward validation passes.
 //
-//   Phase 1/2/任何模型 → 出推薦候選 → 呢道閘過濾錯價 → trust gate → Today 頁
+//   Phase 1/2/任何模型 → gated/ungated 影子 A/B → forward validation
 //
 // 紅線:唔郁任何模型數學,唔郁 3% 下限。每個被剔除嘅報價都帶穩定原因碼
 // (GATE_REASONS),方便審計「閘門擋咗咩」。
@@ -17,10 +18,12 @@
 // numerically, callers supply everything.
 
 import { canonicalBookmaker, isValidDecimalOdds } from "./unified-recommendations.mjs";
+import { powerNoVigTwoWayOdds, shinNoVigThreeWay } from "./devig.mjs";
 import {
   CONSENSUS_ALLOWLIST,
   GATE_REASONS,
   QUOTE_GATE_CONFIG,
+  QUOTE_GATE_CONFIG_VERSION,
 } from "./quote-gate-config.mjs";
 
 const TWO_WAY_SELECTIONS = {
@@ -87,8 +90,8 @@ function quoteRejectionReasons(quote, { market, selection, line, rows, consensus
   const cap = config.maxOdds?.[market];
   if (Number.isFinite(cap) && quote.odds > cap) reasons.push(GATE_REASONS.oddsCap);
 
-  // maxEdge 支援全侷數字或每玩法 object(v2 起;replay 證據主要係角球,
-  // 所以 corners 收得緊過其他玩法)。
+  // maxEdge 支援全局數字或每玩法 object；預先登記配置暫時同一上限，
+  // replay grid 只會 counterfactually 改角球值。
   const edgeCap = typeof config.maxEdge === "object" && config.maxEdge !== null
     ? config.maxEdge?.[market]
     : config.maxEdge;
@@ -149,8 +152,8 @@ export function sharpConsensus(rows, market, config = QUOTE_GATE_CONFIG) {
     const bySelection = Object.fromEntries(bookRows.map((row) => [row.selection, row]));
     if (!selections.every((selection) => isValidDecimalOdds(bySelection[selection]?.odds))) continue;
     const fair = market === "h2h"
-      ? shinFair([1 / bySelection.home.odds, 1 / bySelection.draw.odds, 1 / bySelection.away.odds])
-      : powerFair([1 / bySelection[selections[0]].odds, 1 / bySelection[selections[1]].odds]);
+      ? shinNoVigThreeWay([bySelection.home.odds, bySelection.draw.odds, bySelection.away.odds])
+      : powerNoVigTwoWayOdds(bySelection[selections[0]].odds, bySelection[selections[1]].odds);
     if (fair) fairs.push(fair);
   }
   if (fairs.length < (config.minConsensusBooks ?? 1)) return null;
@@ -164,45 +167,6 @@ export function sharpConsensus(rows, market, config = QUOTE_GATE_CONFIG) {
       return index === -1 ? null : average[index];
     },
   };
-}
-
-// Shin (1993) de-vig, compact copy scoped to the gate so shared/ stays
-// self-contained (server imports shared/; shared/ must not reach scripts/lib).
-function shinFair(implied) {
-  const overround = implied.reduce((sum, q) => sum + q, 0);
-  const proportional = () => implied.map((q) => q / overround);
-  if (!(overround > 1)) return proportional();
-  const sumAt = (z) => implied.reduce((sum, q) => sum + (
-    (Math.sqrt(z * z + (4 * (1 - z) * q * q) / overround) - z) / (2 * (1 - z))
-  ), 0);
-  if (!(sumAt(0) > 1) || !(sumAt(0.999) < 1)) return proportional();
-  let low = 0;
-  let high = 0.999;
-  for (let iteration = 0; iteration < 60; iteration += 1) {
-    const mid = (low + high) / 2;
-    if (sumAt(mid) > 1) low = mid;
-    else high = mid;
-  }
-  const z = (low + high) / 2;
-  return implied.map((q) => (
-    (Math.sqrt(z * z + (4 * (1 - z) * q * q) / overround) - z) / (2 * (1 - z))
-  ));
-}
-
-// Power de-vig for two-way: find k ∈ (0, 1] with Σ q^(1/k) = 1.
-function powerFair(implied) {
-  const [qA, qB] = implied;
-  if (qA + qB <= 1) return [qA / (qA + qB), qB / (qA + qB)];
-  const sumAt = (k) => qA ** (1 / k) + qB ** (1 / k);
-  let low = 1e-9;
-  let high = 1;
-  for (let iteration = 0; iteration < 80; iteration += 1) {
-    const mid = (low + high) / 2;
-    if (sumAt(mid) > 1) high = mid;
-    else low = mid;
-  }
-  const k = (low + high) / 2;
-  return [qA ** (1 / k), qB ** (1 / k)];
 }
 
 // ---------- 盤口單調 ----------
@@ -272,6 +236,7 @@ export function buildGatedOpportunity(opportunity, contextRows, config = QUOTE_G
     strategyVersion: gatedStrategyVersion(opportunity.strategyVersion),
     quotes,
     quoteGate: {
+      version: QUOTE_GATE_CONFIG_VERSION,
       rejectedQuotes: rejected.length,
       reasons: reasonCounts,
     },

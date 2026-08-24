@@ -77,10 +77,17 @@ export function createOpportunityRepository(db) {
           const observationInputs = Array.isArray(opportunity.inputs)
             ? opportunity.inputs
             : inputsForOpportunity(inputs, opportunity);
-          const fingerprint = observationFingerprint({
+          const quoteGate = opportunity.quoteGate && typeof opportunity.quoteGate === "object"
+            ? opportunity.quoteGate
+            : {};
+          const fingerprintPayload = {
             inputs: observationInputs,
             buyableQuotes,
-          });
+          };
+          if (Object.keys(quoteGate).length > 0) {
+            fingerprintPayload.quoteGate = quoteGate;
+          }
+          const fingerprint = observationFingerprint(fingerprintPayload);
           const existing = await client.query(`
             SELECT id FROM recommendation_observations
             WHERE snapshot_id = $1 AND fingerprint = $2
@@ -96,14 +103,15 @@ export function createOpportunityRepository(db) {
             await client.query(`
               INSERT INTO recommendation_observations (
                 snapshot_id, fingerprint, first_evaluated_at,
-                last_evaluated_at, inputs, buyable_quotes
-              ) VALUES ($1, $2, $3, $3, $4, $5)
+                last_evaluated_at, inputs, buyable_quotes, quote_gate
+              ) VALUES ($1, $2, $3, $3, $4, $5, $6)
             `, [
               sample.id,
               fingerprint,
               evaluatedAt,
               JSON.stringify(observationInputs),
               JSON.stringify(buyableQuotes),
+              JSON.stringify(quoteGate),
             ]);
             outcome.observationsInserted += 1;
           }
@@ -130,11 +138,11 @@ export function createOpportunityRepository(db) {
                snapshot.first_qualified_at,
                snapshot.last_qualified_at, observation.first_evaluated_at,
                observation.last_evaluated_at, observation.inputs,
-               observation.buyable_quotes
+               observation.buyable_quotes, observation.quote_gate
         FROM prediction_snapshots AS snapshot
         LEFT JOIN fixtures AS fixture ON fixture.id = snapshot.fixture_id
         JOIN LATERAL (
-          SELECT first_evaluated_at, last_evaluated_at, inputs, buyable_quotes
+          SELECT first_evaluated_at, last_evaluated_at, inputs, buyable_quotes, quote_gate
           FROM recommendation_observations
           WHERE snapshot_id = snapshot.id
           ORDER BY last_evaluated_at DESC, id DESC
@@ -150,7 +158,7 @@ export function createOpportunityRepository(db) {
     async listObservations(sampleId) {
       const result = await db.query(`
         SELECT id, fingerprint, first_evaluated_at, last_evaluated_at,
-               inputs, buyable_quotes
+               inputs, buyable_quotes, quote_gate
         FROM recommendation_observations
         WHERE snapshot_id = $1
         ORDER BY first_evaluated_at, id
@@ -168,9 +176,10 @@ export function createOpportunityRepository(db) {
                COALESCE(
                  jsonb_agg(
                    jsonb_build_object(
-                     'firstEvaluatedAt', observation.first_evaluated_at,
-                     'lastEvaluatedAt', observation.last_evaluated_at,
-                     'buyableQuotes', observation.buyable_quotes
+                      'firstEvaluatedAt', observation.first_evaluated_at,
+                      'lastEvaluatedAt', observation.last_evaluated_at,
+                      'buyableQuotes', observation.buyable_quotes,
+                      'quoteGate', observation.quote_gate
                    ) ORDER BY observation.first_evaluated_at, observation.id
                  ) FILTER (WHERE observation.id IS NOT NULL),
                  '[]'::jsonb
@@ -254,7 +263,6 @@ function inputsForOpportunity(inputs, opportunity) {
   return inputs.filter((input) => (
     input.fixtureId === opportunity.fixtureId
     && input.market === opportunity.market
-    && (opportunity.market === "h2h" || input.line === opportunity.line)
   ));
 }
 
@@ -286,6 +294,7 @@ function observationRow(row) {
     lastEvaluatedAt: isoOrNull(row.last_evaluated_at),
     inputs: row.inputs,
     buyableQuotes: row.buyable_quotes,
+    quoteGate: row.quote_gate ?? {},
   };
 }
 

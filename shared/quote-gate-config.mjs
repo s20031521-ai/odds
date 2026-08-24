@@ -7,7 +7,9 @@
 // versions) read this file; nothing here alters model math or the frozen 3%
 // edge floor — the gate is a filter layer in front of recommendations only.
 
-export const QUOTE_GATE_CONFIG_VERSION = "quote-gate-v2";
+// Pre-registered shadow configuration. Replay candidates must never replace
+// this runtime A/B configuration until an independent forward window passes.
+export const QUOTE_GATE_CONFIG_VERSION = "quote-gate-v1-shadow";
 
 // ---------- 共識側:邊啲莊家有資格定義「真相」 ----------
 
@@ -32,26 +34,24 @@ export const CONSENSUS_ALLOWLIST = new Set([
 export const QUOTE_GATE_CONFIG = {
   // 賠率上限 — 死因:「10 倍以上 34 注全軍覆沒」。
   // 每玩法一個 cap;超過即視為錯價,唔出推薦。
-  // v2(2026-08-24 replay,200 個已結算推薦):corners cap 6→4。
-  // 梯度係單調嘅:cap 4 → kept ROI +11.6~12.1%(n=40);cap 5 → ~-1%(n=62);
-  // cap 6 → -15.9%(n=88)。其他玩法冇數據(189/200 係角球),維持 8.0 等 A/B。
+  // Phase 3 §2 pre-registered conservative starting point. The 200-row
+  // retrospective replay is diagnostic only; it cannot tune this live A/B.
   maxOdds: {
     h2h: 8.0,
     handicap: 8.0,
     totals: 8.0,
-    corners: 4.0,
+    corners: 6.0,
   },
 
   // Edge 上限 — 死因:「edge 20% 以上 20 注全軍覆沒」。
   // 同 3% 下限對稱;超過即視為錯價唔係價值。
-  // v2:改做每玩法一個 cap。replay 顯示喺 corners cap≤4 之下,edge cap
-  // 0.15 → +3.2% vs 0.10 → +11.6% — edge 10–15% 區間仲係蝕緊,收緊到 0.10。
-  // 其他玩法同樣冇replay 證據,維持 0.15 等向前 A/B。
+  // Keep one pre-registered cap across markets until forward A/B evidence
+  // supports a market-specific revision.
   maxEdge: {
     h2h: 0.15,
     handicap: 0.15,
     totals: 0.15,
-    corners: 0.10,
+    corners: 0.15,
   },
 
   // 偏離檢查 — 報價對住 sharp 共識(allowlist)嘅 implied edge 超過呢個 band

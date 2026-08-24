@@ -12,7 +12,7 @@ import type { Page } from "./route";
 import { AppShell } from "./components/AppShell";
 import { TeamLogo, type TeamLogoMap } from "./components/TeamLogo";
 import { canShowActiveOpportunities, useConnectivityState } from "./pwa";
-import { ApiError, createApiClient, type BacktestPendingRow, type BuyableOpportunity, type ModelSuspension, type PredictionObservationsResponse, type QuoteGateAudit, type SessionState } from "./apiClient";
+import { ApiError, createApiClient, type BacktestPendingRow, type BuyableOpportunity, type ModelSuspension, type PredictionObservationsResponse, type SessionState } from "./apiClient";
 import { LoginPage } from "./pages/LoginPage";
 import { LandingPage } from "./pages/TodayPage";
 import { FixturesPage } from "./pages/FixturesPage";
@@ -136,7 +136,6 @@ function App() {
   const [dataLoads, setDataLoads] = useState<DataLoadState>({ hkjc: null, hdc: null });
   const [recordedOpportunities, setRecordedOpportunities] = useState<BuyableOpportunity[]>([]);
   const [recommendationsSuspensions, setRecommendationsSuspensions] = useState<ModelSuspension[]>([]);
-  const [recommendationsQuoteGate, setRecommendationsQuoteGate] = useState<QuoteGateAudit | null>(null);
   const [recommendationsGeneratedAt, setRecommendationsGeneratedAt] = useState<string | null>(null);
   const [recommendationsLoaded, setRecommendationsLoaded] = useState(false);
   const [recommendationsSettled, setRecommendationsSettled] = useState(false);
@@ -215,7 +214,6 @@ function App() {
     setReadiness([]);
     setRecordedOpportunities([]);
     setRecommendationsSuspensions([]);
-    setRecommendationsQuoteGate(null);
     setRecommendationsGeneratedAt(null);
     setRecommendationsLoaded(false);
     setRecommendationsSettled(false);
@@ -335,7 +333,6 @@ function App() {
     if (!auth.authenticated) {
       setRecordedOpportunities([]);
       setRecommendationsSuspensions([]);
-      setRecommendationsQuoteGate(null);
       setRecommendationsGeneratedAt(null);
       setRecommendationsLoaded(false);
       return;
@@ -346,7 +343,6 @@ function App() {
       onSuccess: (response) => {
         setRecommendationsSettled(true);
         setRecommendationsSuspensions(Array.isArray(response.suspensions) ? response.suspensions : []);
-        setRecommendationsQuoteGate(response.quoteGate ?? null);
         if (response.strategyVersion !== "unified-buyable-v1" || !Array.isArray(response.opportunities)) {
           setRecordedOpportunities([]);
           setRecommendationsGeneratedAt(null);
@@ -582,7 +578,6 @@ function App() {
           latencyMs={apiLatencyMs}
           quota={apiQuota}
           suspensions={recommendationsSuspensions}
-          quoteGate={recommendationsQuoteGate}
           loadObservations={loadRecommendationObservations}
           onBet={setBetPrefill}
           loading={!recommendationsSettled}

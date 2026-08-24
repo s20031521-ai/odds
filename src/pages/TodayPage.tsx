@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Radar, ArrowRight, ListChecks, PauseCircle, ShieldCheck } from "lucide-react";
+import { Radar, ArrowRight, ListChecks, PauseCircle } from "lucide-react";
 import type { BuyableOpportunity } from "../apiClient";
-import type { BetCreateRequest, ModelSuspension, QuoteGateAudit } from "../apiClient";
+import type { BetCreateRequest, ModelSuspension } from "../apiClient";
 import { betRecordKey } from "../betMetrics";
 import type { ObservationLoader } from "../components/BuyableOddsRange";
 import { EmptyState } from "../components/EmptyState";
@@ -45,8 +45,6 @@ export function LandingPage(props: {
   onBet?: (prefill: Partial<BetCreateRequest>) => void;
   /** 被伺服器 trust gate 暫停嘅模型（區分「冇推薦」同「AI 被暫停」） */
   suspensions?: ModelSuspension[];
-  /** Phase 3 報價質素閘門審計：被當成錯價擋咗嘅報價統計 */
-  quoteGate?: QuoteGateAudit | null;
   /** 首輪推薦仲 load 緊 → 顯示骨架屏 */
   loading?: boolean;
   /** 已記注單嘅 record keys（betRecordKey） */
@@ -108,19 +106,6 @@ export function LandingPage(props: {
                 {item.message ?? `${item.market} ${item.modelVersion} 已暫停`}
               </p>
             ))}
-          </div>
-        </div>
-      ) : null}
-
-      {props.quoteGate && props.quoteGate.blockedQuotes > 0 ? (
-        <div className="notice suspension-notice" role="status">
-          <ShieldCheck size={16} aria-hidden="true" />
-          <div>
-            <p className="suspension-notice__line">
-              報價質素閘門截咗 {props.quoteGate.blockedQuotes} 個可疑報價
-              {props.quoteGate.blockedOpportunities > 0 ? `（${props.quoteGate.blockedOpportunities} 個盤口全部報價被擋）` : ""}
-              —— 錯價唔當價值
-            </p>
           </div>
         </div>
       ) : null}

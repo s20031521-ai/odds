@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { observationFingerprint } from "../../shared/unified-recommendations.mjs";
 
 import { createPool } from "./pool.mjs";
 import { runMigrations } from "./migrate.mjs";
@@ -186,8 +187,12 @@ test("opportunity identity includes fixture, selection, model, and strategy", ()
   assert.equal(identities[0], "00000000-0000-4000-8000-000000000001|h2h|home||consensus-v1|unified-buyable-v1");
 });
 
-test("opportunity observations bind JSON arrays, including empty arrays, as valid JSON", async () => {
+test("opportunity observations persist all market lines and quote-gate audit JSON", async () => {
   let observationParameters;
+  const cornerInputs = [
+    { fixtureId: "00000000-0000-4000-8000-000000000001", market: "corners", selection: "over", line: 8.5, odds: 1.8 },
+    { fixtureId: "00000000-0000-4000-8000-000000000001", market: "corners", selection: "over", line: 9.5, odds: 2.1 },
+  ];
   const client = {
     release() {},
     async query(sql, parameters = []) {
@@ -205,14 +210,45 @@ test("opportunity observations bind JSON arrays, including empty arrays, as vali
 
   await createOpportunityRepository(client).recordEvaluation({
     evaluatedAt: "2026-07-18T10:05:00.000Z",
-    inputs: [],
-    opportunities: [{ ...opportunity(), inputs: [], quotes: [] }],
+    inputs: [
+      ...cornerInputs,
+      { fixtureId: "00000000-0000-4000-8000-000000000001", market: "totals", selection: "over", line: 2.5, odds: 2.0 },
+    ],
+    opportunities: [{
+      ...opportunity(),
+      market: "corners",
+      selection: "over",
+      line: 9.5,
+      quotes: [],
+      quoteGate: { version: "quote-gate-v1-shadow", rejectedQuotes: 1, reasons: { "non-monotonic-line": 1 } },
+    }],
   });
 
-  assert.equal(observationParameters[3], "[]");
-  assert.equal(observationParameters[4], "[]");
-  assert.deepEqual(JSON.parse(observationParameters[3]), []);
+  assert.equal(JSON.parse(observationParameters[3]).length, 2, "both corner lines are retained");
   assert.deepEqual(JSON.parse(observationParameters[4]), []);
+  assert.deepEqual(JSON.parse(observationParameters[5]), {
+    version: "quote-gate-v1-shadow",
+    rejectedQuotes: 1,
+    reasons: { "non-monotonic-line": 1 },
+  });
+
+  await createOpportunityRepository(client).recordEvaluation({
+    evaluatedAt: "2026-07-18T10:06:00.000Z",
+    inputs: cornerInputs,
+    opportunities: [{
+      ...opportunity(),
+      market: "corners",
+      selection: "over",
+      line: 9.5,
+      quotes: [],
+    }],
+  });
+  assert.equal(
+    observationParameters[1],
+    observationFingerprint({ inputs: cornerInputs, buyableQuotes: [] }),
+    "ungated observations keep their pre-migration fingerprint",
+  );
+  assert.deepEqual(JSON.parse(observationParameters[5]), {});
 });
 
 test("current opportunities select the observation evaluated most recently", async () => {

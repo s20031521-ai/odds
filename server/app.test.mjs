@@ -111,7 +111,23 @@ test("serves the secure same-origin api/v1 contract", async (t) => {
         quote("HKJC", 2.02, "2026-07-17T23:15:00.000Z", "hkjc"),
       ],
       lastEvaluatedAt: "2026-07-17T23:59:00.000Z",
-      quoteGateRejected: 0,
+    }, {
+      sampleId: 110,
+      fixtureId: "fixture-mispriced-quote",
+      matchId: "match-current",
+      homeTeam: "Alpha",
+      awayTeam: "Beta",
+      league: "Test League",
+      commenceTime: "2026-07-18T10:00:00.000Z",
+      market: "totals",
+      selection: "over",
+      line: 2.5,
+      modelVersion: "totals-loo-v1",
+      strategyVersion: "unified-buyable-v1",
+      quoteRange: { min: 12, max: 12, count: 1 },
+      bestQuote: quote("Superbet", 12, "2026-07-17T23:30:00.000Z"),
+      quotes: [quote("Superbet", 12, "2026-07-17T23:30:00.000Z")],
+      lastEvaluatedAt: "2026-07-17T23:59:00.000Z",
     }],
     // The suspended corner-loo-v1 row (sampleId 109) must NOT surface above.
     suspensions: [{
@@ -122,14 +138,6 @@ test("serves the secure same-origin api/v1 contract", async (t) => {
       reason: "negative-realized-roi",
       message: "已暫停：實際 ROI 顯著低於 0（仍繼續收集影子證據）",
     }],
-    // Phase 3 quote gate: the 12.0-odds trap quote (sampleId 110) is blocked
-    // and audited, never surfaced.
-    quoteGate: {
-      version: "quote-gate-v2",
-      blockedOpportunities: 1,
-      blockedQuotes: 1,
-      reasons: { "odds-cap-exceeded": 1, "edge-cap-exceeded": 1 },
-    },
   });
 
   const history = await request(baseUrl, "GET", "/api/v1/predictions/observations?sampleId=101", { cookie });
@@ -457,8 +465,9 @@ function createFakeRepositories() {
             modelVersion: "corner-loo-v1",
           },
           {
-            // Phase 3 quote gate: 12.0 odds / edge 5.0 — obvious misprice,
-            // blocked and audited, never surfaced.
+            // Phase 3 stays shadow-only until its forward A/B gate passes.
+            // The active unified strategy therefore remains byte-for-byte
+            // unchanged and still surfaces this row.
             ...currentOpportunity(),
             sampleId: 110,
             fixtureId: "fixture-mispriced-quote",

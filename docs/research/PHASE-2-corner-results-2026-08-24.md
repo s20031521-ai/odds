@@ -71,7 +71,8 @@ RPS 同型(validation:dc 0.04747 vs leagueMean 0.04759,差 0.3%)。大細 Brier 
 - **範圍控制(ADR 0003):** 修補**只套用喺新嘅 `response:"corners"` 路徑**。goals/xg 路徑保持逐 byte 不變 — dc-v1、dc-xg-v1、dc-v2、dc-blend-v1 嘅數學同所有歷史回測結果維持可重現。
 - **但要知道:** 生產 shadow(dc-shadow.mjs)同一個引擎 — **dc-v2 影子線嘅 λ 很可能一直偏高 ~10% 量级**,佢嘅影子證據同 Phase 1 嘅離線數字都帶住呢個偏差。Phase 1「blend 唔贏市場」嘅結論方向大概率唔變(市場錨冇 bug,模型偏差只會令模型更差),但「模型校準良好」呢點要重新檢查 — 一個高咗 13% 嘅入球率模型喺大細盤上唔可能校準良好。
 - **待 owner 決定:** 係咪修 goals/xg 路徑(會改變 frozen 模型輸出,要重跑 Phase 1 harness、重估 dc-v2 影子嘅解讀)。呢個決定唔喺 Phase 2 範圍,報告如實記錄。
-  - **後續(2026-08-24 下午):owner 已拍板修。** level-preserving centring 已推展到全部 response,dc-v1-backtest 同 blend harness 已重跑(tune/validation;holdout 唔重開),影響同影子線處理見 `PHASE-1-results-2026-08-24.md` §10 — 判定不變。
+ - **後續(2026-08-24 下午):owner 已拍板修。** level-preserving centring 已推展到全部 response,dc-v1-backtest 同 blend harness 已重跑(tune/validation;holdout 唔重開),影響同影子線處理見 `PHASE-1-results-2026-08-24.md` §10 — 判定不變。
+  - **Review 修正:** goals/xG 數學改動後已切新 identity：`dc-shadow-v2` / `dc-blend-v2` / `dc-xg-shadow-v2`；舊 v1 證據只作歷史審計，唔再混入 readiness。
 
 ## 4. 交付物狀態
 

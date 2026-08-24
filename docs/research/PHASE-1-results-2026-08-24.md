@@ -53,7 +53,7 @@ football-data 官方註明:由 2025-07-23 起 Pinnacle 公開 API 唔穩,賠率�
 | holdout (n=902) | open | **0.5723** | 0.5725 | 0.5730 | 0.5736 | 0.5756 | 0.5846 |
 | holdout (n=898) | close | **0.5732** | 0.5732 | 0.5734 | 0.5739 | 0.5757 | 0.5845 |
 
-LogLoss / RPS 同型;xg 模型(w=1 時 Brier 0.583–0.591)好過 goals(0.584–0.596)但都係單調差過 w=0。大細波 Brier 同型(validation open:w=0 0.2388 → w=0.1 0.2387 → w=0.5 0.2397;w=0.1/0.2 嘅 0.0001 級差異統計上等於零)。
+LogLoss / RPS 同型;xg 模型(w=1 時 Brier 0.583–0.591)好過 goals(0.584–0.596)但都係單調差過 w=0。大細波 Brier 同型(validation open:w=0 0.2388 → w=0.1 0.2388 → w=0.5 0.2396;w=0.1/0.2 嘅差異統計上等於零)。Review 後 totals 同讓球亦完整輸出 Brier / log-loss / RPS；讓球以五態結算映射到 ordered settlement score，validation goals/open w=0.3 為 0.2064 / 0.6941 / 0.2064。機讀結果已重建到 `data/blend-backtest/blend-results.json`。
 
 **學術問題嘅答案(RQ2 嗰半):模型對市場冇增量概率資訊。** 唔係「模型啲偏差修正有價值」,係「模型同市場唔同嘅地方就係噪音」。
 
@@ -164,8 +164,8 @@ node scripts/dc-blend-backtest.mjs --include-holdout \
 
 ### 10.3 對生產影子線嘅影響(部署後生效)
 
-下次部署起,`dc-shadow-v1` / `dc-blend-v1` / `dc-xg-shadow-v1` 嘅 λ 水平會降 ~9–13%:
+下次部署起改用 `dc-shadow-v2` / `dc-blend-v2` / `dc-xg-shadow-v2`（modelVersion 分別為 `dc-goals-v2` / `dc-blend-v2` / `dc-xg-v2`），λ 水平會降 ~9–13%。舊 v1 identities 保留作歷史證據，唔會同修補後輸出合併:
 
 - **修補前後嘅影子證據喺大細盤上唔直接可比**(水平平移);主客和/讓球受影響較細(比率主導)。
-- strategyVersion 唔變 — 比較影子 ROI 時以部署日做分界解讀;`-gated` 雙生線反正係部署後先開始儲,冇歷史包袱。
+- strategyVersion/modelVersion 已 hard split；readiness 同 evidence report 只計新 v2 線，integrity audit 仍覆蓋舊 v1 歷史。
 - 修補前嘅 frozen 行為可喺 git history(`95340c4` 之前)重現。

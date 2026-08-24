@@ -88,7 +88,7 @@ npm run join:xg         # write home_xg/away_xg onto team_match_history (needs D
 npm run compare:xg      # walk-forward goals vs xG vs xg-rho vs mix comparison
 ```
 
-xG pipeline (ADR 0003): Understat `getLeagueData` payloads are cached under `data/understat/` (five leagues, 2014/15 onward), joined onto `team_match_history.home_xg/away_xg` by (league, date, canonical team names) with scoreline cross-checks — expect ~99.8% match rate. `dc-xg-v1` fits attack/defence on xG with rho borrowed from the scoreline fit; it runs as shadow strategy `dc-xg-shadow-v1` and never surfaces on the Today page. Offline comparison over 10,955 matches (2019–2026): xg-rho logLoss 0.9904 vs scoreline 0.9975, winning in all five leagues.
+xG pipeline (ADR 0003): Understat `getLeagueData` payloads are cached under `data/understat/` (five leagues, 2014/15 onward), joined onto `team_match_history.home_xg/away_xg` by (league, date, canonical team names) with scoreline cross-checks — expect ~99.8% match rate. `dc-xg-v2` fits attack/defence on xG with rho borrowed from the scoreline fit; it runs as shadow strategy `dc-xg-shadow-v2` and never surfaces on the Today page. The pre-level-fix v1 identities remain historical-only. Offline comparison over 10,955 matches (2019–2026): xg-rho logLoss 0.9904 vs scoreline 0.9975, winning in all five leagues.
 
 ```powershell
 npm run monitor:odds:once

@@ -1,7 +1,7 @@
 # Phase 3 研究報告:報價質素閘門(Quote Quality Gate)
 
 **日期:** 2026-08-24
-**狀態:** ✅ 已實作(2026-08-24):閘門模組 + gated 影子雙生線 + API/UI 全部落地,測試全綠;replay 待部署後喺 VM 執行 — 詳見 `PHASE-3-results-2026-08-24.md`。本設計文檔保留做設計依據:係四個 Phase 入面最直接對治已知死因嘅一個
+**狀態:** ✅ 影子實作完成(2026-08-24):閘門模組 + gated 影子雙生線 + observation audit 已落地；未進入 Today API/UI。retrospective replay 只作診斷，須等獨立 forward A/B 先可考慮升格 — 詳見 `PHASE-3-results-2026-08-24.md`。
 **目的:** corner-loo-v1 嘅直接死因唔係「角球」而係「將錯價當價值」。無論將來邊個模型出推薦,都需要一個獨立於模型嘅報價質素閘門。呢個 Phase 係所有未來推薦嘅安全帶。
 
 ---
@@ -66,7 +66,7 @@ edge 嘅來源本來就係軟莊家偏離市場。**閂得太緊 = 冇推薦;太
 
 ### 4.2 影子 A/B(向前驗證)
 
-同一條影子線出兩個版本:有閘門 vs 冇閘門(新 `strategyVersion` 後綴,例如 `dc-blend-v1-gated`),行幾個月比較。呢個係預先登記嘅 A/B,唔係事後揀贏家。
+同一條影子線出兩個版本:有閘門 vs 冇閘門(新 `strategyVersion` 後綴,例如 `dc-blend-v2-gated`),行幾個月比較。呢個係預先登記嘅 A/B,唔係事後揀贏家。
 
 ## 5. 實作計劃
 
@@ -75,7 +75,7 @@ edge 嘅來源本來就係軟莊家偏離市場。**閂得太緊 = 冇推薦;太
 | 1 | Replay 分析:164 個角球推薦過唔同參數組合 | `scripts/replay-quote-gate.mjs`(新,read-only) |
 | 2 | 閘門模組:純函數,輸入 opportunity+quotes,輸出過濾後 quotes + 剔除原因 | `shared/quote-quality-gate.mjs`(新) |
 | 3 | 套入 sampler:shadow 線出 gated/ungated 雙版本 | `scripts/unified-sampler.mjs`(additive) |
-| 4 | API/UI:被閘門擋咗嘅推薦唔顯示,但保留審計 | `server/app.mjs`、TodayPage |
+| 4 | API/UI:forward A/B 通過後先以新 buyable strategy identity 接入 | 暫緩；唔改 `unified-buyable-v1` |
 | 5 | 參數表獨立成一個檔,改參數要 commit 留痕 | `shared/quote-gate-config.mjs`(新) |
 
 **紅線:** 閘門唔郁任何模型數學,唔郁 3% 下限;佢係推薦出街前嘅過濾層。所有剔除要有原因碼,方便審計「閘門擋咗咩」。
@@ -83,13 +83,13 @@ edge 嘅來源本來就係軟莊家偏離市場。**閂得太緊 = 冇推薦;太
 ## 6. 同其他 Phase 嘅關係
 
 ```
-Phase 1(blend)/ Phase 2(角球模型) → 出推薦候選
+Phase 1(blend)/ Phase 2(角球模型) → 影子推薦候選
         ↓
-Phase 3(報價閘門) → 過濾錯價
+Phase 3(報價閘門) → gated/ungated 影子 A/B
         ↓
-Trust gate(已有) → 過濾未信任模型
+獨立 forward validation + 新 strategy identity
         ↓
-Today 頁
+Trust gate → Today 頁（未啟用）
 ```
 
 **Phase 3 應該係第一個做嘅新開發**(唔計 Phase 0 部署),因為:

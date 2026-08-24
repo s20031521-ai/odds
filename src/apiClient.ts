@@ -71,6 +71,16 @@ export type BuyableOpportunity = {
   bestQuote: BuyableQuote;
   quotes: BuyableQuote[];
   lastEvaluatedAt: string;
+  /** Phase 3 quote gate: how many of this opportunity's quotes the gate
+   *  blocked as mispriced before surfacing. Additive — old clients ignore. */
+  quoteGateRejected?: number;
+};
+
+export type QuoteGateAudit = {
+  version: string;
+  blockedOpportunities: number;
+  blockedQuotes: number;
+  reasons: Record<string, number>;
 };
 
 export type CurrentRecommendationsResponse = {
@@ -81,6 +91,9 @@ export type CurrentRecommendationsResponse = {
    *  checks. Their opportunities never surface; this list lets the UI say
    *  "AI 被暫停" instead of implying "冇推薦". Additive — old clients ignore. */
   suspensions?: ModelSuspension[];
+  /** Phase 3 quote quality gate audit: what was blocked as mispriced.
+   *  Additive — old clients ignore. */
+  quoteGate?: QuoteGateAudit;
 };
 
 export type ModelTrustStatus = "active" | "shadow" | "suspended";

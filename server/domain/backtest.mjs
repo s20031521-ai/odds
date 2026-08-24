@@ -1,4 +1,5 @@
 import { classifySnapshot, summarizeSnapshotQuality } from "../../shared/snapshot-policy.mjs";
+import { isGatedStrategyVersion } from "../../shared/quote-quality-gate.mjs";
 import { resultIdentity, snapshotIdentity } from "./identity.mjs";
 import { modelTrust } from "./model-trust.mjs";
 import { performanceForRows, readinessVerdict } from "./model-performance.mjs";
@@ -594,7 +595,8 @@ function isUnifiedOpportunity(item) {
 }
 
 function isShadowOpportunity(item) {
-  return SHADOW_STRATEGY_VERSIONS.has(item?.strategyVersion);
+  // `-gated` twins (Phase 3 shadow A/B) are shadow lines by construction.
+  return SHADOW_STRATEGY_VERSIONS.has(item?.strategyVersion) || isGatedStrategyVersion(item?.strategyVersion);
 }
 
 // Snapshots recorded through the opportunity pipeline (unified + dc-shadow)

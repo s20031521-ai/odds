@@ -10,6 +10,8 @@
 // but MUST NOT appear in current buyable recommendations. Model math,
 // thresholds, and historical snapshots are untouched (ADR 0003 / invariants).
 
+import { isGatedStrategyVersion } from "../../shared/quote-quality-gate.mjs";
+
 export const TRUST_ACTIVE = "active";
 export const TRUST_SHADOW = "shadow";
 export const TRUST_SUSPENDED = "suspended";
@@ -48,6 +50,10 @@ export function modelTrust({ strategyVersion, market, modelVersion } = {}) {
   }
   if (SHADOW_STRATEGY_VERSIONS.has(strategyVersion)) {
     return { status: TRUST_SHADOW, reason: "shadow-strategy", message: "影子模式：只收集證據" };
+  }
+  // Phase 3 gated shadow A/B twins: evidence-only by construction.
+  if (isGatedStrategyVersion(strategyVersion)) {
+    return { status: TRUST_SHADOW, reason: "shadow-gated-strategy", message: "影子模式（報價閘門 A/B）：只收集證據" };
   }
   if (strategyVersion === UNIFIED_STRATEGY_VERSION) {
     return { status: TRUST_ACTIVE, reason: null, message: null };

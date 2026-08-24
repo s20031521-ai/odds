@@ -1,6 +1,8 @@
 import { buildBacktest } from "./domain/backtest.mjs";
 import { isBuyableTrust, listSuspensions, modelTrust } from "./domain/model-trust.mjs";
 import { FRESHNESS_MS, UNIFIED_STRATEGY_VERSION } from "../shared/unified-recommendations.mjs";
+import { QUOTE_GATE_CONFIG_VERSION } from "../shared/quote-gate-config.mjs";
+import { gateContextRows, gateOpportunityQuotes } from "../shared/quote-quality-gate.mjs";
 import { readJsonBody } from "./http/body.mjs";
 import { resolveClientIp } from "./http/client-ip.mjs";
 import { clearSessionCookie, readSessionCookie, sessionCookie } from "./http/cookies.mjs";
@@ -136,17 +138,39 @@ function createBacktestHandler(repositories, clock) {
 async function handleCurrentRecommendations(res, repositories, clock) {
   const now = new Date(clock());
   const rows = await repositories.opportunities.listCurrent(now);
-  const opportunities = rows
-    .map((row) => currentOpportunity(row, now.getTime()))
-    .filter(Boolean)
+  // Phase 3 quote quality gate: mispriced quotes never surface as buyable,
+  // but every rejection is counted here for audit (reason-coded).
+  const quoteGate = { version: QUOTE_GATE_CONFIG_VERSION, blockedOpportunities: 0, blockedQuotes: 0, reasons: {} };
+  const opportunities = [];
+  for (const row of rows) {
+    const opportunity = currentOpportunity(row, now.getTime());
     // Trust gate: suspended / shadow models keep collecting observations
     // server-side but never surface as buyable recommendations.
-    .filter(isBuyableTrust);
+    if (!opportunity || !isBuyableTrust(opportunity)) continue;
+    const { quotes, rejected } = gateOpportunityQuotes(opportunity, gateContextRows(row.inputs, opportunity));
+    for (const { reasons } of rejected) {
+      quoteGate.blockedQuotes += 1;
+      for (const reason of reasons) quoteGate.reasons[reason] = (quoteGate.reasons[reason] ?? 0) + 1;
+    }
+    if (quotes.length === 0) {
+      quoteGate.blockedOpportunities += 1;
+      continue;
+    }
+    const odds = quotes.map((quote) => quote.odds);
+    opportunities.push({
+      ...opportunity,
+      quotes,
+      bestQuote: quotes[0],
+      quoteRange: { min: Math.min(...odds), max: Math.max(...odds), count: quotes.length },
+      quoteGateRejected: rejected.length,
+    });
+  }
   return json(res, 200, {
     generatedAt: now.toISOString(),
     strategyVersion: UNIFIED_STRATEGY_VERSION,
     opportunities,
     suspensions: listSuspensions(UNIFIED_STRATEGY_VERSION),
+    quoteGate,
   });
 }
 

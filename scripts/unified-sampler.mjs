@@ -11,6 +11,7 @@ import {
   evaluateUnifiedOdds,
   observationFingerprint,
 } from "../shared/unified-recommendations.mjs";
+import { buildGatedOpportunity, gateContextRows } from "../shared/quote-quality-gate.mjs";
 import { createPool } from "../server/db/pool.mjs";
 import { DC_BLEND_STRATEGY_VERSION, DC_SHADOW_STRATEGY_VERSION, DC_XG_MODEL_VERSION, DC_XG_STRATEGY_VERSION, buildBlendOpportunities, buildShadowOpportunities, fitLeagues, fitLeaguesXg, leagueCodeFromName } from "./lib/dc-shadow.mjs";
 import { SHARP_STRATEGY_VERSION, buildSharpOpportunities } from "./lib/market-sharp.mjs";
@@ -104,6 +105,13 @@ export function createUnifiedEvaluation(liveRows, resolvedFixtures, now, options
   }
   for (const shadow of shadowBuilders.flat()) {
     if (!byIdentity.has(evaluationIdentity(shadow))) byIdentity.set(evaluationIdentity(shadow), shadow);
+    // Phase 3 shadow A/B (§4.2): every shadow line also emits a gated twin
+    // under a `-gated` strategyVersion. Identities stay disjoint because
+    // strategyVersion is part of the identity; both lines collect evidence
+    // from the same evaluation so the gate's value is measured forward,
+    // pre-registered, not cherry-picked.
+    const gated = buildGatedOpportunity(shadow, gateContextRows(evaluated.inputs, shadow));
+    if (!byIdentity.has(evaluationIdentity(gated))) byIdentity.set(evaluationIdentity(gated), gated);
   }
   return {
     evaluatedAt,
@@ -265,6 +273,19 @@ function selfTest() {
   assert.ok(sharpOnly.length > 0);
   assert.equal(first.opportunities.some((item) => item.strategyVersion === DC_SHADOW_STRATEGY_VERSION
     || item.strategyVersion === DC_BLEND_STRATEGY_VERSION), false);
+
+  // Phase 3: every shadow line also emits a gated twin (`-gated` suffix) —
+  // same evidence window, quotes filtered by the quote quality gate.
+  for (const base of [SHARP_STRATEGY_VERSION, DC_SHADOW_STRATEGY_VERSION, DC_BLEND_STRATEGY_VERSION]) {
+    const twins = withShadow.opportunities.filter((item) => item.strategyVersion === `${base}-gated`);
+    assert.ok(twins.length > 0, `${base}-gated twins present`);
+    const ungatedQuotes = withShadow.opportunities
+      .filter((item) => item.strategyVersion === base)
+      .flatMap((item) => item.quotes);
+    const gatedQuotes = twins.flatMap((item) => item.quotes);
+    assert.ok(gatedQuotes.length <= ungatedQuotes.length, "gate only ever removes quotes");
+    assert.ok(twins.every((item) => item.quoteGate && Number.isInteger(item.quoteGate.rejectedQuotes)));
+  }
   console.log("[unified-sampler] self-test passed");
 }
 

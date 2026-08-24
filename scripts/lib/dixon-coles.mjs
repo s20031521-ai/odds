@@ -86,12 +86,19 @@ function clampLogRate(value) {
 
 export function fitDixonColes(matches, { xi = 0.0019, refDate, maxOuter = 10, sweepsPerOuter = 8, tolerance = 1e-7, init, response = "goals" } = {}) {
   const useXg = response === "xg";
+  const useCorners = response === "corners";
   // xG mode: response variables are continuous expected goals, so the
   // integer low-score tau/rho correction is meaningless and stays off.
+  // Corners mode: counts are integers but high (~10/match), so the low-score
+  // tau/rho correction does not apply either; home/away stay independent
+  // Poisson (see poissonTotalDistribution below).
   const usable = (Array.isArray(matches) ? matches : []).filter((m) => {
     if (!m || !m.homeTeam || !m.awayTeam || !m.matchDate) return false;
     if (useXg) {
       return Number.isFinite(m.homeXg) && m.homeXg >= 0 && Number.isFinite(m.awayXg) && m.awayXg >= 0;
+    }
+    if (useCorners) {
+      return Number.isInteger(m.homeCorners) && m.homeCorners >= 0 && Number.isInteger(m.awayCorners) && m.awayCorners >= 0;
     }
     return Number.isInteger(m.homeGoals) && Number.isInteger(m.awayGoals);
   });
@@ -103,8 +110,8 @@ export function fitDixonColes(matches, { xi = 0.0019, refDate, maxOuter = 10, sw
     index,
     home: m.homeTeam,
     away: m.awayTeam,
-    homeGoals: useXg ? m.homeXg : m.homeGoals,
-    awayGoals: useXg ? m.awayXg : m.awayGoals,
+    homeGoals: useXg ? m.homeXg : useCorners ? m.homeCorners : m.homeGoals,
+    awayGoals: useXg ? m.awayXg : useCorners ? m.awayCorners : m.awayGoals,
     weight: Math.exp(-xi * Math.max(0, daysBetween(m.matchDate, refMs))),
   }));
   const gamesByTeam = new Map(teams.map((t) => [t, { home: [], away: [] }]));
@@ -183,10 +190,25 @@ export function fitDixonColes(matches, { xi = 0.0019, refDate, maxOuter = 10, sw
         params.homeAdv += homeStep;
         maxStep = Math.max(maxStep, Math.abs(interceptStep), Math.abs(homeStep));
       }
+      if (useCorners) {
+        // Level-preserving centring (corners path only): shifting attack and
+        // defence by their means changes every log-rate by
+        // (meanAttack - meanDefence); absorb that shift into the intercept so
+        // the sweep's balanced likelihood survives centre(). Without this the
+        // iteration settles into a stable cycle ~9-13% above the MLE level
+        // (found 2026-08-24 during Phase 2; documented in
+        // docs/research/PHASE-2-corner-results-2026-08-24.md). The legacy
+        // goals/xg paths intentionally keep the historical behaviour —
+        // changing them would silently alter the frozen dc-v1/dc-xg-v1 model
+        // math (ADR 0003) and invalidate prior backtest reproducibility.
+        const meanAttack = teams.reduce((sum, t) => sum + params.attack[t], 0) / teams.length;
+        const meanDefence = teams.reduce((sum, t) => sum + params.defence[t], 0) / teams.length;
+        params.intercept += meanAttack - meanDefence;
+      }
       centre(params.attack, teams);
       centre(params.defence, teams);
     }
-    if (!useXg) params.rho = rhoStep(data, rateHome, rateAway, params.rho);
+    if (!useXg && !useCorners) params.rho = rhoStep(data, rateHome, rateAway, params.rho);
     if (maxStep < tolerance) break;
   }
 
@@ -195,7 +217,7 @@ export function fitDixonColes(matches, { xi = 0.0019, refDate, maxOuter = 10, sw
     defence: params.defence,
     intercept: params.intercept,
     homeAdv: params.homeAdv,
-    rho: useXg ? 0 : params.rho,
+    rho: useXg || useCorners ? 0 : params.rho,
     teams,
     xi,
     response,
@@ -297,6 +319,24 @@ export function goalTotalDistribution(matrix) {
       totals.set(total, (totals.get(total) ?? 0) + matrix[h][a]);
     }
   }
+  return totals;
+}
+
+// Independent-Poisson total (corners mode): the sum of Poisson(lambda) and
+// Poisson(mu) is exactly Poisson(lambda + mu), so the total distribution is
+// analytic — no score matrix needed. Returns a Map total -> probability,
+// renormalised over [0, maxTotal] (the truncation tail is ~0 for corner
+// rates with maxTotal = 40).
+export function poissonTotalDistribution(lambda, mu, maxTotal = 40) {
+  const rate = lambda + mu;
+  const totals = new Map();
+  let mass = 0;
+  for (let k = 0; k <= maxTotal; k += 1) {
+    const p = poissonPmf(k, rate);
+    totals.set(k, p);
+    mass += p;
+  }
+  for (const [k, p] of totals) totals.set(k, p / mass);
   return totals;
 }
 

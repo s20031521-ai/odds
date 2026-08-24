@@ -1,7 +1,15 @@
 // Parser for football-data.co.uk match CSVs (mmz4281 format).
 // Pure functions only — no I/O — so tests and self-test never touch network or DB.
 //
-// Closing odds preference: Pinnacle (PS*) first, Bet365 (B365*) as fallback.
+// Odds timing (football-data.co.uk convention since 2019/20): columns without
+// a "C" suffix (PSH, P>2.5, PAHH, AvgH, ...) are the pre-closing set, collected
+// after market opening; columns with the "C" suffix (PSCH, PC>2.5, PCAHH,
+// AvgCH, ...) are the true closing odds. The legacy "closing*" fields below
+// keep their original pre-closing (PS*/B365*) semantics so existing harnesses
+// stay byte-identical; the Phase 1 blend backtest uses the pinClose*/avgOpen*/
+// avgClose* fields instead.
+//
+// Legacy "closing*" preference: Pinnacle (PS*) first, Bet365 (B365*) as fallback.
 // Totals columns ("B365>2.5" etc.) imply the 2.5 goal line; Asian handicap
 // uses the AHh column (home-team handicap) with PAH*/B365AH* prices.
 
@@ -64,6 +72,14 @@ function mapRecord(fields, columnIndex, fallbackLeagueCode) {
   };
   if (!row.leagueCode) return null;
 
+  // --- Phase 2 additive fields: corner counts (HC/AC) + shots-on-target ---
+  // Nullable: older CSV variants may lack the columns; the corners engine
+  // skips NULL rows when fitting.
+  row.homeCorners = parseInteger(get("HC"));
+  row.awayCorners = parseInteger(get("AC"));
+  row.homeShotsOnTarget = parseInteger(get("HST"));
+  row.awayShotsOnTarget = parseInteger(get("AST"));
+
   for (const [target, sources] of Object.entries(H2H_COLUMNS)) {
     row[target] = firstValidOdds(get, sources);
   }
@@ -78,6 +94,48 @@ function mapRecord(fields, columnIndex, fallbackLeagueCode) {
   row.closingHandicapLine = handicapLine !== null && (handicapHome !== null || handicapAway !== null) ? handicapLine : null;
   row.closingHandicapHomeOdds = row.closingHandicapLine !== null ? handicapHome : null;
   row.closingHandicapAwayOdds = row.closingHandicapLine !== null ? handicapAway : null;
+
+  // --- Phase 1 additive fields: true closing odds and market-average prices ---
+  // Pinnacle pre-closing (pure Pinnacle only — the legacy "closing*" fields
+  // fall back to Bet365; the blend backtest anchors must not mix books).
+  row.pinOpenHomeOdds = firstValidOdds(get, ["PSH"]);
+  row.pinOpenDrawOdds = firstValidOdds(get, ["PSD"]);
+  row.pinOpenAwayOdds = firstValidOdds(get, ["PSA"]);
+  row.pinOpenOverOdds = firstValidOdds(get, ["P>2.5"]);
+  row.pinOpenUnderOdds = firstValidOdds(get, ["P<2.5"]);
+  const pinOpenAhHome = firstValidOdds(get, ["PAHH"]);
+  const pinOpenAhAway = firstValidOdds(get, ["PAHA"]);
+  row.pinOpenHandicapLine = handicapLine !== null && (pinOpenAhHome !== null || pinOpenAhAway !== null) ? handicapLine : null;
+  row.pinOpenHandicapHomeOdds = row.pinOpenHandicapLine !== null ? pinOpenAhHome : null;
+  row.pinOpenHandicapAwayOdds = row.pinOpenHandicapLine !== null ? pinOpenAhAway : null;
+  // Pinnacle closing (C-suffix columns).
+  row.pinCloseHomeOdds = firstValidOdds(get, ["PSCH"]);
+  row.pinCloseDrawOdds = firstValidOdds(get, ["PSCD"]);
+  row.pinCloseAwayOdds = firstValidOdds(get, ["PSCA"]);
+  row.pinCloseOverOdds = firstValidOdds(get, ["PC>2.5"]);
+  row.pinCloseUnderOdds = firstValidOdds(get, ["PC<2.5"]);
+  const pinCloseAhHome = firstValidOdds(get, ["PCAHH"]);
+  const pinCloseAhAway = firstValidOdds(get, ["PCAHA"]);
+  const closeHandicapLine = parseNumeric(get("AHCh"));
+  row.pinCloseHandicapLine = closeHandicapLine !== null && (pinCloseAhHome !== null || pinCloseAhAway !== null) ? closeHandicapLine : null;
+  row.pinCloseHandicapHomeOdds = row.pinCloseHandicapLine !== null ? pinCloseAhHome : null;
+  row.pinCloseHandicapAwayOdds = row.pinCloseHandicapLine !== null ? pinCloseAhAway : null;
+  // Market-average pre-closing (Betbrain/Oddsportal average).
+  row.avgOpenHomeOdds = firstValidOdds(get, ["AvgH"]);
+  row.avgOpenDrawOdds = firstValidOdds(get, ["AvgD"]);
+  row.avgOpenAwayOdds = firstValidOdds(get, ["AvgA"]);
+  row.avgOpenOverOdds = firstValidOdds(get, ["Avg>2.5"]);
+  row.avgOpenUnderOdds = firstValidOdds(get, ["Avg<2.5"]);
+  row.avgOpenHandicapHomeOdds = firstValidOdds(get, ["AvgAHH"]);
+  row.avgOpenHandicapAwayOdds = firstValidOdds(get, ["AvgAHA"]);
+  // Market-average closing.
+  row.avgCloseHomeOdds = firstValidOdds(get, ["AvgCH"]);
+  row.avgCloseDrawOdds = firstValidOdds(get, ["AvgCD"]);
+  row.avgCloseAwayOdds = firstValidOdds(get, ["AvgCA"]);
+  row.avgCloseOverOdds = firstValidOdds(get, ["AvgC>2.5"]);
+  row.avgCloseUnderOdds = firstValidOdds(get, ["AvgC<2.5"]);
+  row.avgCloseHandicapHomeOdds = firstValidOdds(get, ["AvgCAHH"]);
+  row.avgCloseHandicapAwayOdds = firstValidOdds(get, ["AvgCAHA"]);
   return row;
 }
 

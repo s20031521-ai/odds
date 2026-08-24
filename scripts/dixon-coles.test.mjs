@@ -9,6 +9,7 @@ import {
   marginDistribution,
   handicapSettlementDist,
   settlementEV,
+  poissonTotalDistribution,
   createRng,
   samplePoisson,
 } from "./lib/dixon-coles.mjs";
@@ -244,4 +245,91 @@ test("warm start: refitting with prior params as init lands on the same answer",
   }
   assert.ok(Math.abs(warm.homeAdv - cold.homeAdv) < 0.01);
   assert.ok(Math.abs(warm.rho - cold.rho) < 0.02);
+});
+
+// ---------- corners response (Phase 2) ----------
+
+test("corners response fits corner counts, keeps rho off, and skips rows without corners", () => {
+  const rng = createRng(7);
+  const teams = ["Alpha", "Bravo", "Charlie", "Delta"];
+  const cornerRate = { Alpha: 7.5, Bravo: 6.5, Charlie: 5.0, Delta: 3.5 };
+  const matches = [];
+  let day = 0;
+  const start = Date.UTC(2023, 7, 1);
+  for (let round = 0; round < 30; round += 1) {
+    for (const home of teams) {
+      for (const away of teams) {
+        if (home === away) continue;
+        matches.push({
+          matchDate: new Date(start + day * 86_400_000).toISOString().slice(0, 10),
+          homeTeam: home,
+          awayTeam: away,
+          homeCorners: samplePoisson(rng, cornerRate[home]),
+          awayCorners: samplePoisson(rng, cornerRate[away]),
+        });
+        day += 1;
+      }
+    }
+  }
+  // A row with goals but no corners must not enter a corners fit.
+  matches.push({ matchDate: "2023-08-05", homeTeam: "Alpha", awayTeam: "Bravo", homeGoals: 2, awayGoals: 1 });
+  const fit = fitDixonColes(matches, { xi: 0, response: "corners" });
+  assert.equal(fit.response, "corners");
+  assert.equal(fit.rho, 0, "corners mode must not fit the low-score rho correction");
+  assert.equal(fit.matchCount, matches.length - 1);
+  const { lambda, mu } = expectedGoals(fit, "Alpha", "Delta");
+  assert.ok(lambda > 5.5 && lambda < 9.5, `Alpha home corners ${lambda} should sit near 7.5 (+ home adv)`);
+  assert.ok(mu > 2.5 && mu < 5.0, `Delta away corners ${mu} should sit near 3.5`);
+  assert.ok(fit.attack.Alpha > fit.attack.Delta);
+});
+
+test("corners fit is level-unbiased in-sample (level-preserving centring)", () => {
+  // Poisson MLE with an intercept satisfies the score equations exactly, so
+  // the mean predicted rate over the training set must equal the empirical
+  // mean. Guards the 2026-08-24 level-drift fix.
+  const rng = createRng(31);
+  const teams = ["Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot"];
+  const rate = { Alpha: 8.2, Bravo: 7.1, Charlie: 6.0, Delta: 5.1, Echo: 4.3, Foxtrot: 3.4 };
+  const matches = [];
+  let day = 0;
+  for (let round = 0; round < 12; round += 1) {
+    for (const home of teams) {
+      for (const away of teams) {
+        if (home === away) continue;
+        matches.push({
+          matchDate: new Date(Date.UTC(2024, 7, 1) + day * 86_400_000).toISOString().slice(0, 10),
+          homeTeam: home,
+          awayTeam: away,
+          homeCorners: samplePoisson(rng, rate[home]),
+          awayCorners: samplePoisson(rng, rate[away]),
+        });
+        day += 1;
+      }
+    }
+  }
+  const fit = fitDixonColes(matches, { xi: 0, response: "corners" });
+  let pred = 0;
+  let act = 0;
+  for (const m of matches) {
+    const r = expectedGoals(fit, m.homeTeam, m.awayTeam);
+    pred += r.lambda + r.mu;
+    act += m.homeCorners + m.awayCorners;
+  }
+  assert.ok(Math.abs(pred / act - 1) < 0.01, `in-sample level bias ${(pred / act - 1).toFixed(4)}`);
+});
+
+test("poissonTotalDistribution matches analytic Poisson(lambda + mu)", () => {
+  const lambda = 6.2;
+  const mu = 4.8;
+  const dist = poissonTotalDistribution(lambda, mu);
+  const rate = lambda + mu;
+  // analytic pmf at k = 10
+  let p10 = Math.exp(-rate);
+  for (let k = 1; k <= 10; k += 1) p10 *= rate / k;
+  assert.ok(Math.abs(dist.get(10) - p10) < 1e-9);
+  const total = [...dist.values()].reduce((a, b) => a + b, 0);
+  assert.ok(Math.abs(total - 1) < 1e-12);
+  // mean of the distribution should sit at lambda + mu
+  const mean = [...dist.entries()].reduce((sum, [k, p]) => sum + k * p, 0);
+  assert.ok(Math.abs(mean - rate) < 1e-6);
 });

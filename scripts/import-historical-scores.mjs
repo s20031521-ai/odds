@@ -34,22 +34,24 @@ export async function importRows(pool, rows, { source = DEFAULT_SOURCE } = {}) {
       `
       INSERT INTO team_match_history (
         source, league_code, season, match_date, home_team, away_team,
-        home_goals, away_goals,
+        home_goals, away_goals, home_corners, away_corners,
         closing_home_odds, closing_draw_odds, closing_away_odds,
         closing_totals_line, closing_over_odds, closing_under_odds,
         closing_handicap_line, closing_handicap_home_odds, closing_handicap_away_odds
       ) VALUES (
         $1, $2, $3, $4, $5, $6,
-        $7, $8,
-        $9, $10, $11,
-        $12, $13, $14,
-        $15, $16, $17
+        $7, $8, $9, $10,
+        $11, $12, $13,
+        $14, $15, $16,
+        $17, $18, $19
       )
       ON CONFLICT (source, league_code, match_date, home_team, away_team)
       DO UPDATE SET
         season = EXCLUDED.season,
         home_goals = EXCLUDED.home_goals,
         away_goals = EXCLUDED.away_goals,
+        home_corners = EXCLUDED.home_corners,
+        away_corners = EXCLUDED.away_corners,
         closing_home_odds = EXCLUDED.closing_home_odds,
         closing_draw_odds = EXCLUDED.closing_draw_odds,
         closing_away_odds = EXCLUDED.closing_away_odds,
@@ -70,6 +72,8 @@ export async function importRows(pool, rows, { source = DEFAULT_SOURCE } = {}) {
         row.awayTeam,
         row.homeGoals,
         row.awayGoals,
+        row.homeCorners ?? null,
+        row.awayCorners ?? null,
         row.closingHomeOdds,
         row.closingDrawOdds,
         row.closingAwayOdds,
@@ -141,18 +145,21 @@ async function collectCsvTexts(args) {
 
 function selfTest() {
   const sample = [
-    "Div,Date,HomeTeam,AwayTeam,FTHG,FTAG,PSH,PSD,PSA,B365>2.5,B365<2.5,AHh,PAHH,PAHA",
-    "E0,10/08/2024,Man United,Fulham,1,0,1.75,3.90,4.80,1.88,1.98,-0.75,1.95,1.95",
-    "E0,17/08/2024,Spurs,Everton,,,,,,,,,,",
+    "Div,Date,HomeTeam,AwayTeam,FTHG,FTAG,HST,AST,HC,AC,PSH,PSD,PSA,B365>2.5,B365<2.5,AHh,PAHH,PAHA",
+    "E0,10/08/2024,Man United,Fulham,1,0,5,3,7,4,1.75,3.90,4.80,1.88,1.98,-0.75,1.95,1.95",
+    "E0,17/08/2024,Spurs,Everton,,,,,,,,,,,,,,",
   ].join("\n");
   const rows = parseFootballDataCsv(sample, { leagueCode: "E0" });
   if (rows.length !== 1) throw new Error(`expected 1 played row, got ${rows.length}`);
   if (rows[0].closingHandicapLine !== -0.75) throw new Error("handicap line parse failed");
+  if (rows[0].homeCorners !== 7 || rows[0].awayCorners !== 4) throw new Error("corners parse failed");
   const queries = [];
   const fakePool = { async query(sql, params) { queries.push([sql, params]); return { rows: [] }; } };
   return importRows(fakePool, rows).then((result) => {
     if (result.processed !== 1 || queries.length !== 1) throw new Error("upsert not issued");
     if (!queries[0][0].includes("ON CONFLICT")) throw new Error("upsert missing ON CONFLICT");
+    if (!queries[0][0].includes("home_corners")) throw new Error("upsert missing corners columns");
+    if (queries[0][1][8] !== 7 || queries[0][1][9] !== 4) throw new Error("corners params out of order");
     console.log("[import-historical] self-test passed");
   });
 }

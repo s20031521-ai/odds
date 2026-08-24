@@ -87,9 +87,14 @@ function quoteRejectionReasons(quote, { market, selection, line, rows, consensus
   const cap = config.maxOdds?.[market];
   if (Number.isFinite(cap) && quote.odds > cap) reasons.push(GATE_REASONS.oddsCap);
 
-  if (Number.isFinite(config.maxEdge)
+  // maxEdge 支援全侷數字或每玩法 object(v2 起;replay 證據主要係角球,
+  // 所以 corners 收得緊過其他玩法)。
+  const edgeCap = typeof config.maxEdge === "object" && config.maxEdge !== null
+    ? config.maxEdge?.[market]
+    : config.maxEdge;
+  if (Number.isFinite(edgeCap)
       && Number.isFinite(quote.edge)
-      && quote.edge > config.maxEdge) {
+      && quote.edge > edgeCap) {
     reasons.push(GATE_REASONS.edgeCap);
   }
 

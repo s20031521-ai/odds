@@ -80,14 +80,15 @@ test("odds above the per-market cap are rejected with odds-cap-exceeded", () => 
 });
 
 test("odds at exactly the cap survive", () => {
-  // Sharp books price over 9.5 as a real longshot (fair ≈ 0.187), so a 6.0
+  // Sharp books price over 9.5 as a real longshot (fair ≈ 0.187), so a 4.0
   // quote is near fair — only the odds cap itself is under test here.
+  // (v2: corners cap tightened 6.0 → 4.0 per the 2026-08-24 replay.)
   const longshotRows = [
     row("Pinnacle", "over", 5.0), row("Pinnacle", "under", 1.15),
     row("Bet365", "over", 5.0), row("Bet365", "under", 1.15),
   ];
   const { quotes } = gateOpportunityQuotes(
-    cornersOpportunity([quote("Superbet", 6.0, 0.05)]),
+    cornersOpportunity([quote("Superbet", 4.0, 0.05)]),
     longshotRows,
   );
   assert.equal(quotes.length, 1);
@@ -105,11 +106,29 @@ test("edge above the symmetric cap is rejected with edge-cap-exceeded", () => {
 });
 
 test("edge at exactly the cap survives", () => {
+  // v2: corners edge cap is 0.10 (replay-tightened from the global 0.15).
   const { quotes } = gateOpportunityQuotes(
-    cornersOpportunity([quote("Superbet", 2.1, 0.15)]),
+    cornersOpportunity([quote("Superbet", 2.1, 0.10)]),
     balancedRows(),
   );
   assert.equal(quotes.length, 1);
+});
+
+test("edge caps are per-market: corners 0.12 blocked, h2h 0.12 survives", () => {
+  // v2 replay evidence is corners-only, so only corners was tightened to 0.10;
+  // other markets keep 0.15 pending forward A/B evidence.
+  const corners = gateOpportunityQuotes(
+    cornersOpportunity([quote("Superbet", 2.1, 0.12)]),
+    balancedRows(),
+  );
+  assert.equal(corners.quotes.length, 0);
+  assert.ok(corners.rejected[0].reasons.includes(GATE_REASONS.edgeCap));
+
+  const h2h = gateOpportunityQuotes(
+    { fixtureId: "fx-1", market: "h2h", selection: "home", quotes: [quote("Superbet", 2.1, 0.12)] },
+    [],
+  );
+  assert.equal(h2h.quotes.length, 1);
 });
 
 // ---------- sharp consensus deviation ----------
@@ -329,7 +348,9 @@ test("gatedStrategyVersion helpers round-trip", () => {
 // ---------- config sanity ----------
 
 test("config keeps the frozen 3% floor untouched and caps symmetric-ish", () => {
-  assert.ok(QUOTE_GATE_CONFIG.maxEdge > 0.03, "gate ceiling must sit above the 3% buy floor");
-  assert.equal(QUOTE_GATE_CONFIG.maxOdds.corners, 6.0);
+  for (const [market, cap] of Object.entries(QUOTE_GATE_CONFIG.maxEdge)) {
+    assert.ok(cap > 0.03, `gate ceiling (${market}) must sit above the 3% buy floor`);
+  }
+  assert.equal(QUOTE_GATE_CONFIG.maxOdds.corners, 4.0);
   assert.equal(QUOTE_GATE_CONFIG.maxOdds.h2h, 8.0);
 });

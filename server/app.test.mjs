@@ -125,7 +125,7 @@ test("serves the secure same-origin api/v1 contract", async (t) => {
     // Phase 3 quote gate: the 12.0-odds trap quote (sampleId 110) is blocked
     // and audited, never surfaced.
     quoteGate: {
-      version: "quote-gate-v1",
+      version: "quote-gate-v2",
       blockedOpportunities: 1,
       blockedQuotes: 1,
       reasons: { "odds-cap-exceeded": 1, "edge-cap-exceeded": 1 },

@@ -98,12 +98,40 @@ sudo docker exec odds-tool-api-1 sh -c \
 
 `quote-gate-v1` 嘅數字(6.0/8.0 cap、15% edge 上限、15% sharp band、15 分鐘新鮮度)係按死因證據推嘅保守起點:**實際 cap 應該由 §4 嘅 replay 輸出話事**。Replay 會話我哋知邊個組合「大比例擋虧損、細比例誤擋」— 到時改 `shared/quote-gate-config.mjs` 一個 commit 搞掂,留痕。
 
+> **後續(2026-08-24 下午):replay 已跑,參數已按結果收緊做 `quote-gate-v2`,見 §9。**
+
 ## 7. 後續行動
 
-1. **部署 + 喺 VM 跑 replay**(§4 命令),將結果寫入本文件或另開 `PHASE-3-replay-2026-08-XX.md`。
-2. 按 replay 結果調 `quote-gate-config.mjs`(如需)。
+1. ~~**部署 + 喺 VM 跑 replay**(§4 命令),將結果寫入本文件或另開 `PHASE-3-replay-2026-08-XX.md`。~~ ✅ 2026-08-24 下午完成,結果同參數決定見 §9。
+2. ~~按 replay 結果調 `quote-gate-config.mjs`(如需)。~~ ✅ 已出 `quote-gate-v2`(corners cap 4.0、corners edge cap 0.10;其他玩法維持 8.0/0.15)。
 3. 影子 A/B 收數:`dc-blend-v1` vs `dc-blend-v1-gated` 等,幾個月後用 shadow-evidence-report 同 backtest 比較 — 呢個係閘門嘅向前證據,唔係事後揀贏家。
-4. 注意:unified 線(角球以外)而家出街前都過閘 — 如果 replay 顯示誤擋率太高,第一步係放寬 config,唔係拆閘。
+4. 注意:unified 線(角球以外)而家出街前都過閘 — 如果 replay 顯示誤擋率太高,第一步係放寬 config,唔係拆閘。(今次 replay 誤擋率係零 — 冇一注被擋嘅係贏錢嘅;見 §9。)
+
+## 9. Replay 結果(2026-08-24 下午,production 已結算推薦)
+
+部署後喺 VM 行 `replay-quote-gate.mjs --database`,200 個已結算推薦(189 個角球):
+
+**基線(無閘門):** ROI [-34.4%, -34.1%],總虧損 -68.90u。
+
+**v1 配置(corners cap 6.0 / edge 0.15)已經好有效:** 擋 112/200 推薦(133 個報價),被擋嗰批蝕咗 [-54.88, -54.58]u ≈ 全池 80% 嘅虧損;保留嘅 88 個仲係 ROI [-15.9%, -15.5%]。擋截原因:odds-cap×127、edge-cap×52、sharp-deviation×1 — **賠率 cap 係主力**,sharp 偏離幾乎冇貢獻(但成本係零,留住做保險)。
+
+**Grid 頭部(corners cap 梯度係單調嘅):**
+
+| 配置 | kept | kept ROI |
+|---|---:|---:|
+| corners≤4, edge≤0.10 | 40 | **+11.6%..+12.1%** |
+| corners≤5, edge≤0.10 | 62 | -1.2%..-0.9% |
+| corners≤6(v1) | 88 | -15.9%..-15.5% |
+
+Edge cap 喺 corners≤4 之下:0.10 → +11.6%;0.15 → +3.2%;0.20 → +3.8% — edge 10–15% 區間仲係蝕緊。全部配置**誤擋盈利 = 零**(冇一注被擋嘅係贏錢嘅)。
+
+**參數決定 → `quote-gate-v2`:** corners maxOdds 6.0→**4.0**;maxEdge 改做每玩法,corners 0.15→**0.10**,其他玩法維持 0.15;maxSharpEdge 0.15 不變;新鮮度/單調不變。
+
+**誠實 caveat(寫低防之後自己都呃自己):**
+
+1. 呢 200 個推薦就係當初促使起閘門嘅同一批屍體 — 喺佢哋身上揀 grid 第一名本質係 in-sample 揀贏家。所以採納嘅係**單調梯度**呢個穩健訊號(cap 越緊越好、4/5/6 三點方向一致),唔係「+11.6% 呢個數會重現」。
+2. 189/200 係角球 — 證據只係角球嘅;其他玩法嘅 cap 唔郁,等 `-gated` 影子線向前收數。
+3. 閘門嘅真考試係向前 A/B:gated vs ungated 影子線幾個月後嘅實際 ROI 對比(§7.3)。
 
 ## 8. 可重現性
 

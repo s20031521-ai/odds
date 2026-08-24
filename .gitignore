@@ -3,6 +3,7 @@ dist
 .env.local
 .ssh-key
 *.tar.gz
+*.zip
 test-results/
 data/priority-*
 scripts/tmp-*
@@ -12,3 +13,16 @@ run-migration-debug.mjs
 skills-lock.json
 Users/
 .worktrees/
+
+# 本地研究材料同臨時檔(2026-08-24 整理)
+tmp-*
+test-pg.sh
+vm-compose-*.yaml
+股神/
+stitch_ballballchu_odds_dashboard/
+data/historical/
+data/understat/
+data/current-teams-now.txt
+# 回測 records cache 可重建(見 results 報告「可重現性」),只留結果 JSON
+data/blend-backtest/records-*.json
+data/corners-backtest/records-*.json

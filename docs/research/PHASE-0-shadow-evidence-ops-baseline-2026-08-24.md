@@ -97,7 +97,7 @@ Phase 0 完成 = 以下全部成立:
 - [x] 部署上 production 並帶 build stamp(02:20 首輪 `de1920e`;compose 漂移修復後第二輪,api log 確認 `build commit=4334e9d builtAt=2026-08-23T18:45:45Z`)
 - [x] API `suspensions` 可見,角球推薦唔再出現(2026-08-24 02:50 owner 瀏覽器確認:今日頁顯示「已暫停 · 實際 ROI 顯著低於 0」,trust gate 上線)
 - [x] Integrity checker green(snapshots=510 results=8138,late/duplicate/future/post-kick 全 0;僅 1 條歷史 post-kickoff invalid 同 93 條 legacy 缺 commenceTime,屬已知)
-- [ ] Fixture 合併個案驗證 — **改寫**:三個 8-23 歷史個案(Daejeon/Gangwon、Machida/Urawa、Gwangju/Incheon)仍然拆分,因為 alias registry 唔做追溯合併(審計註明:merges require an approved forward-only migration)。Phase 0 嘅正確驗收係:**部署後嘅新賽事唔再拆分**;歷史合併另開 migration 處理
+- [x] Fixture 合併個案驗證 — **已改寫並結案**:三個 8-23 歷史個案(Daejeon/Gangwon、Machida/Urawa、Gwangju/Incheon)仍然拆分,因為 alias registry 唔做追溯合併(審計註明:merges require an approved forward-only migration)。Phase 0 嘅正確驗收係:**部署後嘅新賽事唔再拆分**(已成立);歷史合併另開 migration 處理
 - [x] 四條影子線持續累積 + 正式基線存档(`docs/research/shadow-baseline/2026-08-24.md`;dc 家族覆蓋 E0/F1/I1/SP1,E0 警告屬開季預期;之後每週一對比)
 - [x] `HDC_MIN_QUOTA=5` 落實到 collector(2026-08-24 02:49 覆查 `quotaMinimum=5, quotaRemaining=219`;compose 漂移問題收尾)
 - [x] `deploy-now.ps1` 明文憑證移除(`1a91c06` 已完成)

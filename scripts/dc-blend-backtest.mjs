@@ -58,6 +58,9 @@ import {
   calibrationSummary,
   edgeBucketSummary,
   bootstrapRoiCi,
+  binaryScores,
+  expectedSettlementScore,
+  settlementScore,
 } from "./lib/backtest-metrics.mjs";
 import { shinProbabilities, powerNoVigTwoWay } from "./lib/market-sharp.mjs";
 import { XI_BY_LEAGUE, DEFAULT_XI } from "./lib/dc-shadow.mjs";
@@ -189,9 +192,9 @@ function recordBet(list, scope, matchKey, edge, settlement, odds) {
   list.push({ scope, matchKey, edge, profit: settlementProfit(settlement, odds), won: settlement === "win" || settlement === "half-win" ? 1 : 0 });
 }
 
-// Evaluates one market over all records. `h2h` gets full scoring; `totals`
-// gets a two-way Brier; `handicap` is EV-only (no probability scoring, like
-// the production shadow, because the market side carries no full dist).
+// Evaluates every market with the pre-registered Brier/log-loss/RPS set.
+// Handicap maps the ordered five-state Asian settlement onto [0, 1]:
+// win=1, half-win=.75, push=.5, half-loss=.25, loss=0.
 export function evaluateH2h(records) {
   const out = emptyMarketEval();
   for (const record of records) {
@@ -286,8 +289,11 @@ export function evaluateTotals(records) {
         for (const w of W_GRID) {
           const pOver = w * dcProbs.over25 + (1 - w) * anchorOver[anchor];
           const score = out.scores[model][anchor][w];
+          const metrics = binaryScores(pOver, actualOver ? 1 : 0);
           score.n += 1;
-          score.brier += (pOver - (actualOver ? 1 : 0)) ** 2;
+          score.brier += metrics.brier;
+          score.logLoss += metrics.logLoss;
+          score.rps += metrics.rps;
           for (const betPrice of ANCHORS) {
             const oddsFor = betPrice === "open" ? pinOpen : pinClose;
             for (const selection of ["over", "under"]) {
@@ -355,6 +361,15 @@ export function evaluateHandicap(records) {
         const mc = marketChance[anchor];
         if (!mc) continue;
         for (const w of W_GRID) {
+          const homeDist = handicapSettlementDist(margins, mc.line, "home");
+          const homeScore = w * expectedSettlementScore(homeDist) + (1 - w) * mc.home;
+          const actualHomeScore = settlementScore(settleHandicap(margin, mc.line, "home"));
+          const metrics = binaryScores(homeScore, actualHomeScore);
+          const score = out.scores[model][anchor][w];
+          score.n += 1;
+          score.brier += metrics.brier;
+          score.logLoss += metrics.logLoss;
+          score.rps += metrics.rps;
           for (const selection of ["home", "away"]) {
             const odds = mc.odds[selection];
             const dist = handicapSettlementDist(margins, mc.line, selection);
@@ -431,12 +446,10 @@ function printScopeReport(label, records, scopes) {
     for (const market of ["h2h", "totals", "handicap"]) {
       const { scores, coverage, bets, consensusBets } = scoreGridByScope(records, market, scope);
       console.log(`\n## ${market} (coverage: ${coverage} matches)`);
-      if (market !== "handicap") {
-        for (const model of MODELS) {
-          for (const anchor of ANCHORS) {
-            for (const w of W_GRID) {
-              console.log(scoreRow(`${model} anchor=${anchor} w=${w}`, scores[model][anchor][w]));
-            }
+      for (const model of MODELS) {
+        for (const anchor of ANCHORS) {
+          for (const w of W_GRID) {
+            console.log(scoreRow(`${model} anchor=${anchor} w=${w}`, scores[model][anchor][w]));
           }
         }
       }
@@ -501,14 +514,14 @@ function selfTest() {
   for (const market of ["h2h", "totals", "handicap"]) {
     const { scores, bets, coverage } = scoreGridByScope(records, market, "tune");
     if (coverage === 0) throw new Error(`self-test: ${market} zero coverage`);
-    if (market !== "handicap") {
-      for (const model of MODELS) {
-        for (const anchor of ANCHORS) {
-          for (const w of W_GRID) {
-            const score = scores[model][anchor][w];
-            if (score.n === 0) throw new Error(`self-test: ${market} ${model}/${anchor}/w=${w} scored nothing`);
-            if (!(score.brier / score.n > 0 && score.brier / score.n < 2)) throw new Error(`self-test: ${market} brier out of range`);
-          }
+    for (const model of MODELS) {
+      for (const anchor of ANCHORS) {
+        for (const w of W_GRID) {
+          const score = scores[model][anchor][w];
+          if (score.n === 0) throw new Error(`self-test: ${market} ${model}/${anchor}/w=${w} scored nothing`);
+          if (!(score.brier / score.n >= 0 && score.brier / score.n < 2)) throw new Error(`self-test: ${market} brier out of range`);
+          if (!(score.logLoss / score.n >= 0 && Number.isFinite(score.logLoss / score.n))) throw new Error(`self-test: ${market} log-loss out of range`);
+          if (!(score.rps / score.n >= 0 && score.rps / score.n < 2)) throw new Error(`self-test: ${market} RPS out of range`);
         }
       }
     }
@@ -677,7 +690,8 @@ async function main() {
             scoreSummary[model][anchor][w] = {
               n: s.n,
               brier: s.brier / n,
-              ...(market === "h2h" ? { logLoss: s.logLoss / n, rps: s.rps / n } : {}),
+              logLoss: s.logLoss / n,
+              rps: s.rps / n,
             };
           }
         }

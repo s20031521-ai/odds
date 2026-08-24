@@ -14,6 +14,9 @@ import {
   calibrationSummary,
   edgeBucketSummary,
   bootstrapRoiCi,
+  binaryScores,
+  expectedSettlementScore,
+  settlementScore,
 } from "./lib/backtest-metrics.mjs";
 
 test("brier3 is zero for a perfect confident prediction and two for the worst", () => {
@@ -31,6 +34,20 @@ test("rps3 matches hand-computed value", () => {
   // cum1 = 0.5 - 1 = -0.5 -> 0.25 ; cum2 = 0.8 - 1 = -0.2 -> 0.04 ; rps = (0.25 + 0.04) / 2
   assert.ok(Math.abs(rps3({ home: 0.5, draw: 0.3, away: 0.2 }, "home") - 0.145) < 1e-12);
   assert.equal(rps3({ home: 1, draw: 0, away: 0 }, "home"), 0);
+});
+
+test("binaryScores handles ordinary and fractional Asian outcomes", () => {
+  const perfect = binaryScores(1, 1);
+  assert.ok(perfect.brier < 1e-20);
+  assert.ok(perfect.logLoss < 1e-10);
+  assert.equal(perfect.rps, perfect.brier);
+  const push = binaryScores(0.6, 0.5);
+  assert.ok(Math.abs(push.brier - 0.01) < 1e-12);
+  assert.ok(Number.isFinite(push.logLoss));
+  assert.equal(push.rps, push.brier);
+  assert.equal(settlementScore("half-win"), 0.75);
+  assert.equal(settlementScore("push"), 0.5);
+  assert.ok(Math.abs(expectedSettlementScore({ win: 0.2, "half-win": 0.2, push: 0.2, "half-loss": 0.2, loss: 0.2 }) - 0.5) < 1e-12);
 });
 
 test("devig3 normalises to one", () => {

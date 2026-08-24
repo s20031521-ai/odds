@@ -26,6 +26,34 @@ export function rps3(probs, actual) {
   return ((cumP1 - cumO1) ** 2 + (cumP2 - cumO2) ** 2) / 2;
 }
 
+// Binary scoring also accepts fractional outcomes in [0, 1]. That is useful
+// for Asian settlement: win=1, half-win=.75, push=.5, half-loss=.25, loss=0.
+export function binaryScores(probability, actual) {
+  const p = Math.min(1 - 1e-12, Math.max(1e-12, probability));
+  const y = Math.min(1, Math.max(0, actual));
+  const squared = (p - y) ** 2;
+  return {
+    brier: squared,
+    logLoss: -(y * Math.log(p) + (1 - y) * Math.log(1 - p)),
+    rps: squared,
+  };
+}
+
+export function settlementScore(settlement) {
+  if (settlement === "win") return 1;
+  if (settlement === "half-win") return 0.75;
+  if (settlement === "push") return 0.5;
+  if (settlement === "half-loss") return 0.25;
+  return 0;
+}
+
+export function expectedSettlementScore(dist) {
+  return (dist.win ?? 0)
+    + 0.75 * (dist["half-win"] ?? 0)
+    + 0.5 * (dist.push ?? 0)
+    + 0.25 * (dist["half-loss"] ?? 0);
+}
+
 // ---------- de-vig (proportional, same as production fairProbabilitiesForOdds) ----------
 
 export function devig3(homeOdds, drawOdds, awayOdds) {

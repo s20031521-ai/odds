@@ -1,5 +1,6 @@
 import { classifySnapshot, summarizeSnapshotQuality } from "../../shared/snapshot-policy.mjs";
 import { isGatedStrategyVersion } from "../../shared/quote-quality-gate.mjs";
+import { ALL_SHADOW_STRATEGY_VERSIONS } from "../../shared/strategy-versions.mjs";
 import { resultIdentity, snapshotIdentity } from "./identity.mjs";
 import { modelTrust } from "./model-trust.mjs";
 import { performanceForRows, readinessVerdict } from "./model-performance.mjs";
@@ -10,7 +11,7 @@ const DATA_FRESH_MS = 45 * 60_000;
 const UNIFIED_STRATEGY_VERSION = "unified-buyable-v1";
 // Shadow experiment strategies (ADR 0003): opportunity-shaped samples that
 // are muted on the Today page but settle and report readiness separately.
-const SHADOW_STRATEGY_VERSIONS = new Set(["dc-shadow-v1", "dc-blend-v1", "market-sharp-v1", "dc-xg-shadow-v1"]);
+const SHADOW_STRATEGIES = new Set(ALL_SHADOW_STRATEGY_VERSIONS);
 const PERFORMANCE_SETTLEMENTS = new Set(["win", "half-win", "push", "half-loss", "loss"]);
 
 export function flattenLiveCache(cached) {
@@ -596,7 +597,7 @@ function isUnifiedOpportunity(item) {
 
 function isShadowOpportunity(item) {
   // `-gated` twins (Phase 3 shadow A/B) are shadow lines by construction.
-  return SHADOW_STRATEGY_VERSIONS.has(item?.strategyVersion) || isGatedStrategyVersion(item?.strategyVersion);
+  return SHADOW_STRATEGIES.has(item?.strategyVersion) || isGatedStrategyVersion(item?.strategyVersion);
 }
 
 // Snapshots recorded through the opportunity pipeline (unified + dc-shadow)

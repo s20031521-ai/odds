@@ -1,8 +1,8 @@
-// dc-shadow-v1: shadow-mode wiring between the dc-v1 Dixon-Coles engine
+// dc-shadow-v2: shadow-mode wiring between the level-corrected Dixon-Coles engine
 // (scripts/lib/dixon-coles.mjs) and the unified opportunity pipeline.
 //
-// Shadow opportunities are recorded under strategyVersion "dc-shadow-v1" with
-// modelVersion "dc-v1". They flow through the same recommendation_samples /
+// Shadow opportunities are recorded under the current centrally defined strategy/model
+// versions. They flow through the same recommendation_samples /
 // recommendation_observations tables but never surface on the Today page
 // (listCurrent is hardcoded to unified-buyable-v1). See ADR 0003.
 //
@@ -27,22 +27,32 @@ import {
   settlementEV,
   totalsSettlementDist,
 } from "./dixon-coles.mjs";
+import {
+  DC_BLEND_MODEL_VERSION,
+  DC_BLEND_STRATEGY_VERSION,
+  DC_MODEL_VERSION,
+  DC_SHADOW_STRATEGY_VERSION,
+  DC_XG_MODEL_VERSION,
+  DC_XG_STRATEGY_VERSION,
+} from "../../shared/strategy-versions.mjs";
 
-export const DC_SHADOW_STRATEGY_VERSION = "dc-shadow-v1";
-export const DC_MODEL_VERSION = "dc-v1";
-export const DC_BLEND_STRATEGY_VERSION = "dc-blend-v1";
-export const DC_BLEND_MODEL_VERSION = "dc-v2";
-// dc-v2 blend: 30% Dixon-Coles model, 70% sharp market consensus. The
+export {
+  DC_BLEND_MODEL_VERSION,
+  DC_BLEND_STRATEGY_VERSION,
+  DC_MODEL_VERSION,
+  DC_SHADOW_STRATEGY_VERSION,
+  DC_XG_MODEL_VERSION,
+  DC_XG_STRATEGY_VERSION,
+};
+// Current blend: 30% Dixon-Coles model, 70% sharp market consensus. The
 // offline backtest showed the pure model trails the closing market; the
 // literature consensus is that a market-anchored blend beats either side
 // alone. Shadow evidence will confirm or refute that at HKJC prices.
 export const DC_BLEND_MODEL_WEIGHT = 0.3;
-// dc-xg-v1 shadow: attack/defence fitted on Understat xG (continuous
+// Current xG shadow: attack/defence fitted on Understat xG (continuous
 // response, tau off), rho borrowed from the scoreline fit. Offline
 // walk-forward (scripts/dc-xg-compare.mjs) showed xg-rho beating the
 // scoreline fit in all five leagues (logLoss 0.9904 vs 0.9975 overall).
-export const DC_XG_STRATEGY_VERSION = "dc-xg-shadow-v1";
-export const DC_XG_MODEL_VERSION = "dc-xg-v1";
 
 // Per-league time decay, tuned by scripts/dc-v1-tune-xi.mjs (walk-forward
 // h2h log-loss over the 2019–2026 history, grid {0.0005…0.005}). The curve
@@ -292,10 +302,10 @@ export function buildShadowOpportunities(inputs, fitsByLeague, { strategyVersion
   return opportunities.sort(compareOpportunities);
 }
 
-// ---------- dc-v2: model-market blend ----------
+// ---------- current version: model-market blend ----------
 
 /**
- * Prices one quote under the dc-v2 blend: (1−w) × market-consensus EV +
+ * Prices one quote under the current blend: (1−w) × market-consensus EV +
  * w × model five-state EV. For h2h the market side is exact; for quarter /
  * integer point lines the book's two-way no-vig price already absorbs push
  * economics, so the market side uses the standard two-way approximation.
@@ -321,8 +331,8 @@ export function blendQuoteEvaluation(dist, marketChance, odds, modelWeight = DC_
 }
 
 /**
- * Builds dc-blend-v1 shadow opportunities: same fixtures and distributions
- * as dc-shadow-v1, but each quote is priced against the model–market blend.
+ * Builds current blend shadow opportunities: same fixtures and distributions
+ * as the scoreline shadow, but each quote is priced against the model–market blend.
  * Groups without a market reference (no complete book) emit empty shells.
  */
 export function buildBlendOpportunities(inputs, fitsByLeague, { modelWeight = DC_BLEND_MODEL_WEIGHT } = {}) {
@@ -432,7 +442,7 @@ function compareOpportunities(left, right) {
 // ---------- fitting from team_match_history ----------
 
 /**
- * Fits one dc-v1 model per requested league code from team_match_history
+ * Fits one versioned scoreline model per requested league code from team_match_history
  * rows (accepts both repository camelCase and raw snake_case rows).
  * Leagues with insufficient data are skipped rather than throwing — shadow
  * mode must never take the unified sampler down.
@@ -472,7 +482,7 @@ export function fitLeagues(historyRows, leagueCodes, refDate, fitOptions = {}) {
 }
 
 /**
- * dc-xg-v1: fits the same leagues on xG (response "xg") and borrows rho
+ * Current xG model: fits the same leagues on xG (response "xg") and borrows rho
  * from the corresponding scoreline fit in `goalsFits` (the xg-rho variant
  * that won the offline comparison). Leagues whose history has too few
  * xG-populated rows are skipped like any other thin-data case.

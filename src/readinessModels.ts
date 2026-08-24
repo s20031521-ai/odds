@@ -12,7 +12,7 @@ export const READINESS_MODELS: Array<{
   { market: "h2h", label: MARKET_LABELS.h2h, modelVersion: "consensus-v1" },
 ];
 
-// dc-v1 影子模型（ADR 0003）：只收集證據，唔會出現喺今日推薦。
+// 影子模型（ADR 0003）：只收集證據，唔會出現喺今日推薦。
 // 獨立於 READINESS_MODELS —— 雷達圖、historyStats 同詳情面板都係按 market
 // 做 key，影子卡如果混入會頂撞正式模型嘅統計。
 export const SHADOW_READINESS_MODELS: Array<{
@@ -20,20 +20,20 @@ export const SHADOW_READINESS_MODELS: Array<{
   label: string;
   modelVersion: string;
 }> = [
-  { market: "h2h", label: `${MARKET_LABELS.h2h} · dc-v1 影子`, modelVersion: "dc-v1" },
-  { market: "totals", label: `${MARKET_LABELS.totals} · dc-v1 影子`, modelVersion: "dc-v1" },
-  { market: "handicap", label: `${MARKET_LABELS.handicap} · dc-v1 影子`, modelVersion: "dc-v1" },
+  { market: "h2h", label: `${MARKET_LABELS.h2h} · dc goals v2 影子`, modelVersion: "dc-goals-v2" },
+  { market: "totals", label: `${MARKET_LABELS.totals} · dc goals v2 影子`, modelVersion: "dc-goals-v2" },
+  { market: "handicap", label: `${MARKET_LABELS.handicap} · dc goals v2 影子`, modelVersion: "dc-goals-v2" },
   // 路線一：sharp-book 加權 + Shin/power 去水嘅共識實驗
   { market: "h2h", label: `${MARKET_LABELS.h2h} · consensus-v2 影子`, modelVersion: "consensus-v2" },
   { market: "totals", label: `${MARKET_LABELS.totals} · sharp 影子`, modelVersion: "totals-sharp-v1" },
   { market: "handicap", label: `${MARKET_LABELS.handicap} · sharp 影子`, modelVersion: "hdc-sharp-v1" },
   { market: "corners", label: `${MARKET_LABELS.corners} · sharp 影子`, modelVersion: "corner-sharp-v1" },
   // 路線二：70% 市場 + 30% dc 模型混合
-  { market: "h2h", label: `${MARKET_LABELS.h2h} · dc-v2 混合影子`, modelVersion: "dc-v2" },
-  { market: "totals", label: `${MARKET_LABELS.totals} · dc-v2 混合影子`, modelVersion: "dc-v2" },
-  { market: "handicap", label: `${MARKET_LABELS.handicap} · dc-v2 混合影子`, modelVersion: "dc-v2" },
-  // 路線三：xG 攻防 + 比分 rho（dc-xg-v1，離線對比贏咗比分版）
-  { market: "h2h", label: `${MARKET_LABELS.h2h} · dc-xg 影子`, modelVersion: "dc-xg-v1" },
-  { market: "totals", label: `${MARKET_LABELS.totals} · dc-xg 影子`, modelVersion: "dc-xg-v1" },
-  { market: "handicap", label: `${MARKET_LABELS.handicap} · dc-xg 影子`, modelVersion: "dc-xg-v1" },
+  { market: "h2h", label: `${MARKET_LABELS.h2h} · dc blend v2 影子`, modelVersion: "dc-blend-v2" },
+  { market: "totals", label: `${MARKET_LABELS.totals} · dc blend v2 影子`, modelVersion: "dc-blend-v2" },
+  { market: "handicap", label: `${MARKET_LABELS.handicap} · dc blend v2 影子`, modelVersion: "dc-blend-v2" },
+  // 路線三：xG 攻防 + 比分 rho
+  { market: "h2h", label: `${MARKET_LABELS.h2h} · dc-xg v2 影子`, modelVersion: "dc-xg-v2" },
+  { market: "totals", label: `${MARKET_LABELS.totals} · dc-xg v2 影子`, modelVersion: "dc-xg-v2" },
+  { market: "handicap", label: `${MARKET_LABELS.handicap} · dc-xg v2 影子`, modelVersion: "dc-xg-v2" },
 ];

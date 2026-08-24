@@ -164,7 +164,7 @@ test("all rows becoming stale before kickoff records an empty observation", asyn
   });
 });
 
-test("sampler records dc-shadow-v1 opportunities without surfacing them as current", async (t) => {
+test("sampler records versioned dc shadow opportunities without surfacing them as current", async (t) => {
   await withDatabase(t, async (pool) => {
     const sink = createPostgresSink({ pool });
     await seedTeamHistory(pool);
@@ -180,10 +180,10 @@ test("sampler records dc-shadow-v1 opportunities without surfacing them as curre
       "SELECT strategy_version, market, prediction, model_version, raw FROM prediction_snapshots WHERE strategy_version <> 'unified-buyable-v1'",
     );
     const strategies = new Set(shadowSamples.rows.map((row) => row.strategy_version));
-    assert.ok(strategies.has("dc-shadow-v1"), "pure-model shadow opportunities are recorded");
-    assert.ok(strategies.has("dc-blend-v1"), "model-market blend opportunities are recorded");
-    const dcShadow = shadowSamples.rows.filter((row) => row.strategy_version === "dc-shadow-v1");
-    assert.ok(dcShadow.every((row) => row.model_version === "dc-v1"));
+    assert.ok(strategies.has("dc-shadow-v2"), "pure-model shadow opportunities are recorded");
+    assert.ok(strategies.has("dc-blend-v2"), "model-market blend opportunities are recorded");
+    const dcShadow = shadowSamples.rows.filter((row) => row.strategy_version === "dc-shadow-v2");
+    assert.ok(dcShadow.every((row) => row.model_version === "dc-goals-v2"));
     const shadowOver = dcShadow.find((row) => row.market === "totals" && row.prediction === "over");
     assert.ok(shadowOver, "a priced shadow totals opportunity exists");
     assert.ok(shadowOver.raw.quotes.length > 0, "the generous over quote qualifies");
@@ -220,7 +220,10 @@ async function seedTeamHistory(pool) {
       const home = teams[(week + pair) % 4];
       const away = teams[(week + pair + 1) % 4];
       const matchDate = `2026-0${week < 4 ? "5" : "6"}-${String(3 + (week % 4) * 7).padStart(2, "0")}`;
-      values.push(`('football-data', 'E0', '2526', '${matchDate}', '${home}', '${away}', ${(week + pair) % 3}, ${(week * pair) % 2})`);
+      // Keep the fixture clearly above the totals qualification boundary even
+      // after the level-preserving fit correction; this test exercises DB
+      // shadow persistence, not a threshold-adjacent probability estimate.
+      values.push(`('football-data', 'E0', '2526', '${matchDate}', '${home}', '${away}', ${1 + (week + pair) % 3}, ${1 + (week * pair) % 2})`);
     }
   }
   await pool.query(`

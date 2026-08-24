@@ -34,10 +34,18 @@ test("the other unified models stay active", () => {
 });
 
 test("shadow experiment strategies never surface as buyable", () => {
-  for (const strategyVersion of ["dc-shadow-v1", "dc-blend-v1", "market-sharp-v1", "dc-xg-shadow-v1"]) {
-    const trust = modelTrust({ strategyVersion, market: "h2h", modelVersion: "dc-v1" });
+  for (const strategyVersion of [
+    "dc-shadow-v2",
+    "dc-blend-v2",
+    "market-sharp-v1",
+    "dc-xg-shadow-v2",
+    "dc-shadow-v1",
+    "dc-blend-v1",
+    "dc-xg-shadow-v1",
+  ]) {
+    const trust = modelTrust({ strategyVersion, market: "h2h", modelVersion: "dc-goals-v2" });
     assert.equal(trust.status, TRUST_SHADOW, strategyVersion);
-    assert.equal(isBuyableTrust({ strategyVersion, market: "h2h", modelVersion: "dc-v1" }), false);
+    assert.equal(isBuyableTrust({ strategyVersion, market: "h2h", modelVersion: "dc-goals-v2" }), false);
   }
 });
 
@@ -59,7 +67,7 @@ test("listSuspensions exposes the suspended corner model for the unified strateg
     reason: "negative-realized-roi",
     message: suspensions[0].message,
   });
-  assert.equal(listSuspensions("dc-shadow-v1").length, 0);
+  assert.equal(listSuspensions("dc-shadow-v2").length, 0);
 });
 
 test("isBuyableTrust gates the suspended corner row only", () => {

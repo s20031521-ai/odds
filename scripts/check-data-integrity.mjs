@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { classifySnapshot } from "../shared/snapshot-policy.mjs";
+import { isGatedStrategyVersion } from "../shared/quote-quality-gate.mjs";
+import { ALL_SHADOW_STRATEGY_VERSIONS } from "../shared/strategy-versions.mjs";
 
 const root = process.cwd();
 const snapshotPath = path.join(root, "data", "prediction-snapshots.jsonl");
@@ -41,15 +43,13 @@ function snapshotKey(item) {
 // not AI recommendations, so post-kick invariants never apply to them.
 const OPPORTUNITY_STRATEGY_VERSIONS = new Set([
   "unified-buyable-v1",
-  "dc-shadow-v1",
-  "dc-blend-v1",
-  "market-sharp-v1",
-  "dc-xg-shadow-v1",
+  ...ALL_SHADOW_STRATEGY_VERSIONS,
 ]);
 const PERSONAL_BET_STRATEGY_VERSION = "personal-bet-v1";
 
 function isOpportunityShaped(item) {
-  return OPPORTUNITY_STRATEGY_VERSIONS.has(item?.strategyVersion);
+  return OPPORTUNITY_STRATEGY_VERSIONS.has(item?.strategyVersion)
+    || isGatedStrategyVersion(item?.strategyVersion);
 }
 
 function isPersonalBet(item) {

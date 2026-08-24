@@ -33,11 +33,11 @@ test("analyzeShadowEvidence counts fresh evidence per strategy and league", () =
   const snapshots = [
     snapshot({ id: 1, fixtureId: "f-epl-1" }),
     snapshot({ id: 2, fixtureId: "f-epl-2" }),
-    snapshot({ id: 3, strategyVersion: "dc-shadow-v1", fixtureId: "f-epl-1" }),
-    snapshot({ id: 4, strategyVersion: "dc-shadow-v1", fixtureId: "f-epl-2" }),
+    snapshot({ id: 3, strategyVersion: "dc-shadow-v2", fixtureId: "f-epl-1" }),
+    snapshot({ id: 4, strategyVersion: "dc-shadow-v2", fixtureId: "f-epl-2" }),
     snapshot({ id: 5, strategyVersion: "market-sharp-v1", fixtureId: "f-epl-1" }),
     // old snapshot — outside the window, must not count as new
-    snapshot({ id: 6, strategyVersion: "dc-shadow-v1", fixtureId: "f-old", firstQualifiedAt: daysAgo(30) }),
+    snapshot({ id: 6, strategyVersion: "dc-shadow-v2", fixtureId: "f-old", firstQualifiedAt: daysAgo(30) }),
     // untracked strategy — ignored entirely
     snapshot({ id: 7, strategyVersion: "corner-loo-v1", fixtureId: "f-corner" }),
   ];
@@ -57,7 +57,7 @@ test("analyzeShadowEvidence counts fresh evidence per strategy and league", () =
   assert.equal(unified.fixturesNew, 2);
   assert.equal(unified.leagues.E0.fixtures, 2);
 
-  const dc = report.strategies.find((s) => s.strategyVersion === "dc-shadow-v1");
+  const dc = report.strategies.find((s) => s.strategyVersion === "dc-shadow-v2");
   assert.equal(dc.snapshotsTotal, 3);
   assert.equal(dc.snapshotsNew, 2);
   assert.equal(dc.observationsTotal, 3);
@@ -74,15 +74,15 @@ test("analyzeShadowEvidence warns when a shadow line stalls and leagues miss the
   const snapshots = [
     snapshot({ id: 1, fixtureId: "f-epl-1" }),
     snapshot({ id: 2, fixtureId: "f-epl-2" }),
-    snapshot({ id: 3, strategyVersion: "dc-shadow-v1", fixtureId: "f-epl-1" }),
+    snapshot({ id: 3, strategyVersion: "dc-shadow-v2", fixtureId: "f-epl-1" }),
   ];
   const observations = [observation(1), observation(2), observation(3)];
   const report = analyzeShadowEvidence({ snapshots, observations, now: NOW, weeklyTarget: 10 });
 
-  assert.ok(report.warnings.some((w) => w.startsWith("dc-blend-v1: no new observations")));
-  assert.ok(report.warnings.some((w) => w.startsWith("dc-xg-shadow-v1: no new observations")));
+  assert.ok(report.warnings.some((w) => w.startsWith("dc-blend-v2: no new observations")));
+  assert.ok(report.warnings.some((w) => w.startsWith("dc-xg-shadow-v2: no new observations")));
   assert.ok(report.warnings.some((w) => w.startsWith("market-sharp-v1: no new observations")));
-  assert.ok(report.warnings.some((w) => w.includes("dc-shadow-v1: E0 has 1 fixtures")));
+  assert.ok(report.warnings.some((w) => w.includes("dc-shadow-v2: E0 has 1 fixtures")));
   // coverage 1/2 = 50% < 80%
   assert.ok(report.warnings.some((w) => w.includes("dc fit coverage 50%")));
 });
@@ -91,7 +91,7 @@ test("analyzeShadowEvidence does not flag leagues the unified strategy never saw
   // Only La Liga activity — E0 must not be flagged as missing target.
   const snapshots = [
     snapshot({ id: 1, fixtureId: "f-sp1-1", league: "La Liga Spain" }),
-    snapshot({ id: 2, strategyVersion: "dc-shadow-v1", fixtureId: "f-sp1-1", league: "La Liga Spain" }),
+    snapshot({ id: 2, strategyVersion: "dc-shadow-v2", fixtureId: "f-sp1-1", league: "La Liga Spain" }),
   ];
   const observations = [observation(1), observation(2)];
   const report = analyzeShadowEvidence({ snapshots, observations, now: NOW, weeklyTarget: 10 });
@@ -187,9 +187,9 @@ test("formatReport renders tables, coverage, collector, and verdict", () => {
 test("TRACKED_STRATEGIES covers unified, dc family, and market-sharp", () => {
   assert.deepEqual(TRACKED_STRATEGIES, [
     "unified-buyable-v1",
-    "dc-shadow-v1",
-    "dc-blend-v1",
-    "dc-xg-shadow-v1",
+    "dc-shadow-v2",
+    "dc-blend-v2",
+    "dc-xg-shadow-v2",
     "market-sharp-v1",
   ]);
 });

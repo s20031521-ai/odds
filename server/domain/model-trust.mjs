@@ -11,6 +11,7 @@
 // thresholds, and historical snapshots are untouched (ADR 0003 / invariants).
 
 import { isGatedStrategyVersion } from "../../shared/quote-quality-gate.mjs";
+import { ALL_SHADOW_STRATEGY_VERSIONS } from "../../shared/strategy-versions.mjs";
 
 export const TRUST_ACTIVE = "active";
 export const TRUST_SHADOW = "shadow";
@@ -19,12 +20,7 @@ export const TRUST_SUSPENDED = "suspended";
 const UNIFIED_STRATEGY_VERSION = "unified-buyable-v1";
 
 // Shadow experiment strategies (ADR 0003): same set as backtest.mjs.
-const SHADOW_STRATEGY_VERSIONS = new Set([
-  "dc-shadow-v1",
-  "dc-blend-v1",
-  "market-sharp-v1",
-  "dc-xg-shadow-v1",
-]);
+const SHADOW_STRATEGIES = new Set(ALL_SHADOW_STRATEGY_VERSIONS);
 
 // Explicit suspensions, approved per the 2026-08-23 validity report:
 // corner-loo-v1 passed the 30-match sample gate but realized ≈ -41.7% ROI
@@ -48,7 +44,7 @@ export function modelTrust({ strategyVersion, market, modelVersion } = {}) {
   if (suspension) {
     return { status: TRUST_SUSPENDED, reason: suspension.reason, message: suspension.message };
   }
-  if (SHADOW_STRATEGY_VERSIONS.has(strategyVersion)) {
+  if (SHADOW_STRATEGIES.has(strategyVersion)) {
     return { status: TRUST_SHADOW, reason: "shadow-strategy", message: "影子模式：只收集證據" };
   }
   // Phase 3 gated shadow A/B twins: evidence-only by construction.

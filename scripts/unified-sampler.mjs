@@ -13,7 +13,7 @@ import {
 } from "../shared/unified-recommendations.mjs";
 import { buildGatedOpportunity, gateContextRows } from "../shared/quote-quality-gate.mjs";
 import { createPool } from "../server/db/pool.mjs";
-import { DC_BLEND_STRATEGY_VERSION, DC_SHADOW_STRATEGY_VERSION, DC_XG_MODEL_VERSION, DC_XG_STRATEGY_VERSION, buildBlendOpportunities, buildShadowOpportunities, fitLeagues, fitLeaguesXg, leagueCodeFromName } from "./lib/dc-shadow.mjs";
+import { DC_BLEND_STRATEGY_VERSION, DC_MODEL_VERSION, DC_SHADOW_STRATEGY_VERSION, DC_XG_MODEL_VERSION, DC_XG_STRATEGY_VERSION, buildBlendOpportunities, buildShadowOpportunities, fitLeagues, fitLeaguesXg, leagueCodeFromName } from "./lib/dc-shadow.mjs";
 import { SHARP_STRATEGY_VERSION, buildSharpOpportunities } from "./lib/market-sharp.mjs";
 import { createPostgresSink } from "./lib/postgres-sink.mjs";
 
@@ -43,7 +43,7 @@ export async function runUnifiedSampler({ sink, now }) {
   });
 }
 
-// dc-v1 shadow mode (ADR 0003): fit one Dixon-Coles model per live league
+// Versioned Dixon-Coles shadow mode (ADR 0003): fit one model per live league
 // from team_match_history. Any failure here must never take the unified
 // sampler down — shadow is evidence-gathering only, so we log and skip.
 async function loadShadowFits(sink, resolvedFixtures, evaluatedAt) {
@@ -228,7 +228,7 @@ function selfTest() {
   assert.equal(fingerprint(first), fingerprint(second));
 
   // dc-shadow (ADR 0003): with a league fit supplied, the same inputs also
-  // produce dc-shadow-v1 opportunities alongside the unified ones; identities
+  // produce versioned dc-shadow opportunities alongside the unified ones; identities
   // never collide because strategyVersion is part of the identity.
   const shadowFit = {
     attack: { Alpha: 0.4, Beta: 0.3 },
@@ -249,7 +249,7 @@ function selfTest() {
     (item) => item.strategyVersion === DC_SHADOW_STRATEGY_VERSION,
   );
   assert.ok(shadowOpportunities.length > 0);
-  assert.ok(shadowOpportunities.every((item) => item.modelVersion === "dc-v1"));
+  assert.ok(shadowOpportunities.every((item) => item.modelVersion === DC_MODEL_VERSION));
   const shadowQuotes = shadowOpportunities.flatMap((item) => item.quotes);
   assert.ok(shadowQuotes.length > 0);
   assert.ok(shadowQuotes.every((quote) => quote.edge >= BUY_EDGE_THRESHOLD));

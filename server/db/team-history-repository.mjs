@@ -1,5 +1,5 @@
 // Read-side repository for team_match_history (migration 006).
-// Used by the dc-v1 shadow pipeline (ADR 0003) to fit per-league models
+// Used by the versioned Dixon-Coles shadow pipeline (ADR 0003) to fit per-league models
 // inside the unified sampler. Writes happen offline via
 // scripts/import-historical-scores.mjs.
 export function createTeamHistoryRepository(pool) {

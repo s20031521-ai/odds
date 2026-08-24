@@ -355,7 +355,7 @@ test("unresolved unified opportunities become terminal seven days after the curr
   assert.equal(terminal.readiness.length, 0, "unsettleable opportunities never count toward readiness");
 });
 
-test("dc-shadow opportunities settle and report readiness under their own strategy", () => {
+test("dc-shadow opportunities settle and report readiness under their versioned strategy", () => {
   const snapshots = [
     shadowOpportunity({ sampleId: 31, fixtureId: "fixture-1", market: "totals", selection: "over", line: 2.5 }),
     shadowOpportunity({ sampleId: 32, fixtureId: "fixture-1", market: "h2h", selection: "home", line: undefined }),
@@ -367,9 +367,9 @@ test("dc-shadow opportunities settle and report readiness under their own strate
     { fixtureId: "fixture-1", matchId: "provider-fixture-1", market: "h2h", actual: "2-1" },
   ], NOW);
 
-  const shadowRows = response.rows.filter((row) => row.strategyVersion === "dc-shadow-v1");
+  const shadowRows = response.rows.filter((row) => row.strategyVersion === "dc-shadow-v2");
   assert.deepEqual(shadowRows.map((row) => [row.sampleId, row.settlement]), [[31, "win"], [32, "win"]]);
-  assert.equal(shadowRows[0].modelVersion, "dc-v1");
+  assert.equal(shadowRows[0].modelVersion, "dc-goals-v2");
 
   const summary = response.summary;
   assert.equal(summary.finished, 1, "headline performance stays unified-only");
@@ -379,17 +379,17 @@ test("dc-shadow opportunities settle and report readiness under their own strate
     "unified readiness is unchanged",
   );
 
-  const shadowReadiness = response.readiness.filter((row) => row.strategyVersion === "dc-shadow-v1");
+  const shadowReadiness = response.readiness.filter((row) => row.strategyVersion === "dc-shadow-v2");
   assert.equal(shadowReadiness.length, 2, "shadow readiness is reported per market");
   const totals = shadowReadiness.find((row) => row.market === "totals");
-  assert.equal(totals.modelVersion, "dc-v1");
+  assert.equal(totals.modelVersion, "dc-goals-v2");
   assert.equal(totals.settled, 1);
   assert.equal(totals.pending, 1, "the future fixture counts as pending");
   assert.equal(totals.upcoming, 1);
   const h2h = shadowReadiness.find((row) => row.market === "h2h");
   assert.equal(h2h.settled, 1);
 
-  const pendingShadow = response.pending.filter((row) => row.strategyVersion === "dc-shadow-v1");
+  const pendingShadow = response.pending.filter((row) => row.strategyVersion === "dc-shadow-v2");
   assert.deepEqual(pendingShadow.map((row) => [row.sampleId, row.status]), [[33, "upcoming"]]);
 });
 
@@ -402,7 +402,7 @@ test("every shadow strategy family settles and reports readiness separately", ()
     }),
     shadowOpportunity({
       sampleId: 43, fixtureId: "fixture-1", market: "totals", selection: "over", line: 2.5,
-      strategyVersion: "dc-blend-v1", modelVersion: "dc-v2",
+      strategyVersion: "dc-blend-v2", modelVersion: "dc-blend-v2",
     }),
     unifiedOpportunity({ sampleId: 1, fixtureId: "fixture-1", selection: "over", line: 2.5 }),
   ];
@@ -411,9 +411,9 @@ test("every shadow strategy family settles and reports readiness separately", ()
   ], NOW);
 
   for (const [strategyVersion, modelVersion] of [
-    ["dc-shadow-v1", "dc-v1"],
+    ["dc-shadow-v2", "dc-goals-v2"],
     ["market-sharp-v1", "totals-sharp-v1"],
-    ["dc-blend-v1", "dc-v2"],
+    ["dc-blend-v2", "dc-blend-v2"],
   ]) {
     const rows = response.rows.filter((row) => row.strategyVersion === strategyVersion);
     assert.deepEqual(rows.map((row) => row.settlement), ["win"], `${strategyVersion} settles`);
@@ -448,8 +448,8 @@ function unifiedOpportunity(overrides = {}) {
 
 function shadowOpportunity(overrides = {}) {
   return unifiedOpportunity({
-    modelVersion: "dc-v1",
-    strategyVersion: "dc-shadow-v1",
+    modelVersion: "dc-goals-v2",
+    strategyVersion: "dc-shadow-v2",
     ...overrides,
   });
 }

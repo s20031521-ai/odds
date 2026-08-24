@@ -22,8 +22,10 @@ import {
   isValidDecimalOdds,
   minimumBuyOdds,
 } from "../../shared/unified-recommendations.mjs";
+import { powerNoVigTwoWayOdds, shinNoVigThreeWay } from "../../shared/devig.mjs";
+import { SHARP_STRATEGY_VERSION } from "../../shared/strategy-versions.mjs";
 
-export const SHARP_STRATEGY_VERSION = "market-sharp-v1";
+export { SHARP_STRATEGY_VERSION };
 export const SHARP_MODEL_VERSIONS = {
   h2h: "consensus-v2",
   totals: "totals-sharp-v1",
@@ -82,51 +84,14 @@ export function bookmakerWeight(bookmaker) {
 // so the root is bracketed and bisection is safe.
 export function shinProbabilities(odds) {
   if (!odds || ![odds.home, odds.draw, odds.away].every(isValidDecimalOdds)) return null;
-  const implied = [1 / odds.home, 1 / odds.draw, 1 / odds.away];
-  const overround = implied.reduce((sum, q) => sum + q, 0);
-  const proportional = () => {
-    const fair = implied.map((q) => q / overround);
-    return { home: fair[0], draw: fair[1], away: fair[2] };
-  };
-  if (overround <= 1) return proportional(); // no margin: proportional is exact
-
-  const sumAt = (z) => implied.reduce((sum, q) => sum + (
-    (Math.sqrt(z * z + (4 * (1 - z) * q * q) / overround) - z) / (2 * (1 - z))
-  ), 0);
-  if (!(sumAt(0) > 1) || !(sumAt(0.999) < 1)) return proportional();
-
-  let low = 0;
-  let high = 0.999;
-  for (let iteration = 0; iteration < 60; iteration += 1) {
-    const mid = (low + high) / 2;
-    if (sumAt(mid) > 1) low = mid;
-    else high = mid;
-  }
-  const z = (low + high) / 2;
-  const fair = implied.map((q) => (
-    (Math.sqrt(z * z + (4 * (1 - z) * q * q) / overround) - z) / (2 * (1 - z))
-  ));
+  const fair = shinNoVigThreeWay([odds.home, odds.draw, odds.away]);
   return { home: fair[0], draw: fair[1], away: fair[2] };
 }
 
 // Power de-vig for two-way markets: find k ∈ (0, 1] with q1^(1/k) + q2^(1/k) = 1.
 // (Overround > 1 needs k < 1: q^(1/k) < q then, deflating both sides.)
 export function powerNoVigTwoWay(oddsA, oddsB) {
-  if (!isValidDecimalOdds(oddsA) || !isValidDecimalOdds(oddsB)) return null;
-  const qA = 1 / oddsA;
-  const qB = 1 / oddsB;
-  if (qA + qB <= 1) return [qA / (qA + qB), qB / (qA + qB)];
-  // sumAt(1) > 1; sumAt(k) → 0 as k → 0+. Bracket and bisect.
-  const sumAt = (k) => qA ** (1 / k) + qB ** (1 / k);
-  let low = 1e-9;
-  let high = 1;
-  for (let iteration = 0; iteration < 80; iteration += 1) {
-    const mid = (low + high) / 2;
-    if (sumAt(mid) > 1) high = mid;
-    else low = mid;
-  }
-  const k = (low + high) / 2;
-  return [qA ** (1 / k), qB ** (1 / k)];
+  return powerNoVigTwoWayOdds(oddsA, oddsB);
 }
 
 // ---------- opportunity building ----------
@@ -269,7 +234,7 @@ function completeBooks(rows, selections) {
  * Full sharp-weighted consensus chance for one selection within a group of
  * rows sharing (fixture, market, line). Unlike the LOO chances used for the
  * strategy's own quotes, this includes every complete book — it is the
- * market reference that dc-v2 blends against. Returns null without at least
+ * market reference that the current blend uses. Returns null without at least
  * one complete book.
  */
 export function marketReferenceChance(rows, market, selection) {

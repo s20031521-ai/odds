@@ -21,10 +21,14 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { leagueCodeFromName } from "./lib/dc-shadow.mjs";
+import {
+  DC_FAMILY_STRATEGY_VERSIONS,
+  SHARP_STRATEGY_VERSION,
+} from "../shared/strategy-versions.mjs";
 
 export const UNIFIED_STRATEGY = "unified-buyable-v1";
-export const DC_FAMILY_STRATEGIES = ["dc-shadow-v1", "dc-blend-v1", "dc-xg-shadow-v1"];
-export const SHARP_STRATEGY = "market-sharp-v1";
+export const DC_FAMILY_STRATEGIES = [...DC_FAMILY_STRATEGY_VERSIONS];
+export const SHARP_STRATEGY = SHARP_STRATEGY_VERSION;
 export const TRACKED_STRATEGIES = [
   UNIFIED_STRATEGY,
   ...DC_FAMILY_STRATEGIES,
